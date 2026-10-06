@@ -1,0 +1,125 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+# Bypass sccache in CI.
+env:
+  CARGO_BUILD_RUSTC_WRAPPER: ""
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+# Never run two releases at once, and never cancel one in flight: a half-done
+# publish is the worst outcome.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Is the tag coherent? Cheap checks first, so a typo fails in seconds.
+  # ---------------------------------------------------------------------------
+  meta:
+    name: verify tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Derive version from tag
+        id: v
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # A semver prerelease has a hyphen after the patch component.
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Releasing $version"
+
+      - name: Tag matches Cargo.toml
+        run: |
+          version='${{ steps.v.outputs.version }}'
+          crate="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
+          if [ "$crate" != "$version" ]; then
+            echo "::error::tag v$version does not match Cargo.toml version $crate"
+            exit 1
+          fi
+
+      - name: CHANGELOG has a section for this version
+        run: |
+          version='${{ steps.v.outputs.version }}'
+          if ! grep -qF "## [$version]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$version]' section."
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 2. The same gate CI runs. Releases are rare; pay for the full signal.
+  # ---------------------------------------------------------------------------
+  checks:
+    needs: meta
+    uses: ./.github/workflows/checks.yml
+
+  # ---------------------------------------------------------------------------
+  # 3. Publish to crates.io.
+  # ---------------------------------------------------------------------------
+  publish:
+    name: publish
+    needs: [meta, checks]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the pinned toolchain
+        run: rustup toolchain install --profile minimal
+
+      - name: Publish
+        run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # 4. GitHub Release with the changelog section as its notes.
+  # ---------------------------------------------------------------------------
+  github-release:
+    name: github release
+    needs: [meta, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract release notes from CHANGELOG
+        run: |
+          # The section for this version, up to the next "## " heading or the
+          # trailing link-reference definitions.
+          mkdir -p dist
+          awk -v ver="## [$VERSION]" '
+            index($0, ver) == 1 { found = 1; next }
+            found && /^## / { exit }
+            found && /^\[[^]]+\]: / { exit }
+            found { print }
+          ' CHANGELOG.md > dist/notes.md
+          if [ ! -s dist/notes.md ]; then
+            echo "::error::no release notes found for $VERSION in CHANGELOG.md"
+            exit 1
+          fi
+          cat dist/notes.md
+
+      - name: Create the release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: v${{ env.VERSION }}
+          body_path: dist/notes.md
+          prerelease: ${{ needs.meta.outputs.prerelease == 'true' }}

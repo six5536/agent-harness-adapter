@@ -1,0 +1,22 @@
+/target
+**/*.rs.bk
+/.vs
+/.idea
+/.vscode/mise-tools
+/.DS_Store
+/.playwright-mcp
+
+# Left by older devcontainers that mounted a volume here; the project uses no npm.
+/node_modules/
+
+# Local checkouts of the private consumers (scripts/validate-consumers.sh).
+/consumers/
+
+/.cache/
+*.local.json
+.mise.local.toml
+
+# Coverage artifacts (cargo-llvm-cov)
+/target/llvm-cov
+/target/llvm-cov-target
+*.profraw

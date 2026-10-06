@@ -1,0 +1,41 @@
+{
+  "editor.insertSpaces": true,
+  "editor.formatOnSave": true,
+  "files.eol": "\n",
+  "files.autoSave": "onFocusChange",
+  "files.trimTrailingWhitespace": true,
+  "rust-analyzer.restartServerOnConfigChange": true,
+  "rust-analyzer.showSyntaxTree": false,
+  "rust-analyzer.testExplorer": true,
+  "rust-analyzer.debug.buildBeforeRestart": true,
+  "rust-analyzer.diagnostics.styleLints.enable": true,
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.cargo.targetDir": true,
+  "mise.configureExtensionsUseSymLinks": true,
+  "python.defaultInterpreterPath": "${workspaceFolder}/.vscode/mise-tools/python",
+  "chat.tools.terminal.autoApprove": {
+    "cargo clippy": true,
+    "cargo bench": true,
+    "cargo search": true,
+    "cargo info": true,
+    "tee": true,
+    "cargo check": true,
+    "uniq": true,
+    "cargo fmt": true,
+    "cargo update": true,
+    "cargo build": true,
+    "cargo doc": true,
+    "true": true,
+    "cargo tree": true,
+    "cargo test": true,
+    "cargo nextest": true,
+    "cargo run": true
+  },
+  "search.exclude": {
+    "**/target": true
+  },
+  "files.watcherExclude": {
+    "**/target/**": true,
+    "**/target/rust-analyzer/**": true
+  }
+}

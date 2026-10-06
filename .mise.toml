@@ -1,0 +1,16 @@
+[tools]
+node = "26"
+
+python = '3.14'
+# 1.98 is the development toolchain; 1.85 is the MSRV (Cargo.toml
+# rust-version, checked in CI); nightly is used only by coverage
+# (cargo +nightly llvm-cov), which needs `coverage(off)` markers.
+rust = ['1.98', '1.85', 'nightly']
+sccache = '0.18'
+cargo-binstall = "1.24.0"
+
+"npm:@anthropic-ai/claude-code" = { version = "latest", npm_args = "--ignore-scripts=false" }
+"github:rtk-ai/rtk" = "0.50.0"
+
+"cargo:cargo-nextest" = "0.9.146"
+"cargo:cargo-llvm-cov" = "0.9.1"
