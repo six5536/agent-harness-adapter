@@ -100,7 +100,9 @@ pub struct PartResult {
     pub state: State,
     /// What `install` did; `None` when the part was left as found, and
     /// always for `status`. Left out of the JSON when `None`.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // `default` tells schemars the key is optional; serialisation leaves it
+    // out when `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(with = "Action"))]
     pub action: Option<Action>,
     /// The part's path relative to the root, `/`-separated; an external
@@ -436,9 +438,15 @@ mod tests {
         assert!(required.contains(&&serde_json::json!("state")));
         assert!(!required.contains(&&serde_json::json!("action")));
         // `action` is left out when absent, never `null`.
-        assert!(!part["properties"]["action"].to_string().contains("null"), "{part}");
+        assert!(
+            !part["properties"]["action"].to_string().contains("null"),
+            "{part}"
+        );
         let text = schema.to_string();
-        assert!(!text.contains("[`"), "rustdoc links leak into the schema: {text}");
+        assert!(
+            !text.contains("[`"),
+            "rustdoc links leak into the schema: {text}"
+        );
         let state = schema["$defs"]["State"].to_string();
         for word in ["skipped", "absent", "current", "stale", "edited"] {
             assert!(state.contains(&format!("\"{word}\"")), "{state}");
