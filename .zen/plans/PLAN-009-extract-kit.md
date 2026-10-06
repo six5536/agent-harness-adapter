@@ -2,7 +2,7 @@
 
 | Meta               | Value                                                                 |
 | ------------------ | --------------------------------------------------------------------- |
-| Status             | in progress: P1–P5 done locally (2026-10-06); P6–P9 need the user         |
+| Status             | in progress: P1–P6 done (2026-10-06; CI green on GitHub); P7–P9 next    |
 | Workflow direction | top-down from a mechanical baseline (restructure → architecture → requirements → design → code → docs → release) |
 | Traces to          | smllm ARCHITECTURE (agent-harness-kit component), HOST-10, HOST-11, HOST-Claude, CLI conventions, NFR-4, NFR-6, CFG-Findings |
 
