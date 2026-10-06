@@ -18,7 +18,7 @@ mod write;
 
 pub use declined::{DeclinedStore, TomlDeclined};
 pub use install::{Action, HarnessResult, InstallOptions, PartResult, install, status};
-pub use merge::MergeOp;
+pub use merge::{EntryMatch, MergeOp};
 pub use part::{ChooseFile, ExternalPart, Part, Profile};
 pub use region::Markers;
 pub use state::State;

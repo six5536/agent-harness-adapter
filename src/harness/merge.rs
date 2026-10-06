@@ -30,9 +30,31 @@ enum Op {
         path: Vec<String>,
         entries: String,
         field: String,
-        prefix: String,
+        owned: EntryMatch,
         group: Value,
     },
+}
+
+/// Which entries of a group are the tool's: those whose owning field
+/// matches. See [`MergeOp::group_entry`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum EntryMatch {
+    /// The field starts with the text, e.g. `mytool harness hook `.
+    Prefix(String),
+    /// The field contains the text, e.g. ` harness hook `, for a tool whose
+    /// program users may rename or call by path.
+    Contains(String),
+}
+
+impl EntryMatch {
+    /// Whether `text` matches.
+    pub fn matches(&self, text: &str) -> bool {
+        match self {
+            EntryMatch::Prefix(p) => text.starts_with(p.as_str()),
+            EntryMatch::Contains(c) => text.contains(c.as_str()),
+        }
+    }
 }
 
 fn segments<P: IntoIterator<Item = S>, S: Into<String>>(path: P) -> Vec<String> {
@@ -70,7 +92,7 @@ impl MergeOp {
 
     /// The tool's entries in the groups of the array at `path`. Each group is
     /// an object holding its entries as an array under `entries`; an entry is
-    /// the tool's when its member `field` is a string starting with `prefix`.
+    /// the tool's when its member `field` is a string that `owned` matches.
     /// The tool owns those entries, not the group they sit in: they replace
     /// the tool's entries in the first group that has one (the user's entries
     /// and the group's other keys stay), or `group` (an object with the
@@ -79,14 +101,14 @@ impl MergeOp {
         path: P,
         entries: impl Into<String>,
         field: impl Into<String>,
-        prefix: impl Into<String>,
+        owned: EntryMatch,
         group: impl Into<Value>,
     ) -> Self {
         MergeOp(Op::GroupEntry {
             path: segments(path),
             entries: entries.into(),
             field: field.into(),
-            prefix: prefix.into(),
+            owned,
             group: group.into(),
         })
     }
@@ -133,16 +155,16 @@ fn get<'a>(doc: &'a Value, path: &[String]) -> Option<&'a Value> {
     path.iter().try_fold(doc, |v, k| v.as_object()?.get(k))
 }
 
-/// Whether an entry is the tool's: its `field` starts with the prefix.
-fn is_tool_entry(entry: &Value, field: &str, prefix: &str) -> bool {
-    entry[field].as_str().is_some_and(|c| c.starts_with(prefix))
+/// Whether an entry is the tool's: its `field` matches.
+fn is_tool_entry(entry: &Value, field: &str, owned: &EntryMatch) -> bool {
+    entry[field].as_str().is_some_and(|c| owned.matches(c))
 }
 
 /// Whether a group holds one of the tool's entries.
-fn has_tool_entry(group: &Value, entries: &str, field: &str, prefix: &str) -> bool {
+fn has_tool_entry(group: &Value, entries: &str, field: &str, owned: &EntryMatch) -> bool {
     group[entries]
         .as_array()
-        .is_some_and(|es| es.iter().any(|e| is_tool_entry(e, field, prefix)))
+        .is_some_and(|es| es.iter().any(|e| is_tool_entry(e, field, owned)))
 }
 
 /// The tool's entry of `op` as found in `doc`; `None` when it is not there.
@@ -158,7 +180,7 @@ pub(crate) fn extract(doc: &Value, op: &MergeOp) -> Option<Value> {
             path,
             entries,
             field,
-            prefix,
+            owned,
             ..
         } => {
             // Only the tool's entries: the user's entries and keys beside
@@ -166,11 +188,11 @@ pub(crate) fn extract(doc: &Value, op: &MergeOp) -> Option<Value> {
             let group = get(doc, path)?
                 .as_array()?
                 .iter()
-                .find(|g| has_tool_entry(g, entries, field, prefix))?;
+                .find(|g| has_tool_entry(g, entries, field, owned))?;
             let ours: Vec<Value> = group[entries.as_str()]
                 .as_array()?
                 .iter()
-                .filter(|e| is_tool_entry(e, field, prefix))
+                .filter(|e| is_tool_entry(e, field, owned))
                 .cloned()
                 .collect();
             let mut out = Map::new();
@@ -234,22 +256,22 @@ fn apply(doc: &mut Value, op: &MergeOp, display: &str) -> Result<()> {
             path,
             entries,
             field,
-            prefix,
+            owned,
             group,
         } => {
             let groups = array_at(doc, path, display)?;
             match groups
                 .iter_mut()
-                .find(|g| has_tool_entry(g, entries, field, prefix))
+                .find(|g| has_tool_entry(g, entries, field, owned))
                 .and_then(|g| g[entries.as_str()].as_array_mut())
             {
                 Some(es) => {
                     // The tool's entries go where its first one was.
                     let at = es
                         .iter()
-                        .position(|e| is_tool_entry(e, field, prefix))
+                        .position(|e| is_tool_entry(e, field, owned))
                         .unwrap_or(es.len());
-                    es.retain(|e| !is_tool_entry(e, field, prefix));
+                    es.retain(|e| !is_tool_entry(e, field, owned));
                     let ours = group[entries.as_str()]
                         .as_array()
                         .cloned()
@@ -318,7 +340,7 @@ mod tests {
             ["hooks", event],
             "hooks",
             "command",
-            PREFIX,
+            EntryMatch::Prefix(PREFIX.into()),
             json!({ "hooks": [{ "type": "command", "command": command }] }),
         )
     }
@@ -365,7 +387,7 @@ mod tests {
                 path,
                 entries,
                 field,
-                prefix,
+                owned,
                 ..
             } => {
                 let Some(groups) = get_mut(doc, path).and_then(Value::as_array_mut) else {
@@ -373,7 +395,7 @@ mod tests {
                 };
                 for g in groups.iter_mut() {
                     if let Some(es) = g[entries.as_str()].as_array_mut() {
-                        es.retain(|e| !is_tool_entry(e, field, prefix));
+                        es.retain(|e| !is_tool_entry(e, field, owned));
                     }
                 }
                 groups.retain(|g| g[entries.as_str()].as_array().is_none_or(|e| !e.is_empty()));
@@ -460,6 +482,44 @@ mod tests {
             }])
         );
         assert_eq!(extract(&doc, op).as_ref(), Some(op.value()));
+    }
+
+    // A tool whose program users may rename owns its entries by a text they
+    // contain: a hook edited to another binary is the tool's, and edited.
+    // @zen-test: KIT-2_AC-3
+    #[test]
+    fn entries_owned_by_contained_text() {
+        let op = MergeOp::group_entry(
+            ["hooks", "Stop"],
+            "hooks",
+            "command",
+            EntryMatch::Contains(" harness hook ".into()),
+            json!({ "hooks": [{ "type": "command", "command": "tool harness hook claude stop" }] }),
+        );
+        let doc = json!({"hooks": {"Stop": [{"hooks": [
+            { "type": "command", "command": "/opt/bin/tool2 harness hook claude stop" },
+            { "type": "command", "command": "echo hi" }
+        ]}]}});
+        let found = extract(&doc, &op).unwrap();
+        assert_eq!(
+            found,
+            json!({ "hooks": [{ "type": "command", "command": "/opt/bin/tool2 harness hook claude stop" }] })
+        );
+        assert_ne!(&found, op.value());
+        let mut out = doc.clone();
+        apply(&mut out, &op, P).unwrap();
+        assert_eq!(
+            out["hooks"]["Stop"][0]["hooks"],
+            json!([
+                { "type": "command", "command": "tool harness hook claude stop" },
+                { "type": "command", "command": "echo hi" }
+            ])
+        );
+        assert!(
+            EntryMatch::Prefix("a".into()).matches("ab")
+                && !EntryMatch::Prefix("b".into()).matches("ab")
+        );
+        assert!(EntryMatch::Contains("b".into()).matches("abc"));
     }
 
     // @zen-test: KIT-10_AC-1

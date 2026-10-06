@@ -11,6 +11,7 @@ use crate::{
 };
 
 /// Where a harness integration is installed.
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]

@@ -60,6 +60,8 @@ src/
 - OPAQUE PARTS AND OPS: `Part` and `MergeOp` wrap private enums built by constructors, so invalid combinations (a merge into a chosen region file, an external part's ignored target) cannot be expressed and new kinds are additive. Alternatives: public enums with `#[non_exhaustive]`
 - CHOSEN REGION FILE: a region's file may be chosen by a `fn(&Path) -> Result<String>` at install time; the `claude` module supplies its instructions rule this way. Alternatives: a `Target::Instructions` known to the core (ties the core to Claude Code)
 - GROUP ENTRY: the core's group operation is generic (array path, entries key, owning field, prefix); `claude::hook_command` fixes it to `hooks.<event>`, `hooks`, `command`. Alternatives: a Claude-shaped `HookGroup` in the core
+- ENTRY MATCH: a group entry is owned by a prefix or by contained text (`EntryMatch`), as data so `MergeOp` stays comparable; a tool that lets users rename its program needs the second. The tool owns its entries, never the whole group, so a user's hooks in the same group survive. Alternatives: a `fn(&str) -> bool` (not comparable or printable)
+- OPTIONAL SCHEMA: feature `schemars` derives `JsonSchema` on the serialised results (`HarnessResult`, `PartResult`, `State`, `Action`, `Scope`, `Finding`, `Severity`) for tools that publish a schema of their JSON output. Alternatives: none in the kit (every tool re-declares the shapes)
 - TYPED RESULTS: `PartResult` carries `State` and `Option<Action>` instead of one word; the word is derived. Alternatives: one enum mixing states and actions (allows nonsense)
 - STRUCTURED ERRORS: one `Error` variant per refusal kind, messages unchanged. Alternatives: one string variant
 - NO UNINSTALL: the unused unmerge code goes (REQ out of scope)
@@ -135,20 +137,24 @@ impl MergeOp {
     pub fn array_entry<P: IntoIterator<Item = S>, S: Into<String>>(path: P, value: impl Into<Value>) -> Self;
     pub fn object_member<P: IntoIterator<Item = S>, S: Into<String>>(path: P, key: impl Into<String>, value: impl Into<Value>) -> Self;
     /// The groups array at `path`; each group's entries under `entries`;
-    /// an entry is the tool's when its `field` is a string starting with `prefix`.
+    /// an entry is the tool's when its `field` is a string `owned` matches.
     pub fn group_entry<P: IntoIterator<Item = S>, S: Into<String>>(
         path: P, entries: impl Into<String>, field: impl Into<String>,
-        prefix: impl Into<String>, group: impl Into<Value>,
+        owned: EntryMatch, group: impl Into<Value>,
     ) -> Self;
     pub fn value(&self) -> &Value;
 }
+
+#[non_exhaustive]
+pub enum EntryMatch { Prefix(String), Contains(String) }   // Debug, Clone, PartialEq, Eq
+impl EntryMatch { pub fn matches(&self, text: &str) -> bool; }
 ```
 
 ### KIT-Region
 
-`Markers` locates the region on LF-normalised lines (the first closing marker with an opening marker before it, the nearest such opening), and renders by splicing the framed block (`open`, blank line, block, `close`) into the lines, appending after one blank line, or writing it alone; CRLF files are re-joined with CRLF; equal text means no write.
+`Markers` locates the region on LF-normalised lines (the first closing marker with an opening marker before it, the nearest such opening), and renders by splicing the framed block (`open`, a blank line unless the block is empty, block, `close`) into the lines; `find` drops only that one blank line, so `find(render(b)) == b` for any LF block with a final newline; appending after one blank line, or writing it alone; CRLF files are re-joined with CRLF; equal text means no write.
 
-IMPLEMENTS: KIT-9_AC-1, KIT-9_AC-2, KIT-9_AC-3
+IMPLEMENTS: KIT-9_AC-1, KIT-9_AC-2, KIT-9_AC-3, KIT-9_AC-4
 
 ```rust
 pub struct Markers { /* private */ }
@@ -193,7 +199,7 @@ impl TomlDeclined { pub fn new(path: impl Into<PathBuf>, display: impl Into<Stri
 
 ### KIT-Claude
 
-Claude Code's formats. `instructions` builds `Part::region_chosen` with `instructions_file`; `hook_command` builds `MergeOp::group_entry(["hooks", event], "hooks", "command", prefix, {"hooks":[{"type":"command","command":…}]})`. `HookInput::parse` is `serde_json::from_str` (serde_json is 1.x). `emit` writes the answer or the failure and returns the exit code.
+Claude Code's formats. `instructions` builds `Part::region_chosen` with `instructions_file`; `hook_command` builds `MergeOp::group_entry(["hooks", event], "hooks", "command", owned, {"hooks":[{"type":"command","command":…}]})`; a tool whose program name users may change owns its hooks by `EntryMatch::Contains(" harness hook ")`, say. `HookInput::parse` is `serde_json::from_str` (serde_json is 1.x). `emit` writes the answer or the failure and returns the exit code.
 
 IMPLEMENTS: KIT-11_AC-1, KIT-11_AC-2, KIT-11_AC-3, KIT-11_AC-4, KIT-11_AC-5
 
@@ -213,7 +219,7 @@ impl Answer { pub fn to_json(&self) -> String; pub fn stderr(&self) -> Option<&s
 pub fn emit<E: Display>(result: Result<Answer, E>, stdout: &mut impl Write, stderr: &mut impl Write) -> io::Result<u8>;
 pub fn instructions_file(root: &Path) -> Result<&'static str>;
 pub fn instructions(name: impl Into<String>, block: impl Into<String>) -> Part;
-pub fn hook_command(event: &str, prefix: &str, command: &str) -> MergeOp;
+pub fn hook_command(event: &str, owned: EntryMatch, command: &str) -> MergeOp;
 ```
 
 ### KIT-LoopGuard
@@ -322,8 +328,8 @@ TOML at the store's path
 
 ## Correctness Properties
 
-- KIT_P-1 [Region isolation]: rendering a block changes nothing outside the region, and the rendered file's region is the block; rendering again changes nothing
-  VALIDATES: KIT-9_AC-1, KIT-9_AC-2, KIT-9_AC-3
+- KIT_P-1 [Region isolation]: rendering a block changes nothing outside the region, and the rendered file's region is the block exactly (leading blank lines included); rendering again changes nothing
+  VALIDATES: KIT-9_AC-1, KIT-9_AC-2, KIT-9_AC-3, KIT-9_AC-4
 - KIT_P-2 [Merge keeps the rest]: after a merge, every op's value is present, the other entries equal the original, key order and indent and trailing newline are kept, and merging again changes nothing
   VALIDATES: KIT-10_AC-1, KIT-10_AC-3
 - KIT_P-3 [States partition]: every part gets exactly the state its definition gives
@@ -403,6 +409,7 @@ SOURCE: .zen/specs/REQ-KIT-harness-kit.md
 - KIT-9_AC-1 → KIT-Region (KIT_P-1)
 - KIT-9_AC-2 → KIT-Region (KIT_P-1)
 - KIT-9_AC-3 → KIT-Region (KIT_P-1)
+- KIT-9_AC-4 → KIT-Region (KIT_P-1)
 - KIT-10_AC-1 → KIT-Merge (KIT_P-2)
 - KIT-10_AC-2 → KIT-Merge
 - KIT-10_AC-3 → KIT-Merge (KIT_P-2)
@@ -437,7 +444,8 @@ SOURCE: .zen/specs/REQ-KIT-harness-kit.md
 - serde (1): derives for hook input, results, findings
 - serde_json (1): JSON parse, edit and write
 - toml_edit (0): record and declined parts (internal only)
+- schemars (1, optional feature `schemars`): `JsonSchema` derives
 
 ## Change Log
 
-- 0.1.0 (2026-10-06): Initial design for the 0.1.0 API (PLAN-009)
+- 0.1.0 (2026-10-06): Initial design for the 0.1.0 API (PLAN-009); `EntryMatch`, exact region round trip, `schemars` feature from the sokf port (D9-20)

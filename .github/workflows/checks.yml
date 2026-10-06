@@ -48,17 +48,17 @@ jobs:
 
       - name: Clippy
         if: runner.os != 'Windows'
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
 
       - name: Test
-        run: cargo nextest run --locked
+        run: cargo nextest run --all-features --locked
 
       - name: Doctests
-        run: cargo test --doc --locked
+        run: cargo test --doc --all-features --locked
 
       - name: Docs (warnings as errors)
         if: runner.os != 'Windows'
-        run: cargo doc --no-deps --locked
+        run: cargo doc --no-deps --all-features --locked
         env:
           RUSTDOCFLAGS: -D warnings
 
@@ -84,7 +84,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Check on the MSRV
-        run: cargo +${{ steps.msrv.outputs.version }} check --locked --all-targets
+        run: cargo +${{ steps.msrv.outputs.version }} check --locked --all-targets --all-features
 
   coverage:
     # Runs the full test suite on ubuntu under instrumentation and enforces the
@@ -106,7 +106,7 @@ jobs:
           tool: cargo-llvm-cov,cargo-nextest
 
       - name: Coverage gate (line >= 90%)
-        run: cargo +nightly llvm-cov nextest --locked --fail-under-lines 90
+        run: cargo +nightly llvm-cov nextest --all-features --locked --fail-under-lines 90
 
   deny:
     # Deterministic supply-chain checks only: these fail when *we* change

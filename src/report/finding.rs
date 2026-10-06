@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// How a finding is reported.
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
@@ -29,6 +30,7 @@ impl Severity {
 /// One line of the report. Built with [`Finding::error`], [`Finding::warning`]
 /// or [`Finding::info`], then [`Finding::line`] and [`Finding::authority`].
 // @zen-impl: KIT-13_AC-1
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Finding {

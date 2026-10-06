@@ -50,31 +50,34 @@ impl Markers {
             })
     }
 
-    /// The block with its markers, LF, a blank line after the opening
-    /// marker.
+    /// The block with its markers, LF; a blank line after the opening
+    /// marker when the block is not empty, so the file reads as Markdown.
     fn framed(&self, block: &str) -> String {
-        let mut body = strip_leading_blank_lines(&normalise(block));
+        let mut body = normalise(block);
         if !body.is_empty() && !body.ends_with('\n') {
             body.push('\n');
         }
-        format!("{}\n\n{body}{}\n", self.open, self.close)
+        let gap = if body.is_empty() { "" } else { "\n" };
+        format!("{}\n{gap}{body}{}\n", self.open, self.close)
     }
 
-    /// The block between the markers in `text`, LF, without the blank lines
-    /// that open it and with its trailing newline; `None` when the markers
-    /// are absent.
+    /// The block between the markers in `text`, LF, with its trailing
+    /// newline; `None` when the markers are absent. The one blank line after
+    /// the opening marker belongs to the markers, not the block, so a block
+    /// reads back exactly as [`render`](Markers::render) wrote it.
+    // @zen-impl: KIT-9_AC-4
     pub fn find(&self, text: &str) -> Option<String> {
         let text = normalise(text);
         let lines: Vec<&str> = text.split('\n').collect();
         let (open, close) = self.locate(&lines)?;
-        let inner = &lines[open + 1..close];
+        let mut inner = &lines[open + 1..close];
+        if inner.first().is_some_and(|l| l.trim().is_empty()) {
+            inner = &inner[1..];
+        }
         if inner.is_empty() {
             return Some(String::new());
         }
-        Some(strip_leading_blank_lines(&format!(
-            "{}\n",
-            inner.join("\n")
-        )))
+        Some(format!("{}\n", inner.join("\n")))
     }
 
     /// The file to write: `block` rewritten between the markers, appended
@@ -109,22 +112,6 @@ impl Markers {
         };
         let out = if crlf { out.replace('\n', "\r\n") } else { out };
         (out != existing).then_some(out)
-    }
-}
-
-/// LF text without its leading whitespace-only lines.
-fn strip_leading_blank_lines(text: &str) -> String {
-    let mut rest = text;
-    while let Some(i) = rest.find('\n') {
-        if !rest[..i].trim().is_empty() {
-            break;
-        }
-        rest = &rest[i + 1..];
-    }
-    if rest.trim().is_empty() {
-        String::new()
-    } else {
-        rest.to_string()
     }
 }
 
@@ -164,7 +151,11 @@ mod tests {
         );
         assert_eq!(
             m().render(None, "").unwrap(),
-            "<!-- tool:harness -->\n\n<!-- /tool:harness -->\n"
+            "<!-- tool:harness -->\n<!-- /tool:harness -->\n"
+        );
+        assert_eq!(
+            m().find(&m().render(None, "").unwrap()).as_deref(),
+            Some("")
         );
     }
 
@@ -251,9 +242,17 @@ mod tests {
         prop::collection::vec("[a-z #@-]{0,12}", 0..6).prop_map(|lines| lines.join("\n"))
     }
 
+    /// A block, possibly opening with whitespace-only lines.
     fn arb_block() -> impl Strategy<Value = String> {
-        prop::collection::vec("[a-zA-Z.][a-zA-Z .]{0,19}", 1..4)
-            .prop_map(|lines| format!("{}\n", lines.join("\n")))
+        (
+            prop::collection::vec("[ \t]{0,2}", 0..3),
+            prop::collection::vec("[a-zA-Z.][a-zA-Z .]{0,19}", 1..4),
+        )
+            .prop_map(|(blank, lines)| {
+                let mut all = blank;
+                all.extend(lines);
+                format!("{}\n", all.join("\n"))
+            })
     }
 
     /// The markers' lines removed with the block between them.
@@ -272,6 +271,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(256))]
 
         // @zen-test: KIT_P-1
+        // @zen-test: KIT-9_AC-4
         #[test]
         fn region_touches_only_its_block(text in arb_text(), block in arb_block(), crlf in any::<bool>()) {
             let text = if crlf { text.replace('\n', "\r\n") } else { text };

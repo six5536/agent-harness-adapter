@@ -19,13 +19,14 @@ First release as a crate of its own.
 ### Added
 
 - `harness`: `Tool`, `Profile`, `Part` (`files`, `region`, `region_chosen`, `merge`,
-  `external`), `MergeOp` (`array_entry`, `object_member`, `group_entry`), `install` /
+  `external`), `MergeOp` (`array_entry`, `object_member`, `group_entry` with `EntryMatch`), `install` /
   `status` with `InstallOptions`, `HarnessResult`, `PartResult` (`State` and
   `Option<Action>`), `DeclinedStore` / `TomlDeclined`, `Markers`.
 - `claude`: `HookInput`, `Answer`, `emit`, `instructions_file`, `instructions`,
   `hook_command`.
 - `LoopGuard`, `report` (`Finding`, `Report`, `Severity`), `cli`, `fs`.
 - `Error` with one variant per kind of refusal.
+- Optional feature `schemars`: `JsonSchema` on the result types.
 - MSRV 1.85.
 
 [Unreleased]: https://github.com/six5536/agent-harness-kit/compare/v0.1.0...HEAD

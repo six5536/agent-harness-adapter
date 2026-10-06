@@ -32,7 +32,7 @@ pub mod report;
 pub use error::{Error, Result};
 pub use guard::LoopGuard;
 pub use harness::{
-    Action, DeclinedStore, ExternalPart, HarnessResult, InstallOptions, MergeOp, Part, PartResult,
-    Profile, Scope, State, TomlDeclined, Tool, install, status,
+    Action, DeclinedStore, EntryMatch, ExternalPart, HarnessResult, InstallOptions, MergeOp, Part,
+    PartResult, Profile, Scope, State, TomlDeclined, Tool, install, status,
 };
 pub use report::{Finding, Report, Severity};

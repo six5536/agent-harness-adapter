@@ -18,6 +18,7 @@ use crate::{
 
 /// The state of a part.
 // @zen-impl: KIT-3_AC-1
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]

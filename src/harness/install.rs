@@ -63,6 +63,7 @@ impl InstallOptions {
 
 // @zen-component: KIT-Results
 /// What [`install`] did to a part.
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
@@ -89,6 +90,7 @@ impl Action {
 
 /// One line of the report.
 // @zen-impl: KIT-4_AC-3
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct PartResult {
@@ -114,6 +116,7 @@ impl PartResult {
 }
 
 /// The outcome of [`install`] or [`status`].
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct HarnessResult {
@@ -421,6 +424,20 @@ mod tests {
                 ]
             })
         );
+    }
+
+    #[cfg(feature = "schemars")]
+    #[test]
+    fn the_schema_describes_the_json() {
+        let schema = serde_json::to_value(schemars::schema_for!(HarnessResult)).unwrap();
+        let part = &schema["$defs"]["PartResult"];
+        let required: Vec<_> = part["required"].as_array().unwrap().iter().collect();
+        assert!(required.contains(&&serde_json::json!("state")));
+        assert!(!required.contains(&&serde_json::json!("action")));
+        let state = schema["$defs"]["State"].to_string();
+        for word in ["skipped", "absent", "current", "stale", "edited"] {
+            assert!(state.contains(&format!("\"{word}\"")), "{state}");
+        }
     }
 
     #[test]

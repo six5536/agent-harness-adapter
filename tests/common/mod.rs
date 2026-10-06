@@ -13,8 +13,8 @@ use std::{
 };
 
 use agent_harness_kit::{
-    DeclinedStore, Error, ExternalPart, MergeOp, Part, Profile, Result, Scope, TomlDeclined, Tool,
-    claude,
+    DeclinedStore, EntryMatch, Error, ExternalPart, MergeOp, Part, Profile, Result, Scope,
+    TomlDeclined, Tool, claude,
 };
 use serde_json::json;
 
@@ -156,7 +156,11 @@ fn hooks_ops_for(events: &[&str]) -> Vec<MergeOp> {
                 "UserPromptSubmit" => "user-prompt-submit",
                 _ => "stop",
             };
-            claude::hook_command(event, PREFIX, &format!("tool harness hook claude {hook}"))
+            claude::hook_command(
+                event,
+                EntryMatch::Prefix(PREFIX.into()),
+                &format!("tool harness hook claude {hook}"),
+            )
         })
         .collect()
 }

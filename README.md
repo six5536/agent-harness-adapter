@@ -46,7 +46,7 @@ Implement `Tool` for your CLI and call `install` / `status`:
 use std::path::PathBuf;
 
 use agent_harness_kit::{
-    DeclinedStore, InstallOptions, MergeOp, Part, Profile, Result, Scope, TomlDeclined, Tool,
+    DeclinedStore, EntryMatch, InstallOptions, MergeOp, Part, Profile, Result, Scope, TomlDeclined, Tool,
     claude, install, status,
 };
 
@@ -68,7 +68,11 @@ impl Tool for MyTool {
                     Part::merge(
                         "hooks",
                         ".claude/settings.json",
-                        vec![claude::hook_command("Stop", "mytool hook ", "mytool hook stop")],
+                        vec![claude::hook_command(
+                            "Stop",
+                            EntryMatch::Prefix("mytool hook ".into()),
+                            "mytool hook stop",
+                        )],
                     ),
                     Part::merge(
                         "permissions",

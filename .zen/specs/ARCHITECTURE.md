@@ -19,6 +19,7 @@ agent-harness-kit is a Rust library for command-line tools that plug into LLM ag
 - `Rust 1 (edition 2024)` — the library; MSRV 1.85
 - `serde 1` / `serde_json 1` — hook JSON, results, and JSON merges (`preserve_order` keeps the user's key order)
 - `toml_edit 0` — the record and the declined parts, edited in place
+- `schemars 1` — optional feature: JSON Schema of the result types
 - `proptest 1`, `insta 1` — property and snapshot tests
 - `cargo-nextest`, `cargo-llvm-cov`, `cargo-deny` — CI tooling
 

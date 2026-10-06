@@ -91,6 +91,19 @@ This repository, a clone of smllm, becomes **agent-harness-kit**: the kit crate 
   - A misfit is fixed in the kit, never worked around in a consumer.
   - Publish only when both build and pass their tests. Then both switch to `agent-harness-kit = "0.1"`.
 - D9-19: No provenance. Remove the `// Derived from sokf …` header from every file, and remove every mention of sokf as the code's origin: README, crate docs, ARCHITECTURE rules, CHANGELOG. sokf is named only as a consumer (D9-18).
+- D9-20: The sokf port (P7) showed where the kit is narrower than a second tool needs. What helps any tool goes into the kit now; the rest stays in sokf.
+  - Into the kit:
+    - `EntryMatch` (prefix or contained text) for group entries, since a tool's program may be renamed.
+    - An exact region round trip: only the framing blank line is dropped, and an empty block gets none.
+    - An optional `schemars` feature for the result types.
+  - Kept in sokf:
+    - Its `/`-prefixed path display.
+    - Its report module, which has fix operations, code projections and its own text form.
+  - sokf adopts the kit's behaviour in three places, as fixes:
+    - The tool owns its entries, never the whole group, so the user's hooks in a shared group are kept.
+    - Declined parts are never read.
+    - The stray-marker rule.
+  - Incompatibility (for the user to confirm): the kit's record hashes (a region by its words, merge entries as an array) differ from sokf's. After the upgrade, a sokf part that is stale but unedited reads as `edited` once and needs `--force`. Current parts are unaffected, and the next install rewrites their hashes.
 
 ## 4. Functional requirements
 

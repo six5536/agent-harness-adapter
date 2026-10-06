@@ -41,7 +41,7 @@ ACCEPTANCE CRITERIA
 
 - [ ] KIT-2_AC-1 [ubiquitous]: A file part SHALL own whole files under a directory, written with LF line endings
 - [ ] KIT-2_AC-2 [ubiquitous]: A region part SHALL own the block between the tool's markers in one file, either a fixed path or a path a rule chooses under the root at install time
-- [ ] KIT-2_AC-3 [ubiquitous]: A merge part SHALL own entries in the JSON object of one file: an array entry (found by equality), an object member (found by its key), or the tool's entries inside the groups of an array (found by a field starting with the tool's prefix)
+- [ ] KIT-2_AC-3 [ubiquitous]: A merge part SHALL own entries in the JSON object of one file: an array entry (found by equality), an object member (found by its key), or the tool's entries inside the groups of an array (found by a field that starts with, or contains, a text the tool chooses)
 - [ ] KIT-2_AC-4 [ubiquitous]: An external part SHALL be read and written by the tool itself through the kit's interface, with a location shown in reports
 
 ### KIT-3: Part states [MUST]
@@ -109,7 +109,8 @@ AS AN agent user, I WANT the tool's block kept apart from my text, SO THAT reins
 ACCEPTANCE CRITERIA
 
 - [ ] KIT-9_AC-1 [ubiquitous]: The region SHALL be the one the first closing marker ends, opened by the nearest opening marker before it; a stray opening marker SHALL stay the user's text
-- [ ] KIT-9_AC-2 [event]: WHEN a region is written THEN the system SHALL replace the block between the markers, else append it after one blank line, or make it the whole file when the file is absent or empty; keep the file's line endings; and put a blank line after the opening marker
+- [ ] KIT-9_AC-2 [event]: WHEN a region is written THEN the system SHALL replace the block between the markers, else append it after one blank line, or make it the whole file when the file is absent or empty; keep the file's line endings; and put a blank line after the opening marker when the block is not empty
+- [ ] KIT-9_AC-4 [ubiquitous]: Reading a region SHALL drop only the one blank line that follows the opening marker, so a block reads back as written (LF line endings, a final newline)
 - [ ] KIT-9_AC-3 [ubiquitous]: The system SHALL change nothing outside the region
 
 ### KIT-10: Merge rules [MUST]
@@ -132,7 +133,7 @@ ACCEPTANCE CRITERIA
 - [ ] KIT-11_AC-2 [ubiquitous]: Hook input SHALL parse with every known field optional and unknown fields ignored; input that is not JSON SHALL be an error the caller handles
 - [ ] KIT-11_AC-3 [ubiquitous]: A hook answer SHALL be `{}` (allow, optionally with text for stderr), `{"decision":"block","reason":…}`, or `{"hookSpecificOutput":{"hookEventName":…,"additionalContext":…}}`
 - [ ] KIT-11_AC-4 [event]: WHEN a hook answer is emitted THEN the system SHALL write its stderr text, then the JSON and a newline on stdout, and give exit 0; WHEN the hook failed THEN it SHALL write `error: <message>` on stderr, nothing on stdout, and give exit 1
-- [ ] KIT-11_AC-5 [ubiquitous]: A hook command part SHALL be the group `{"hooks":[{"type":"command","command":…}]}` under `hooks.<event>` of a settings file, owned by its command prefix
+- [ ] KIT-11_AC-5 [ubiquitous]: A hook command part SHALL be the group `{"hooks":[{"type":"command","command":…}]}` under `hooks.<event>` of a settings file, the tool's hooks being those whose command matches the tool's rule (a prefix, or a text it contains)
 
 DEPENDS ON: KIT-2, KIT-10
 
@@ -201,4 +202,4 @@ ACCEPTANCE CRITERIA
 
 ## Change Log
 
-- 0.1.0 (2026-10-06): Initial requirements (PLAN-009)
+- 0.1.0 (2026-10-06): Initial requirements (PLAN-009); entry matching by contained text and exact region round trip, from the sokf port (D9-20)

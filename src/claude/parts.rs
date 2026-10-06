@@ -7,7 +7,7 @@ use serde_json::json;
 
 use crate::{
     Error, Result,
-    harness::{MergeOp, Part},
+    harness::{EntryMatch, MergeOp, Part},
 };
 
 /// The instructions file under `root`: `AGENTS.md` when it exists and
@@ -43,15 +43,15 @@ pub fn instructions(name: impl Into<String>, block: impl Into<String>) -> Part {
 
 /// The tool's command hook for `event` in a `settings.json`:
 /// `{"hooks": [{"type": "command", "command": command}]}` under
-/// `hooks.<event>`, the tool's hooks being those whose command starts with
-/// `prefix` (e.g. `mytool harness hook `).
+/// `hooks.<event>`, the tool's hooks being those whose command `owned`
+/// matches, e.g. `EntryMatch::Prefix("mytool harness hook ".into())`.
 // @zen-impl: KIT-11_AC-5
-pub fn hook_command(event: &str, prefix: &str, command: &str) -> MergeOp {
+pub fn hook_command(event: &str, owned: EntryMatch, command: &str) -> MergeOp {
     MergeOp::group_entry(
         ["hooks", event],
         "hooks",
         "command",
-        prefix,
+        owned,
         json!({ "hooks": [{ "type": "command", "command": command }] }),
     )
 }
@@ -103,7 +103,7 @@ mod tests {
     // @zen-test: KIT-11_AC-5
     #[test]
     fn the_hook_command_group() {
-        let op = hook_command("Stop", "t hook ", "t hook stop");
+        let op = hook_command("Stop", EntryMatch::Prefix("t hook ".into()), "t hook stop");
         assert_eq!(
             op.value(),
             &json!({ "hooks": [{ "type": "command", "command": "t hook stop" }] })
@@ -114,7 +114,7 @@ mod tests {
                 ["hooks", "Stop"],
                 "hooks",
                 "command",
-                "t hook ",
+                EntryMatch::Prefix("t hook ".into()),
                 json!({ "hooks": [{ "type": "command", "command": "t hook stop" }] }),
             )
         );
