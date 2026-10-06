@@ -103,7 +103,7 @@ This repository, a clone of smllm, becomes **agent-harness-kit**: the kit crate 
     - The tool owns its entries, never the whole group, so the user's hooks in a shared group are kept.
     - Declined parts are never read.
     - The stray-marker rule.
-  - Incompatibility (for the user to confirm): the kit's record hashes (a region by its words, merge entries as an array) differ from sokf's. After the upgrade, a sokf part that is stale but unedited reads as `edited` once and needs `--force`. Current parts are unaffected, and the next install rewrites their hashes.
+  - Incompatibility, accepted by the user (no one uses sokf yet): the kit's record hashes (a region by its words, merge entries as an array) differ from sokf's. After the upgrade, a sokf part that is stale but unedited reads as `edited` once and needs `--force`. Current parts are unaffected, and the next install rewrites their hashes.
 
 ## 4. Functional requirements
 
