@@ -27,8 +27,7 @@ impl Severity {
     }
 }
 
-/// One line of the report. Built with [`Finding::error`], [`Finding::warning`]
-/// or [`Finding::info`], then [`Finding::line`] and [`Finding::authority`].
+/// One line of a report: a problem on a file, with its severity.
 // @zen-impl: KIT-13_AC-1
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -47,6 +46,8 @@ pub struct Finding {
     pub authority: Option<String>,
 }
 
+/// Build a finding with [`Finding::error`], [`Finding::warning`] or
+/// [`Finding::info`], then [`Finding::line`] and [`Finding::authority`].
 impl Finding {
     /// A finding of `severity` on `path`, with no line and no authority.
     pub fn new(severity: Severity, path: impl Into<String>, message: impl Into<String>) -> Self {
