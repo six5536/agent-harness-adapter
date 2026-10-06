@@ -2,7 +2,7 @@
 
 | Meta               | Value                                                                 |
 | ------------------ | --------------------------------------------------------------------- |
-| Status             | in progress: P1–P6 done (2026-10-06; CI green on GitHub); P7–P9 next    |
+| Status             | in progress: P1–P7 done (2026-10-06); P8 (publish) needs the CARGO_REGISTRY_TOKEN secret |
 | Workflow direction | top-down from a mechanical baseline (restructure → architecture → requirements → design → code → docs → release) |
 | Traces to          | smllm ARCHITECTURE (agent-harness-kit component), HOST-10, HOST-11, HOST-Claude, CLI conventions, NFR-4, NFR-6, CFG-Findings |
 
@@ -160,4 +160,5 @@ This repository, a clone of smllm, becomes **agent-harness-kit**: the kit crate 
 - `Cargo.lock` is committed, and CI runs with `--locked`. The MSRV job builds the same lockfile on 1.85; it caught a test that compared a `PathBuf` with a `String`, which only newer standard libraries allow.
 - The README examples run as doctests (`#[cfg(doctest)]` include in `lib.rs`).
 - `LICENSE` was the Elastic License 2.0 (since smllm's first commit) while `Cargo.toml`, README and D9-8 said MIT; the user chose MIT and the file now holds the MIT text.
+- P7: smllm (134 tests) and sokf (626 tests, 2 skipped) pass on the kit, on local branches `agent-harness-kit-0.1` with a path dependency; both get pushed in P9, once they depend on the published crate. The two schema fixes from the sokf port (plain-text descriptions, `action` optional) went into the kit. Three requests stayed out of the kit, as test conveniences or sokf conventions rather than generic needs: a public part hash, reading a part's contents, and a `Tool::display_path` hook.
 
