@@ -2,7 +2,7 @@
 
 | Meta               | Value                                                                 |
 | ------------------ | --------------------------------------------------------------------- |
-| Status             | in progress: P1–P7 done (2026-10-06); P8 (publish) needs the CARGO_REGISTRY_TOKEN secret |
+| Status             | in progress: P1–P7 done (2026-10-06); P8 (publish) and P9 deferred to PLAN-010 P9 (D10-12) |
 | Workflow direction | top-down from a mechanical baseline (restructure → architecture → requirements → design → code → docs → release) |
 | Traces to          | smllm ARCHITECTURE (agent-harness-kit component), HOST-10, HOST-11, HOST-Claude, CLI conventions, NFR-4, NFR-6, CFG-Findings |
 
