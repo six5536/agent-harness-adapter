@@ -2,7 +2,7 @@
 
 | Meta               | Value |
 | ------------------ | ----- |
-| Status             | in progress: P1–P3 done (2026-10-06): specs; core (integration, Harness, shared locations, TOML merge, set install); neutral hooks with Claude on them |
+| Status             | in progress: P1–P4 done (2026-10-06): specs; core; neutral hooks; Claude, Codex, Factory, Gemini CLI, `agents` |
 | Workflow direction | top-down (architecture → requirements → design → code → docs → consumers → release) |
 | Traces to          | ARCHITECTURE (harness core, harness modules), KIT-1, KIT-2, KIT-3, KIT-4, KIT-10, KIT-11, KIT-12; PLAN-009 D9-17 |
 
@@ -131,6 +131,7 @@ The per-harness locations, formats and sources are in §10.
 - P2: a TOML file of comments only keeps them first when a table is added (`toml_edit` would move them below).
 - P2: `tests/shared.rs` drives `install` / `status` / `emit` through three harnesses defined in the test, as a third party would.
 - P3: `LoopGuard` moved to `hook`; the README examples use the new API.
+- P4: Gemini CLI loads every name `context.fileName` lists, so all count as read; the region goes in `AGENTS.md` when listed, else the first name (HAR-4_AC-2 sharpened). Factory's user skills stay in `~/.factory/skills` (its `~/.agents` support is unconfirmed). `builtin()` puts the generic `agents` last, so a shared location is written by a specific harness.
 
 ## 9. Resolved questions
 

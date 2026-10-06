@@ -139,10 +139,18 @@ impl Reads {
     }
 }
 
-/// Every built-in harness, in a stable order.
+/// Every built-in harness, in a stable order: the most specific first, the
+/// generic `agents` last, so a shared location is written by a harness of
+/// its own.
 // @zen-impl: KIT-18_AC-2
 pub fn builtin() -> Vec<Arc<dyn Harness>> {
-    vec![Arc::new(crate::claude::Claude)]
+    vec![
+        Arc::new(crate::claude::Claude),
+        Arc::new(crate::codex::Codex),
+        Arc::new(crate::factory::Factory),
+        Arc::new(crate::gemini::Gemini),
+        Arc::new(crate::agents_md::AgentsMd),
+    ]
 }
 
 /// The built-in harness with id `id`.
@@ -177,5 +185,132 @@ mod tests {
             assert_eq!(find(id).unwrap().id(), id);
         }
         assert!(find("nope").is_none());
+    }
+}
+
+#[cfg(test)]
+mod properties {
+    use proptest::prelude::*;
+    use serde_json::Value;
+
+    use super::*;
+    use crate::{
+        integration::{Agent, Command, Hook, McpServer, Skill},
+        test_support::temp_dir,
+    };
+
+    fn arb_integration() -> impl Strategy<Value = Integration> {
+        (
+            prop::option::of("[a-z ]{1,12}"),
+            prop::collection::vec("[a-z]{1,6}", 0..3),
+            prop::collection::vec(0usize..7, 0..3),
+            prop::bool::ANY,
+            prop::bool::ANY,
+        )
+            .prop_map(|(block, skills, events, agent, command)| {
+                let mut i = Integration::new();
+                if let Some(b) = block {
+                    i = i.instructions(format!("{b}\n"));
+                }
+                for s in skills {
+                    i = i.skill(Skill::new(s.clone(), "d", format!("# {s}\n")));
+                }
+                for e in events {
+                    i = i.hook(Hook::new(Event::ALL[e], "t hook {harness} {event}"));
+                }
+                if agent {
+                    i = i.agent(Agent::new("a", "d", "p\n"));
+                }
+                if command {
+                    i = i.command(Command::new("c", "d", "p $ARGUMENTS\n"));
+                }
+                i.mcp_server(McpServer::stdio("t", "t", ["mcp"]))
+                    .allow_command("t")
+            })
+    }
+
+    fn arb_answer() -> impl Strategy<Value = Answer> {
+        prop_oneof![
+            prop::option::of("[a-z]{0,5}").prop_map(|stderr| Answer::Allow { stderr }),
+            "[a-z \"]{0,8}".prop_map(|reason| Answer::Deny { reason }),
+            "[a-z \"]{0,8}".prop_map(|reason| Answer::Continue { reason }),
+            "[a-z \"]{0,8}".prop_map(|text| Answer::Context { text }),
+        ]
+    }
+
+    fn arb_object() -> impl Strategy<Value = Value> {
+        let leaf = prop_oneof![
+            Just(Value::Null),
+            any::<bool>().prop_map(Value::from),
+            (0i64..100).prop_map(Value::from),
+            "[a-z_]{0,6}".prop_map(Value::from),
+        ];
+        let keys = prop::sample::select(vec![
+            "session_id",
+            "cwd",
+            "tool_name",
+            "tool_input",
+            "toolName",
+            "toolArgs",
+            "stop_hook_active",
+            "loop_count",
+            "prompt",
+            "workspace_roots",
+            "cursor_version",
+            "conversation_id",
+            "event",
+            "continuing",
+            "x",
+        ]);
+        prop::collection::btree_map(keys, leaf, 0..6)
+            .prop_map(|m| Value::Object(m.into_iter().map(|(k, v)| (k.to_string(), v)).collect()))
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        // @zen-test: HAR_P-1
+        #[test]
+        fn answers_are_well_formed(event in 0usize..7, answer in arb_answer()) {
+            for h in builtin() {
+                let event = Event::ALL[event];
+                match h.answer(event, &answer) {
+                    Ok(out) => {
+                        prop_assert_eq!(out.exit, 0);
+                        let v: Value = serde_json::from_str(&out.stdout).unwrap();
+                        prop_assert!(v.is_object(), "{}: {}", h.id(), out.stdout);
+                    }
+                    Err(e) => prop_assert!(matches!(e, crate::Error::Unsupported { .. }), "{e}"),
+                }
+            }
+        }
+
+        // @zen-test: HAR_P-3
+        #[test]
+        fn any_object_parses(event in 0usize..7, raw in arb_object()) {
+            for h in builtin() {
+                let input = h.parse_hook(Event::ALL[event], &raw.to_string()).unwrap();
+                prop_assert_eq!(input.event, Some(Event::ALL[event]));
+            }
+        }
+
+        // @zen-test: HAR_P-2
+        #[test]
+        fn shared_locations_get_equal_parts(i in arb_integration(), user in any::<bool>()) {
+            let dir = temp_dir("har-p2");
+            let scope = if user { Scope::User } else { Scope::Project };
+            let cx = Context::new("t", scope, &dir, Some(dir.clone()));
+            let mut seen: Vec<(String, String, String, Part)> = Vec::new();
+            for h in builtin() {
+                for p in h.render(&i, &cx).unwrap() {
+                    let at = p.location();
+                    if let Some((_, _, other, q)) = seen.iter().find(|(n, l, _, _)| n == p.name() && *l == at) {
+                        prop_assert!(p.same_content(q), "{} and {other} differ at {at}", h.id());
+                    }
+                    seen.push((p.name().to_string(), at, h.id().to_string(), p));
+                }
+            }
+            std::fs::remove_dir_all(&dir).unwrap();
+        }
     }
 }

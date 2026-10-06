@@ -45,11 +45,11 @@ ACCEPTANCE CRITERIA
 
 - [ ] HAR-2_AC-1 [ubiquitous]: Scopes SHALL be project and user
 - [ ] HAR-2_AC-2 [ubiquitous]: Instructions SHALL be a region in `AGENTS.md` (`.codex/AGENTS.md` at user scope)
-- [ ] HAR-2_AC-3 [ubiquitous]: Hooks SHALL be group hooks under `hooks.<Event>` of `.codex/hooks.json`, the Claude family's event names and protocol (HAR-1_AC-4, HAR-1_AC-5); matcher `Bash` for shell, none for other kinds (tool names not confirmed)
+- [ ] HAR-2_AC-3 [ubiquitous]: Hooks SHALL be group hooks under `hooks.<Event>` of `.codex/hooks.json`, the Claude family's event names and protocol (HAR-1_AC-4, HAR-1_AC-5); matcher `^Bash$` for shell, none for other kinds (tool names not confirmed)
 - [ ] HAR-2_AC-4 [ubiquitous]: Skills SHALL be skill dirs under `.agents/skills`; agents `<name>.toml` under `.codex/agents` with `name`, `description`, `developer_instructions`; commands unsupported (deprecated in Codex)
 - [ ] HAR-2_AC-5 [ubiquitous]: MCP servers SHALL be TOML tables `[mcp_servers.<name>]` in `.codex/config.toml`: `command`, `args`, `env`, or `url`, `http_headers`
 - [ ] HAR-2_AC-6 [ubiquitous]: Allowed commands SHALL be unsupported — rule-file syntax not confirmed
-- [ ] HAR-2_AC-7 [ubiquitous]: Notes SHALL say that the project must be trusted, that new hooks run only once approved in `/hooks`, and that Codex must be restarted
+- [ ] HAR-2_AC-7 [ubiquitous]: After an install that wrote a part, notes SHALL say that the project must be trusted (project scope), that new hooks run only once approved in `/hooks` (when hooks were written), and that Codex must be restarted
 
 ### HAR-3: Factory Droid (`factory`) [MUST]
 
@@ -60,7 +60,7 @@ ACCEPTANCE CRITERIA
 - [ ] HAR-3_AC-1 [ubiquitous]: Scopes SHALL be project and user; local once Droid's reading of hooks from `settings.local.json` is confirmed
 - [ ] HAR-3_AC-2 [ubiquitous]: Instructions SHALL be a region in `AGENTS.md` (`.factory/AGENTS.md` at user scope); Droid MAY also load `CLAUDE.md` — not confirmed whether beside `AGENTS.md`
 - [ ] HAR-3_AC-3 [ubiquitous]: Hooks SHALL be group hooks under `<Event>` at the top of `.factory/hooks.json`; WHERE that file is absent and `.factory/settings.json` has a `hooks` key, under `hooks.<Event>` of `.factory/settings.json`; Claude family event names and protocol; matchers `Execute`; `Read|LS|Glob|Grep`; `Edit|Create|ApplyPatch`; `mcp__.*`
-- [ ] HAR-3_AC-4 [ubiquitous]: Skills SHALL be skill dirs under `.agents/skills`; agents markdown agents under `.factory/droids` with `model: inherit`; commands `<name>.md` under `.factory/commands` with frontmatter `description`
+- [ ] HAR-3_AC-4 [ubiquitous]: Skills SHALL be skill dirs under `.agents/skills` (`.factory/skills` at user scope); agents markdown agents under `.factory/droids` with `model: inherit`; commands `<name>.md` under `.factory/commands` with frontmatter `description`
 - [ ] HAR-3_AC-5 [ubiquitous]: MCP servers SHALL be MCP JSON in `.factory/mcp.json`, each with `type` (`stdio` or `http`)
 - [ ] HAR-3_AC-6 [ubiquitous]: Allowed commands SHALL be unsupported — `permissionRules` shape not confirmed
 
@@ -71,7 +71,7 @@ AS A tool author, I WANT Gemini CLI's files and hooks, SO THAT my integration wo
 ACCEPTANCE CRITERIA
 
 - [ ] HAR-4_AC-1 [ubiquitous]: Scopes SHALL be project and user
-- [ ] HAR-4_AC-2 [ubiquitous]: Instructions SHALL be a region in `AGENTS.md` when `context.fileName` in the scope's `.gemini/settings.json` (or, at project scope, the user's) lists it, else in `GEMINI.md` (`.gemini/GEMINI.md` at user scope)
+- [ ] HAR-4_AC-2 [ubiquitous]: The context files SHALL be those `context.fileName` (a string or an array) names in the scope's `.gemini/settings.json`, else (at project scope) in the user's, else `GEMINI.md`, under `.gemini/` at user scope; Gemini CLI SHALL be taken to load them all; instructions SHALL be a region in `AGENTS.md` when listed, else in the first
 - [ ] HAR-4_AC-3 [ubiquitous]: Hooks SHALL be group hooks under `hooks.<Event>` of `.gemini/settings.json`, events `SessionStart`, `SessionEnd`, `BeforeAgent` (prompt submit), `BeforeTool`, `AfterTool`, `AfterAgent` (stop), `PreCompress`; timeouts in milliseconds; matchers `run_shell_command`; `read_file|read_many_files|glob|search_file_content|list_directory`; `write_file|replace`; `mcp_.*`
 - [ ] HAR-4_AC-4 [ubiquitous]: Hook input SHALL be read from `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `prompt`, `prompt_response` (last message), `tool_name`, `tool_input`, `tool_response`, `source`, `stop_hook_active`
 - [ ] HAR-4_AC-5 [ubiquitous]: Answers SHALL be: allow `{}`; deny and continue `{"decision":"deny","reason":…}`; context `{"hookSpecificOutput":{"additionalContext":…}}`; exit 0

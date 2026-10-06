@@ -9,7 +9,8 @@
 //!   with shared content written once.
 //! - [`hook`]: hook events, the input a harness sends, the answer a hook
 //!   gives, [`emit`](hook::emit), and the [`LoopGuard`](hook::LoopGuard).
-//! - One module per harness: [`claude`].
+//! - One module per harness: [`claude`], [`codex`], [`factory`], [`gemini`],
+//!   [`agents_md`].
 //! - [`report`]: findings (error / warning / info) and their text and JSON
 //!   forms.
 //! - [`cli`]: exit codes, stdout, broken pipes and the `error:` runner.
@@ -26,9 +27,13 @@ mod hash;
 #[cfg(test)]
 mod test_support;
 
+pub mod agents_md;
 pub mod claude;
 pub mod cli;
+pub mod codex;
+pub mod factory;
 pub mod fs;
+pub mod gemini;
 pub mod harness;
 pub mod hook;
 pub mod integration;

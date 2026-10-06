@@ -87,19 +87,19 @@ pub fn instructions_file(root: &Path) -> Result<&'static str>;
 
 ### HAR-Codex
 
-Scopes project, user. Instructions `AGENTS.md` / `.codex/AGENTS.md`. Hooks: group hooks under `["hooks", Event]` of `.codex/hooks.json`, Claude names, matcher `Bash` for shell only, the Claude-family protocol. Skills `.agents/skills`. Agents `.codex/agents/<name>.toml` (`name`, `description`, `developer_instructions`) via `toml_out`. MCP: `object_member(["mcp_servers"], name, {command, args, env} | {url, http_headers})` in `.codex/config.toml` (TOML merge). Notes: trust, `/hooks` approval when a hooks part was written, restart.
+Scopes project, user. Instructions `AGENTS.md` / `.codex/AGENTS.md`. Hooks: group hooks under `["hooks", Event]` of `.codex/hooks.json`, Claude names, matcher `^Bash$` for shell only, the Claude-family protocol. Skills `.agents/skills`. Agents `.codex/agents/<name>.toml` (`name`, `description`, `developer_instructions`) via `toml_out`. MCP: `object_member(["mcp_servers"], name, {command, args, env} | {url, http_headers})` in `.codex/config.toml` (TOML merge). Notes: trust, `/hooks` approval when a hooks part was written, restart.
 
 IMPLEMENTS: HAR-2_AC-1, HAR-2_AC-2, HAR-2_AC-3, HAR-2_AC-4, HAR-2_AC-5, HAR-2_AC-6, HAR-2_AC-7
 
 ### HAR-Factory
 
-Scopes project, user. Instructions `AGENTS.md` / `.factory/AGENTS.md`; `reads` always `AGENTS.md`, maybe `CLAUDE.md`. Hooks: when `.factory/hooks.json` exists, or `.factory/settings.json` has no `hooks` key: group hooks under `[Event]` of `.factory/hooks.json`; else under `["hooks", Event]` of `.factory/settings.json`; matchers from the table. Skills `.agents/skills`; droids `.factory/droids` (`to_markdown(&[("model","inherit")])`); commands `.factory/commands/<name>.md`. MCP `.factory/mcp.json` with `type`.
+Scopes project, user. Instructions `AGENTS.md` / `.factory/AGENTS.md`; `reads` always `AGENTS.md`, maybe `CLAUDE.md`. Hooks: when `.factory/hooks.json` exists, or `.factory/settings.json` has no `hooks` key: group hooks under `[Event]` of `.factory/hooks.json`; else under `["hooks", Event]` of `.factory/settings.json`; matchers from the table. Skills `.agents/skills` (`.factory/skills` at user scope); droids `.factory/droids` (`to_markdown(&[("model","inherit")])`); commands `.factory/commands/<name>.md`. MCP `.factory/mcp.json` with `type`.
 
 IMPLEMENTS: HAR-3_AC-1, HAR-3_AC-2, HAR-3_AC-3, HAR-3_AC-4, HAR-3_AC-5, HAR-3_AC-6
 
 ### HAR-Gemini
 
-Scopes project, user. Instructions: `AGENTS.md` when `context.fileName` (a string or an array) in `.gemini/settings.json` under the root, else under `user_root` at project scope, names it; else `GEMINI.md` (`.gemini/GEMINI.md` at user scope). Hooks: group hooks under `["hooks", Event]` of `.gemini/settings.json`, Gemini names, `timeout` in ms, matchers from the table. Answers: allow `{}`; deny / continue `{"decision":"deny","reason":…}`; context `{"hookSpecificOutput":{"additionalContext":…}}`. Skills `.agents/skills`; agents `.gemini/agents`; commands `.gemini/commands/<name>.toml` (`description`, `prompt` with `$ARGUMENTS` → `{{args}}`). MCP `mcpServers` in `.gemini/settings.json` (`httpUrl` for http). Permissions `array_entry(["tools","allowed"], "run_shell_command(<prefix>)")`. Notes: folder trust.
+Scopes project, user. Instructions: the context files are the names `context.fileName` (a string or an array) lists in `.gemini/settings.json` under the root, else under `user_root` at project scope, else `GEMINI.md` (under `.gemini/` at user scope); `reads` always all of them; the region goes in `AGENTS.md` when listed, else the first. Hooks: group hooks under `["hooks", Event]` of `.gemini/settings.json`, Gemini names, `timeout` in ms, matchers from the table. Answers: allow `{}`; deny / continue `{"decision":"deny","reason":…}`; context `{"hookSpecificOutput":{"additionalContext":…}}`. Skills `.agents/skills`; agents `.gemini/agents`; commands `.gemini/commands/<name>.toml` (`description`, `prompt` with `$ARGUMENTS` → `{{args}}`). MCP `mcpServers` in `.gemini/settings.json` (`httpUrl` for http). Permissions `array_entry(["tools","allowed"], "run_shell_command(<prefix>)")`. Notes: folder trust.
 
 IMPLEMENTS: HAR-4_AC-1, HAR-4_AC-2, HAR-4_AC-3, HAR-4_AC-4, HAR-4_AC-5, HAR-4_AC-6, HAR-4_AC-7, HAR-4_AC-8, HAR-4_AC-9
 
