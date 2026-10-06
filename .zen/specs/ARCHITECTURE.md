@@ -2,13 +2,14 @@
 
 ## Project Purpose
 
-agent-harness-kit is a Rust library for command-line tools that plug into LLM agent harnesses (Claude Code first). A tool declares the files a harness reads, as parts of a profile per harness and scope; the kit installs them and reports their state without ever overwriting what the user changed, and supplies the shared pieces such tools need: hook input and answers, findings reports, CLI exit and output conventions, and atomic file writes. It embeds no content of its own and depends on no tool.
+agent-harness-kit is a Rust library for command-line tools that plug into LLM agent harnesses (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi, and any agent that reads `AGENTS.md`). A tool declares its integration once (instructions, skills, hooks, MCP servers, allowed commands, agents, commands); each harness adapter renders it into that agent's files, the kit installs them with shared content written once, reports their state without ever overwriting what the user changed, and translates hook input and answers for every harness. It also supplies findings reports, CLI exit and output conventions, and atomic file writes. It embeds no content of its own and depends on no tool.
 
 ## System Overview
 
-- Harness core (`harness`): harness-neutral parts, profiles, states, `install` / `status`, record, declined parts
-- Harness modules (`claude`): one module per harness for its formats and rules
-- Loop guard (`LoopGuard`): blocks a stop hook once per text
+- Integration (`integration`): the tool's neutral declaration
+- Harness core (`harness`): the `Harness` contract, parts, profiles, states, shared-location choice, `install` / `status`, record, declined parts
+- Harness modules (`claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`, `pi`, `agents_md`): one adapter per harness for its files, formats and hook IO
+- Hooks (`hook`): neutral events, input, answers, `emit`, `LoopGuard`
 - Report (`report`): findings and their text and JSON forms
 - CLI conventions (`cli`): exit codes, stdout, broken pipes, the `error:` runner
 - File IO (`fs`): whole-file reads and atomic writes
@@ -18,7 +19,7 @@ agent-harness-kit is a Rust library for command-line tools that plug into LLM ag
 
 - `Rust 1 (edition 2024)` — the library; MSRV 1.85
 - `serde 1` / `serde_json 1` — hook JSON, results, and JSON merges (`preserve_order` keeps the user's key order)
-- `toml_edit 0` — the record and the declined parts, edited in place
+- `toml_edit 0` — the record, the declined parts and TOML merges (Codex `config.toml`), edited in place
 - `schemars 1` — optional feature: JSON Schema of the result types
 - `proptest 1`, `insta 1` — property and snapshot tests
 - `cargo-nextest`, `cargo-llvm-cov`, `cargo-deny` — CI tooling
@@ -33,22 +34,24 @@ flowchart LR
         Cmds[other commands]
     end
     subgraph Kit[agent-harness-kit]
-        Harness[harness: install / status]
-        Claude[claude: hook IO, instructions rule, hook groups]
-        Guard[LoopGuard]
+        Integration[integration]
+        Harness[harness: Harness contract, shared locations, install / status]
+        Adapters[claude, codex, factory, gemini, copilot, cursor, pi, agents_md]
+        Hook[hook: input, answers, emit, LoopGuard]
         Report[report]
         Cli[cli]
         Fs[fs]
     end
-    Files[(harness files: instructions, settings JSON)]
+    Files[(harness files: instructions, settings JSON / TOML, hook files, skills, agents, commands)]
     Record[(record + declined parts TOML)]
+    ToolImpl --> Integration
     ToolImpl --> Harness
-    ToolImpl --> Claude
-    HookCmd --> Claude
-    HookCmd --> Guard
+    HookCmd --> Hook
     Cmds --> Report
     Cmds --> Cli
-    Claude --> Harness
+    Harness --> Adapters
+    Adapters --> Integration
+    Hook --> Adapters
     Harness --> Fs
     Fs --> Files
     Fs --> Record
@@ -57,9 +60,12 @@ flowchart LR
 ## Directory Structure
 
 ```
-src/              # the crate: lib.rs, error, fs, cli, loop guard
-src/harness/      # harness-neutral install / status: parts, states, merge, region, record, declined
-src/claude/       # Claude Code: hook input and answers, instructions file rule, hook groups
+src/              # the crate: lib.rs, error, fs, cli
+src/integration/  # the neutral declaration: Integration and its items
+src/harness/      # Harness contract, install / status, shared locations, parts, states, merge (JSON, TOML), region, record, declined
+src/hook/         # neutral hook events, input, answers, emit, LoopGuard
+src/common/       # crate-private pieces several harnesses share: Claude-family protocol, instructions region, group hooks, skills, MCP JSON
+src/<harness>/    # one adapter per harness: claude, codex, factory, gemini, copilot, cursor, pi, agents_md
 src/report/       # findings, report, text form
 tests/            # integration tests through the public API (a test Tool over a temp dir)
 scripts/          # validate-consumers.sh
@@ -69,39 +75,54 @@ scripts/          # validate-consumers.sh
 
 ## Component Details
 
-### Harness core
+### Integration
 
-Installs and reports a tool's parts for any harness.
+A tool's integration, declared once without naming a harness.
 
 RESPONSIBILITIES
 
-- `Tool` trait: name, profile per harness and scope, root, record path, declined store
-- Part kinds `file`, `region`, `merge`, `external`; states skipped, absent, current, stale, edited
+- Items: instructions, skills, hooks, MCP servers, allowed commands, agents, commands; raw parts per harness
+- The standard renderings several harnesses share: a skill dir, an MCP server's JSON, a markdown agent
+
+### Harness core
+
+Installs and reports a tool's integration for a set of harnesses.
+
+RESPONSIBILITIES
+
+- `Harness` trait: id, scopes, locations read per item, render, hook parse and answer, notes
+- `Tool` trait: name, harnesses, integration per scope, root, record path, declined store
+- Part kinds `file`, `region`, `merge` (JSON or TOML), `external`; states skipped, shared, absent, current, stale, edited
+- Shared locations: per item, the fewest locations every harness in the set loads; the rest shared; warnings for double loads
 - `install` plans every write before writing any, then writes external parts, files and the record
-- Record of written content hashes; declined parts store (`TomlDeclined`)
+- Record of written content hashes per harness; declined parts store (`TomlDeclined`)
 
 CONSTRAINTS
 
-- Knows no harness's formats; a harness module supplies them through generic constructors
+- Knows no harness's formats; adapters supply them through generic parts
 - A refusal writes nothing
 
-### Claude Code module
+### Harness modules
 
-Claude Code's formats and rules.
-
-RESPONSIBILITIES
-
-- Hook input (`HookInput`), answers (`Answer`), `emit`
-- The instructions file rule (`CLAUDE.md` / `AGENTS.md`) and the instructions part
-- The `settings.json` hook group shape (`hook_command`)
-
-### LoopGuard
-
-A per-key cache of the last text a stop hook blocked on.
+One adapter per harness.
 
 RESPONSIBILITIES
 
-- Block once per text per key; files in a caller-chosen directory with a `.gitignore`
+- Where the harness reads each item, and the parts it renders, decided from the tree under the root
+- Its hook event names, input fields and answer forms; notes after install
+
+CONSTRAINTS
+
+- Standard formats shared by several harnesses (skill dirs, MCP JSON, markdown agents) come from the items' own renderings, so the same location gets the same part
+
+### Hooks
+
+The neutral hook runtime.
+
+RESPONSIBILITIES
+
+- Events, `HookInput`, `Answer`, `emit` through a harness
+- `LoopGuard`: block a stop hook once per text per key
 
 ### Report
 
@@ -129,7 +150,7 @@ RESPONSIBILITIES
 
 ## Component Interactions
 
-A tool implements `Tool`, building its profiles from `Part` constructors (generic ones in `harness`, harness-specific ones in `claude`). Its `install` / `status` commands call the kit's functions and print the `HarnessResult` as text or JSON. Its hook command parses `HookInput`, decides an `Answer` (with `LoopGuard` where it blocks), and calls `emit`.
+A tool implements `Tool`: its integration per scope and the harnesses it supports. Its `install` / `status` commands call the kit's functions for the harnesses the user names and print the result as text or JSON. Its hook command, installed per harness with the harness id and event in its arguments, looks the harness up, parses `HookInput` through it, decides an `Answer` (with `LoopGuard` where it blocks), and calls `emit` through the same harness.
 
 ### Install
 
@@ -140,19 +161,21 @@ sequenceDiagram
     participant Store as DeclinedStore
     participant FS as files under the root
     Cli->>Kit: install(tool, options)
-    Kit->>FS: read record
-    Kit->>Store: declined parts (unless --without given)
-    Kit->>FS: observe each part not declined
+    Kit->>FS: read record (adds recorded harnesses to the set)
+    Kit->>Store: declined parts per harness (unless --without given)
+    Kit->>Kit: each harness renders its profile and reads per item
+    Note over Kit: choose shared locations per item
+    Kit->>FS: observe each part not declined or shared
     Note over Kit: states, then plan every write (refusals here write nothing)
     Kit->>FS: external parts, then files, then the record (only on change)
     Kit->>Store: set declined parts (when --without given)
-    Kit-->>Cli: HarnessResult (state + action per part)
+    Kit-->>Cli: InstallResult (per harness: state + action per part, notes; warnings)
 ```
 
 ## Architectural Rules
 
 - No tool content and no dependency on any tool; consumers (smllm, sokf) depend on the kit, never the reverse
-- `harness` is harness-neutral; each harness's formats live in its own module (`claude`)
+- `harness`, `integration` and `hook` are harness-neutral; each harness's formats live in its own module; a harness from outside the kit needs no kit change
 - The public API never exposes a type from another crate's 0.x release
 - Public types that may grow are `#[non_exhaustive]`; new trait methods have defaults; adding a harness is a new module
 - Every file write is atomic and happens only on change; a refusal writes nothing; external parts are written before files
@@ -165,7 +188,7 @@ sequenceDiagram
 
 STATUS: Alpha
 
-Pre-0.1 release. The API may change in minor versions before 1.0.
+Unreleased; 0.1.0 is published once PLAN-010 is done. The API may change in minor versions before 1.0.
 
 ## Developer Commands
 
@@ -182,4 +205,4 @@ Pre-0.1 release. The API may change in minor versions before 1.0.
 
 ## Change Log
 
-- 0.1.0 (2026-10-06): Initial architecture, extracted from smllm (PLAN-009)
+- 0.1.0 (2026-10-06): Initial architecture, extracted from smllm (PLAN-009); multi-harness: integration, harness adapters, shared locations, neutral hooks (PLAN-010)

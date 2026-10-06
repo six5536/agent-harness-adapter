@@ -2,7 +2,7 @@
 
 | Meta               | Value |
 | ------------------ | ----- |
-| Status             | in progress: planned (2026-10-06); questions resolved (D10-12..D10-15) |
+| Status             | in progress: P1 specs done (2026-10-06): REQ-KIT, REQ-HAR, DESIGN-KIT, DESIGN-HAR, ARCHITECTURE |
 | Workflow direction | top-down (architecture → requirements → design → code → docs → consumers → release) |
 | Traces to          | ARCHITECTURE (harness core, harness modules), KIT-1, KIT-2, KIT-3, KIT-4, KIT-10, KIT-11, KIT-12; PLAN-009 D9-17 |
 

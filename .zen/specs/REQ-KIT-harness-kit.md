@@ -2,15 +2,20 @@
 
 ## Introduction
 
-What agent-harness-kit guarantees to the tools that use it: installing and reporting a tool's harness parts, Claude Code's hook formats, the loop guard, findings reports, CLI conventions and file IO. Source: PLAN-009, carrying over the behaviour smllm's HOST-10, HOST-11, NFR-4, NFR-6 and PLAN-003 F19–F21 specified for the kit.
+What agent-harness-kit guarantees to the tools that use it: a tool's integration declared once and installed into any number of harnesses with shared content deduplicated, hook input and answers for any harness, the loop guard, findings reports, CLI conventions and file IO. What each built-in harness does is in REQ-HAR. Source: PLAN-009 (carrying over smllm's HOST-10, HOST-11, NFR-4, NFR-6 and PLAN-003 F19–F21) and PLAN-010.
 
 ## Glossary
 
 - TOOL: the CLI that uses the kit, e.g. smllm
-- HARNESS: an agent runtime the tool plugs into, e.g. Claude Code; named by the tool (`claude`)
-- SCOPE: where a harness's files live: `project` or `user`
-- PROFILE: the parts of one harness at one scope
-- PART: one piece of an integration, named by the tool (`instructions`, `hooks`, …), of one kind: file, region, merge or external
+- HARNESS: an agent runtime the tool plugs into, e.g. Claude Code, and the kit's adapter for it, named by an id (`claude`, `codex`, …)
+- SCOPE: where a harness's files live: `project`, `user` (the home directory) or `local` (the project's git-ignored files)
+- INTEGRATION: what a tool installs, declared once without naming a harness: ITEMS, plus raw parts for one harness
+- ITEM: one kind of thing in an integration: instructions, skills, hooks, mcp, permissions, agents, commands
+- PROFILE: the parts of one harness at one scope, rendered from the integration
+- PART: one piece of a profile, of one kind: file, region, merge or external; named by its item (`instructions`, `hooks`, …) or by the tool for a raw part
+- LOCATION: a file or directory, relative to the root, that a part writes or a harness reads
+- SHARED: a part whose content another harness's part already puts in a location this harness reads
+- HOOK EVENT: one of session start, session end, prompt submit, pre tool, post tool, stop, pre compact
 - ROOT: the directory a profile's paths are relative to
 - RECORD: a TOML file holding, per harness, the hash of each part's content as the tool last wrote it
 - DECLINED PARTS: the parts a user chose not to install (`--without`)
@@ -24,14 +29,14 @@ What agent-harness-kit guarantees to the tools that use it: installing and repor
 
 ## Requirements
 
-### KIT-1: Tool and profiles [MUST]
+### KIT-1: Tool [MUST]
 
-AS A tool author, I WANT to declare my parts as data per harness and scope, SO THAT the kit installs them without knowing my content.
+AS A tool author, I WANT to declare my integration as data, SO THAT the kit installs it without knowing my content.
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-1_AC-1 [ubiquitous]: The system SHALL take from the tool its name, a profile per harness and scope, the root, the record path and the declined parts store of each scope, and SHALL embed no content of its own
-- [ ] KIT-1_AC-2 [conditional]: IF the tool has no profile for the harness and scope THEN `install` and `status` SHALL refuse with an unknown-profile error
+- [ ] KIT-1_AC-1 [ubiquitous]: The system SHALL take from the tool its name, the harnesses it supports, an integration per scope, the root, the record path and the declined parts store of each scope, and SHALL embed no content of its own
+- [ ] KIT-1_AC-2 [conditional]: IF a harness named to `install` or `status` is not one the tool supports THEN the system SHALL refuse with an unknown-harness error; IF the harness has no files at the scope THEN it SHALL refuse with an unsupported-scope error
 
 ### KIT-2: Part kinds [MUST]
 
@@ -41,7 +46,8 @@ ACCEPTANCE CRITERIA
 
 - [ ] KIT-2_AC-1 [ubiquitous]: A file part SHALL own whole files under a directory, written with LF line endings
 - [ ] KIT-2_AC-2 [ubiquitous]: A region part SHALL own the block between the tool's markers in one file, either a fixed path or a path a rule chooses under the root at install time
-- [ ] KIT-2_AC-3 [ubiquitous]: A merge part SHALL own entries in the JSON object of one file: an array entry (found by equality), an object member (found by its key), or the tool's entries inside the groups of an array (found by a field that starts with, or contains, a text the tool chooses)
+- [ ] KIT-2_AC-3 [ubiquitous]: A merge part SHALL own entries in the JSON object of one file: an array entry (found by equality), an object member (found by its key), the tool's entries in an array (found by a field that starts with, or contains, a text the tool chooses), or the tool's entries inside the groups of an array (found the same way)
+- [ ] KIT-2_AC-5 [ubiquitous]: A merge part SHALL own object members (found by their key) in the table of a TOML file
 - [ ] KIT-2_AC-4 [ubiquitous]: An external part SHALL be read and written by the tool itself through the kit's interface, with a location shown in reports
 
 ### KIT-3: Part states [MUST]
@@ -50,7 +56,7 @@ AS AN agent user, I WANT each part's state told apart, SO THAT the tool never ov
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-3_AC-1 [ubiquitous]: The system SHALL give each part exactly one state: skipped (declined), absent (nothing the tool could own), current (equal to the tool's content), stale (differs, and equals the recorded hash), edited (differs from both, or present with no recorded hash)
+- [ ] KIT-3_AC-1 [ubiquitous]: The system SHALL give each part exactly one state: skipped (declined), shared (KIT-19), absent (nothing the tool could own), current (equal to the tool's content), stale (differs, and equals the recorded hash), edited (differs from both, or present with no recorded hash)
 - [ ] KIT-3_AC-2 [ubiquitous]: The system SHALL compare files and external text ignoring CRLF/LF differences, a region block by its words, and merge entries by JSON equality
 
 ### KIT-4: Install [MUST]
@@ -61,8 +67,8 @@ ACCEPTANCE CRITERIA
 
 - [ ] KIT-4_AC-1 [event]: WHEN `install` runs THEN the system SHALL write absent and stale parts, leave current and skipped parts, and leave edited parts unless forced
 - [ ] KIT-4_AC-2 [event]: WHEN `install` writes or finds current a part THEN the system SHALL record its content hash; a skipped part's hash SHALL be removed; an edited part left as found SHALL keep its recorded hash
-- [ ] KIT-4_AC-3 [ubiquitous]: The result SHALL give, per part in profile order, its name, its path relative to the root (an external part's location), the state found, and what install did: created (absent before), rewrote (a file part that existed), updated (a region or merge that existed), or nothing
-- [ ] KIT-4_AC-4 [ubiquitous]: The text form SHALL be one line per part, `<word> <path> (<part>)`, the word (the action, else the state) padded to seven columns; the JSON form SHALL carry the same parts
+- [ ] KIT-4_AC-3 [ubiquitous]: The result SHALL give, per harness in the order named, per part in profile order, its name, its path relative to the root (an external part's location; a shared part's covering location), the state found, the harness that writes a shared part, and what install did: created (absent before), rewrote (a file part that existed), updated (a region or merge that existed), or nothing; then the items the harness does not support at the scope, and its notes (KIT-20); and, for the whole run, the warnings of KIT-19_AC-4
+- [ ] KIT-4_AC-4 [ubiquitous]: The text form SHALL be, per harness, a `<harness>:` line, one line per part, `<word> <path> (<part>)`, the word (the action, else the state) padded to seven columns, then `unsupported: <items>` when any, then one `note: <text>` line per note; then one `warning: <text>` line per warning; the JSON form SHALL carry the same content
 
 DEPENDS ON: KIT-3
 
@@ -80,7 +86,7 @@ AS AN agent user, I WANT a failed install to leave every file as found, SO THAT 
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-6_AC-1 [conditional]: IF the profile is unknown, `--without` names a part the profile lacks, or a file the kit must read (a merge target, the record, the declined store) does not parse or has the wrong shape THEN `install` SHALL refuse before any write, naming the file
+- [ ] KIT-6_AC-1 [conditional]: IF a harness is unknown or lacks the scope, `--without` names a part no named harness's profile has, two parts of one location differ (KIT-19_AC-5), or a file the kit must read (a merge target, the record, the declined store) does not parse or has the wrong shape THEN `install` SHALL refuse before any write, naming the file
 - [ ] KIT-6_AC-2 [ubiquitous]: The system SHALL write external parts before any file, so a failing external part leaves every file as found
 
 ### KIT-7: Writes [MUST]
@@ -98,7 +104,7 @@ AS AN agent user, I WANT to decline a part once, SO THAT later installs keep ski
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-8_AC-1 [event]: WHEN `install` is given `--without` THEN the system SHALL use that list as the declined parts and store it after the parts are written; otherwise the stored list SHALL apply
+- [ ] KIT-8_AC-1 [event]: WHEN `install` is given `--without` THEN the system SHALL use that list as the declined parts of every harness named, leaving out names a harness's profile lacks, and store it per harness after the parts are written; otherwise each harness's stored list SHALL apply
 - [ ] KIT-8_AC-2 [ubiquitous]: The system SHALL never read a declined part's target, so a broken file only a declined part uses cannot block the rest
 - [ ] KIT-8_AC-3 [ubiquitous]: The TOML store SHALL keep the list as `[harness.<name>] without = [...]` in a file the tool names, edited in place with its other content and comments kept
 
@@ -122,20 +128,23 @@ ACCEPTANCE CRITERIA
 - [ ] KIT-10_AC-1 [ubiquitous]: A merge SHALL keep every other entry, the key order, the file's indent (that of its first indented line, else two spaces) and whether it ends with a newline; a new file SHALL use two spaces and a final newline
 - [ ] KIT-10_AC-2 [ubiquitous]: A merge SHALL create missing containers and SHALL refuse, naming the file and path, when a container has another type
 - [ ] KIT-10_AC-3 [ubiquitous]: For a group entry the tool SHALL own only its entries inside a group: the user's entries and other keys in the same group SHALL be kept and not count as an edit; the tool's entries SHALL replace its earlier ones in the first group holding one, else come as a new group
+- [ ] KIT-10_AC-4 [ubiquitous]: For owned entries in an array the tool's entries SHALL replace its earlier ones in place of the first, else be appended; the user's entries SHALL be kept and not count as an edit
+- [ ] KIT-10_AC-5 [ubiquitous]: A TOML merge SHALL keep every other key, comments, key order and formatting; a new file SHALL hold only the tool's tables
 
-### KIT-11: Claude Code [MUST]
+### KIT-11: Hooks [MUST]
 
-AS A tool author, I WANT Claude Code's formats ready-made, SO THAT my hooks and parts match what Claude Code reads.
+AS A tool author, I WANT one hook model for every harness, SO THAT my hook command is written once.
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-11_AC-1 [ubiquitous]: The instructions file SHALL be chosen under the root as: no `AGENTS.md` → `CLAUDE.md`; only `AGENTS.md` → it; both, with a line `@AGENTS.md` in `CLAUDE.md` → `AGENTS.md`; both without it → `CLAUDE.md`
-- [ ] KIT-11_AC-2 [ubiquitous]: Hook input SHALL parse with every known field optional and unknown fields ignored; input that is not JSON SHALL be an error the caller handles
-- [ ] KIT-11_AC-3 [ubiquitous]: A hook answer SHALL be `{}` (allow, optionally with text for stderr), `{"decision":"block","reason":…}`, or `{"hookSpecificOutput":{"hookEventName":…,"additionalContext":…}}`
-- [ ] KIT-11_AC-4 [event]: WHEN a hook answer is emitted THEN the system SHALL write its stderr text, then the JSON and a newline on stdout, and give exit 0; WHEN the hook failed THEN it SHALL write `error: <message>` on stderr, nothing on stdout, and give exit 1
-- [ ] KIT-11_AC-5 [ubiquitous]: A hook command part SHALL be the group `{"hooks":[{"type":"command","command":…}]}` under `hooks.<event>` of a settings file, the tool's hooks being those whose command matches the tool's rule (a prefix, or a text it contains)
+- [ ] KIT-11_AC-1 [ubiquitous]: A hook SHALL be a hook event and a command template; each harness SHALL install it under its own name for the event, and leave out events it lacks
+- [ ] KIT-11_AC-2 [ubiquitous]: The installed command SHALL be the template with `{harness}` replaced by the harness id and `{event}` by the event's name (`session-start`, `session-end`, `prompt-submit`, `pre-tool`, `post-tool`, `stop`, `pre-compact`); the tool's hook entries SHALL be found by the text before the first placeholder, or by an entry match the tool gives
+- [ ] KIT-11_AC-3 [ubiquitous]: Hook input SHALL parse, by the harness and event, into one input: session, working directory, transcript path, prompt, the tool call (name, kind, input), the tool's output, the session start source, whether the agent is already continuing from a stop hook, the last assistant message, and the raw JSON; every field optional, unknown fields ignored; input that is not JSON SHALL be an error the caller handles
+- [ ] KIT-11_AC-4 [ubiquitous]: An answer SHALL be allow (optionally with text for stderr), deny with a reason (before a tool or a prompt), continue with a reason (at stop), or context text (session start, prompt submit, after a tool); each harness SHALL render it as its stdout JSON and exit code; an answer a harness cannot express for the event SHALL be an error
+- [ ] KIT-11_AC-5 [event]: WHEN a hook answer is emitted THEN the system SHALL write its stderr text, then the harness's stdout text, and give the harness's exit code; WHEN the hook failed THEN it SHALL write `error: <message>` on stderr, nothing on stdout, and give exit 1
+- [ ] KIT-11_AC-6 [ubiquitous]: A tool call's kind SHALL be shell, read, write (create or edit a file), mcp or other, from the harness's tool name; a hook MAY be limited to one kind, which a harness that can match tool names SHALL install as its matcher and another SHALL ignore
 
-DEPENDS ON: KIT-2, KIT-10
+DEPENDS ON: KIT-2, KIT-10, KIT-18
 
 ### KIT-12: Loop guard [SHOULD]
 
@@ -182,24 +191,76 @@ AS A tool author, I WANT typed errors, SO THAT I can react to each kind of refus
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-16_AC-1 [ubiquitous]: Each refusal SHALL be its own error kind: unknown scope, unknown profile, unknown part, a file that does not parse or has the wrong shape, and a refusal from a tool's own external part or store; IO failures SHALL name the path; each SHALL display a one-line message
+- [ ] KIT-16_AC-1 [ubiquitous]: Each refusal SHALL be its own error kind: unknown scope, unknown harness, unsupported scope, unknown part, a file that does not parse or has the wrong shape, and a refusal from a tool's own external part or store; IO failures SHALL name the path; each SHALL display a one-line message
+
+### KIT-17: Integration [MUST]
+
+AS A tool author, I WANT to declare my integration once, SO THAT every harness gets it in its own form.
+
+ACCEPTANCE CRITERIA
+
+- [ ] KIT-17_AC-1 [ubiquitous]: An integration SHALL hold an instructions block, skills (name, description, body, extra files), hooks (KIT-11), MCP servers (stdio: command, arguments, environment; or http: URL, headers), allowed commands (a command prefix), agents (name, description, prompt), commands (name, description, prompt with `$ARGUMENTS`), and raw parts for one harness
+- [ ] KIT-17_AC-2 [ubiquitous]: Each item SHALL become at most one part per harness, named by the item; a raw part SHALL keep the tool's name
+- [ ] KIT-17_AC-3 [conditional]: IF a raw part's name equals an item's name or another part's THEN the system SHALL refuse with an internal error
+- [ ] KIT-17_AC-4 [ubiquitous]: An item a harness cannot take at a scope SHALL be left out of its profile and listed as unsupported, never an error
+
+### KIT-18: Harnesses [MUST]
+
+AS A tool author, I WANT harnesses as values behind one contract, SO THAT I pick the ones I support and can add my own.
+
+ACCEPTANCE CRITERIA
+
+- [ ] KIT-18_AC-1 [ubiquitous]: A harness SHALL give its id, its scopes, the locations it reads per item and scope (those it always loads, and those it may load), the parts it renders from an integration, hook input parsing, answer rendering, and notes
+- [ ] KIT-18_AC-2 [ubiquitous]: The system SHALL provide the harnesses of REQ-HAR, a list of them all, and a lookup by id
+- [ ] KIT-18_AC-3 [ubiquitous]: A harness from outside the kit SHALL work with `install`, `status` and the hook functions without a kit change
+- [ ] KIT-18_AC-4 [ubiquitous]: A harness SHALL render and decide what it reads from the integration and the files under the root, so its choices follow the user's tree
+
+### KIT-19: Shared locations [MUST]
+
+AS AN agent user, I WANT shared content installed once, SO THAT no agent loads the tool's content twice.
+
+ACCEPTANCE CRITERIA
+
+- [ ] KIT-19_AC-1 [ubiquitous]: `install` and `status` SHALL work on a set of harnesses: those named, plus those with a table in the scope's record
+- [ ] KIT-19_AC-2 [ubiquitous]: Per item, the system SHALL choose, from the locations the set's parts would write, the fewest that every harness not declining the item always loads one of; among equal choices, the one whose locations the most harnesses load, then the earliest harness order
+- [ ] KIT-19_AC-3 [ubiquitous]: A harness whose part is not chosen, and which loads a chosen location, SHALL get that part as shared, naming the location and the harness that writes it; nothing SHALL be written or recorded for it
+- [ ] KIT-19_AC-4 [conditional]: IF a harness in the set loads, or may load, more than one chosen location of one item THEN the result SHALL carry a warning naming the harness, the item and the locations
+- [ ] KIT-19_AC-5 [conditional]: IF two harnesses' parts for one item and location differ THEN the system SHALL refuse with an internal error
+- [ ] KIT-19_AC-6 [conditional]: IF a harness's record holds a hash for a part that is now shared THEN the result SHALL warn that its earlier copy is left at its location, and the hash SHALL be kept
+- [ ] KIT-19_AC-7 [ubiquitous]: The harness order SHALL be the tool's list order, whatever order they are named in, so the same set always gives the same choice; a part's recorded hash SHALL be its writer's, else that of another harness in the set whose part for the item has the same location
+
+### KIT-20: Notes [SHOULD]
+
+AS AN agent user, I WANT to be told what is left to do after an install, SO THAT installed parts take effect.
+
+ACCEPTANCE CRITERIA
+
+- [ ] KIT-20_AC-1 [ubiquitous]: A harness MAY give notes after an install from its parts' results (e.g. approve hooks, trust the folder, reload), shown after its parts
+
+### KIT-21: Scopes [MUST]
+
+AS AN agent user, I WANT project, user and local installs, SO THAT I choose who gets the tool.
+
+ACCEPTANCE CRITERIA
+
+- [ ] KIT-21_AC-1 [ubiquitous]: Scopes SHALL be `project` (the project root), `user` (the home directory) and `local` (the project root, git-ignored files only); each harness SHALL state which scopes it has
 
 ## Assumptions
 
-- Claude Code's hook JSON and settings format behave as documented (confirmed for smllm, 2026-09-25)
+- Each harness's files and hook formats behave as its documentation says on 2026-10-06 (REQ-HAR)
 
 ## Constraints
 
-- `harness` knows no harness's formats; harness formats live in their own modules (`claude`)
+- The core knows no harness's formats; each harness's formats live in its own module
 - No public API exposes a type from another crate's 0.x release
 - MSRV 1.85
 
 ## Out of Scope
 
 - Removing (uninstalling) parts
-- Harnesses other than Claude Code (a later module)
+- Moving or removing a part a harness no longer needs after the set changes (follows uninstall)
 - Running hooks or commands for the tool
 
 ## Change Log
 
-- 0.1.0 (2026-10-06): Initial requirements (PLAN-009); entry matching by contained text and exact region round trip, from the sokf port (D9-20)
+- 0.1.0 (2026-10-06): Initial requirements (PLAN-009); entry matching by contained text and exact region round trip, from the sokf port (D9-20); integration, harnesses, shared locations, neutral hooks, TOML merge, owned entries, local scope, notes (PLAN-010)
