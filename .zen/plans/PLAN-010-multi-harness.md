@@ -39,7 +39,7 @@ The per-harness locations, formats and sources are in §10.
   - Events: `SessionStart`, `PromptSubmit`, `PreTool`, `PostTool`, `Stop`, plus `SessionEnd` and `PreCompact` where they exist. Each harness maps them to its names and leaves out the ones it lacks.
   - Input: one `HookInput` (session, cwd, event, prompt, tool name and input, tool output, whether this is a repeat stop, the last assistant message), parsed per harness. The repeat-stop flag comes from `stop_hook_active` or Cursor's `loop_count > 0`.
   - Answers: `Allow`, `Deny { reason }` (before a tool), `Continue { reason }` (on stop: keep the agent going), `Context { text }`. Each harness writes them in its form: stdout JSON, exit code, stderr.
-  - The installed command names its harness and event, e.g. `mytool hook --harness cursor stop`. The tool parses that, then calls the kit with the harness id.
+  - The command is the tool's own, any shape: `{harness}` and `{event}` placeholders go anywhere in it, in any order, or not at all (e.g. `mytool hook {harness} {event}`, `mytool-guard --event={event} --agent={harness}`, or one command per event). The tool parses its own arguments, then calls the kit with the harness id and event. D10-16.
   - Pi: the kit generates `.pi/extensions/<tool>.ts`. It calls the command with JSON on stdin through `node:child_process` and maps the answer to Pi's `{ block, reason }` / `{ continue }`. The extension is a file part, so it is recorded and checked like any other file.
   - `LoopGuard` keeps its behaviour and moves to `hook` (D10-13).
 - D10-5: **Dedupe shared content.**
@@ -73,6 +73,8 @@ The per-harness locations, formats and sources are in §10.
   - `report`, `cli`, `fs` are unchanged.
 - D10-14: A tool lists the harnesses it supports in `Tool::harnesses()`; `harness::builtin()` means all of them. `install` / `status` refuse a harness the tool does not list (unknown profile, as now).
 - D10-15: `Scope::Local`, where a harness has a local, git-ignored file: Claude `.claude/settings.local.json`, Factory `.factory/settings.local.json`, Copilot `.github/copilot/settings.local.json`. It takes hooks and allowed commands only, under the project root. Other harnesses, and other items, are unsupported at local scope (D10-3). Whether Factory reads hooks from `settings.local.json` is checked first (D10-11).
+
+- D10-16: Hook commands are as flexible as possible: no required word (`hook`) or argument order; placeholders optional, anywhere, `{{` / `}}` for literal braces. Ownership defaults per hook to the command's text before its first placeholder (the whole command when it has none); the tool can set one entry match for all its hooks or one per hook. An empty default (a command starting with a placeholder) needs an explicit match, else an internal error.
 
 ## 4. Functional requirements
 

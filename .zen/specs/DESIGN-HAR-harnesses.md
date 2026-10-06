@@ -70,7 +70,7 @@ Tool kinds (`ToolKind` from the tool name; unlisted names are `Other`):
 
 ### HAR-Common
 
-`protocol::parse(raw, fields)` fills `HookInput` from snake_case Claude-family fields (`stop_hook_active` → `continuing`; `last_assistant_message` or Gemini's `prompt_response` → `last_message`). `protocol::answer(event_name, answer)` gives HAR-1_AC-5's forms. `parts::instructions(file, block)` is `Part::region("instructions", file, block)`; `parts::group_hooks(path_prefix, owner, hooks, render_entry)` is one `MergeOp::group_entry` per hook, the group `{"matcher"?, "hooks":[entry]}`; `parts::skills(dir, skills)` is `Part::files("skills", dir, all dir_files)`; `parts::mcp_json(file, key, servers, to_json)` is one `object_member([key], name, json)` per server.
+`protocol::parse(raw, fields)` fills `HookInput` from snake_case Claude-family fields (`stop_hook_active` → `continuing`; `last_assistant_message` or Gemini's `prompt_response` → `last_message`). `protocol::answer(event_name, answer)` gives HAR-1_AC-5's forms. `parts::instructions(file, block)` is `Part::region("instructions", file, block)`; `parts::group_hooks(path_prefix, integration, render_entry)` is one `MergeOp::group_entry` per hook, owned by `integration.hook_owner(hook)` (KIT-11_AC-7), the group `{"matcher"?, "hooks":[entry]}`; Cursor's and Copilot's local owned entries use the same per-hook match; `parts::skills(dir, skills)` is `Part::files("skills", dir, all dir_files)`; `parts::mcp_json(file, key, servers, to_json)` is one `object_member([key], name, json)` per server.
 
 IMPLEMENTS: HAR-9_AC-1
 
