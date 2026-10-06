@@ -10,7 +10,7 @@ use toml_edit::{Array, DocumentMut, Item, Table, TableLike, Value};
 use crate::{
     Error, Result,
     fs::read_text,
-    harness::{merge::parse_toml, write::write_if_changed},
+    harness::{parse_toml, write::write_if_changed},
 };
 
 /// Where the parts a user declined are kept.

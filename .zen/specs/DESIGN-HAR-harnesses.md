@@ -25,16 +25,16 @@ src/
 ├── common/            crate-private
 │   ├── mod.rs
 │   ├── protocol.rs    Claude-family input fields and answers
-│   ├── parts.rs       instructions region, group hook ops, skills part, MCP JSON part, markdown agents part
+│   ├── parts.rs       instructions region, group hook ops, skills, MCP JSON, markdown agents and commands
 │   └── toml_out.rs    small TOML documents (Codex agents, Gemini commands) via toml_edit
-├── claude/   mod.rs, claude.rs (Claude, instructions_file)
-├── codex/    mod.rs, codex.rs
-├── factory/  mod.rs, factory.rs
-├── gemini/   mod.rs, gemini.rs
-├── copilot/  mod.rs, copilot.rs
-├── cursor/   mod.rs, cursor.rs
-├── pi/       mod.rs, pi.rs, extension.ts (template, include_str!)
-└── agents_md/ mod.rs, agents_md.rs
+├── claude/   mod.rs, adapter.rs (Claude, instructions_file)
+├── codex/    mod.rs, adapter.rs
+├── factory/  mod.rs, adapter.rs
+├── gemini/   mod.rs, adapter.rs
+├── copilot/  mod.rs, adapter.rs
+├── cursor/   mod.rs, adapter.rs
+├── pi/       mod.rs, adapter.rs, extension.ts (template, include_str!)
+└── agents_md/ mod.rs, adapter.rs
 ```
 
 ### Architectural Decisions
@@ -70,7 +70,7 @@ Tool kinds (`ToolKind` from the tool name; unlisted names are `Other`):
 
 ### HAR-Common
 
-`protocol::parse(raw, fields)` fills `HookInput` from snake_case Claude-family fields (`stop_hook_active` → `continuing`; `last_assistant_message` or Gemini's `prompt_response` → `last_message`). `protocol::answer(event_name, answer)` gives HAR-1_AC-5's forms. `parts::instructions(file, block)` is `Part::region("instructions", file, block)`; `parts::group_hooks(path_prefix, integration, render_entry)` is one `MergeOp::group_entry` per hook, owned by `integration.hook_owner(hook)` (KIT-11_AC-7), the group `{"matcher"?, "hooks":[entry]}`; Cursor's and Copilot's local owned entries use the same per-hook match; `parts::skills(dir, skills)` is `Part::files("skills", dir, all dir_files)`; `parts::mcp_json(file, key, servers, to_json)` is one `object_member([key], name, json)` per server.
+`protocol::parse(raw, fields)` fills `HookInput` from snake_case Claude-family fields (`stop_hook_active` → `continuing`; `last_assistant_message` or Gemini's `prompt_response` → `last_message`). `protocol::answer(event_name, answer)` gives HAR-1_AC-5's forms. `parts::instructions(file, block)` is `Part::region("instructions", file, block)`; `parts::group_hooks(layout, integration)` is one `MergeOp::group_entries` per event the harness has (`layout`: path, event names, matchers, timeout unit), the event's hooks grouped by matcher as `{"matcher"?, "hooks":[{"type":"command","command","timeout"?}]}`, owned by `EntryMatch::Any` of the hooks' matches (KIT-11_AC-7); Cursor's and Copilot's local owned entries use the same owner; `parts::skills(dir, skills)` is `Part::files("skills", dir, all dir_files)`; `parts::mcp_json(file, key, servers, to_json)` is one `object_member([key], name, json)` per server.
 
 IMPLEMENTS: HAR-9_AC-1
 

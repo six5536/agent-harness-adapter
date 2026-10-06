@@ -4,7 +4,7 @@
 mod common;
 
 use agent_harness_kit::{Error, InstallOptions, Scope, State, install, status};
-use common::TempTree;
+use common::{TempTree, parts};
 use proptest::prelude::*;
 use serde::Serialize as _;
 
@@ -50,7 +50,7 @@ fn arb_settings_object() -> impl Strategy<Value = serde_json::Value> {
     (
         prop::collection::vec((arb_key(), arb_scalar()), 0..3),
         prop::option::of(prop::collection::vec(
-            prop::sample::select(vec!["Bash(npm run *)", "mcp__tool", "Read(./src/**)"]),
+            prop::sample::select(vec!["Bash(npm run *)", "Bash(tool *)", "Read(./src/**)"]),
             0..3,
         )),
         prop::option::of(prop::collection::vec(
@@ -152,7 +152,7 @@ fn build(s: &Scenario) -> TempTree {
 }
 
 fn opts(without: Vec<String>, name: &str) -> InstallOptions {
-    let o = InstallOptions::new(name, Scope::Project);
+    let o = InstallOptions::new([name], Scope::Project);
     if without.is_empty() {
         o
     } else {
@@ -173,14 +173,14 @@ proptest! {
         install(&tree.tool(), &o.clone().force(true)).unwrap();
         let after_first = tree.files();
         let second = install(&tree.tool(), &o).unwrap();
-        for p in &second.parts {
+        for p in parts(&second, "claude") {
             prop_assert!(p.action.is_none(), "{second:?}");
             prop_assert!(p.state == State::Current || p.state == State::Skipped, "{second:?}");
             prop_assert_eq!(p.state == State::Skipped, s.without.contains(&p.part.as_str()));
         }
         prop_assert_eq!(tree.files(), after_first);
-        let st = status(&tree.tool(), "claude", Scope::Project).unwrap();
-        prop_assert_eq!(st.parts, second.parts);
+        let st = status(&tree.tool(), ["claude"], Scope::Project).unwrap();
+        prop_assert_eq!(parts(&st, "claude"), parts(&second, "claude"));
     }
 
     // @zen-test: KIT_P-6
@@ -206,10 +206,10 @@ proptest! {
             _ => tree.write(".tool/harness.toml", "[claude\nx = "),
         }
         let before = tree.files();
-        let o = InstallOptions::new(name, Scope::Project).without(without);
+        let o = InstallOptions::new([name], Scope::Project).without(without);
         let e = install(&tree.tool(), &o).unwrap_err();
         prop_assert!(
-            matches!(e, Error::UnknownProfile { .. } | Error::UnknownPart { .. } | Error::File { .. }),
+            matches!(e, Error::UnknownHarness { .. } | Error::UnknownPart { .. } | Error::File { .. }),
             "{e}"
         );
         prop_assert_eq!(tree.files(), before);

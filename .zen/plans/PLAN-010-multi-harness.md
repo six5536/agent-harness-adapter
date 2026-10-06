@@ -2,7 +2,7 @@
 
 | Meta               | Value |
 | ------------------ | ----- |
-| Status             | in progress: P1 specs done (2026-10-06): REQ-KIT, REQ-HAR, DESIGN-KIT, DESIGN-HAR, ARCHITECTURE |
+| Status             | in progress: P1–P3 done (2026-10-06): specs; core (integration, Harness, shared locations, TOML merge, set install); neutral hooks with Claude on them |
 | Workflow direction | top-down (architecture → requirements → design → code → docs → consumers → release) |
 | Traces to          | ARCHITECTURE (harness core, harness modules), KIT-1, KIT-2, KIT-3, KIT-4, KIT-10, KIT-11, KIT-12; PLAN-009 D9-17 |
 
@@ -125,7 +125,12 @@ The per-harness locations, formats and sources are in §10.
 
 ## 8. Implementation notes
 
-(empty)
+- P2: one group per hook could not hold two hooks on one event (e.g. two matchers), so `MergeOp::group_entry` became `group_entries` (all the tool's groups for an event, placed by their other keys) and `owned_entries` holds all of an event's entries. Each harness emits an op for every event it has; an empty op only removes the tool's old entries, creates nothing and expects nothing, so a hook the tool dropped makes the part stale (KIT-10_AC-6). `EntryMatch::Any` joins the hooks' matches.
+- P2: only the named harnesses are written and reported; harnesses from the record take part in the choice only. A chosen location is written by the earliest named harness that renders it (KIT-19_AC-3).
+- P2: `Part::region_chosen` / `ChooseFile` went: a harness picks the file when it renders, from the tree. `Profile::new` is crate-private.
+- P2: a TOML file of comments only keeps them first when a table is added (`toml_edit` would move them below).
+- P2: `tests/shared.rs` drives `install` / `status` / `emit` through three harnesses defined in the test, as a third party would.
+- P3: `LoopGuard` moved to `hook`; the README examples use the new API.
 
 ## 9. Resolved questions
 

@@ -46,7 +46,7 @@ ACCEPTANCE CRITERIA
 
 - [ ] KIT-2_AC-1 [ubiquitous]: A file part SHALL own whole files under a directory, written with LF line endings
 - [ ] KIT-2_AC-2 [ubiquitous]: A region part SHALL own the block between the tool's markers in one file, either a fixed path or a path a rule chooses under the root at install time
-- [ ] KIT-2_AC-3 [ubiquitous]: A merge part SHALL own entries in the JSON object of one file: an array entry (found by equality), an object member (found by its key), the tool's entries in an array (found by a field that starts with, or contains, a text the tool chooses), or the tool's entries inside the groups of an array (found the same way)
+- [ ] KIT-2_AC-3 [ubiquitous]: A merge part SHALL own entries in the JSON object of one file: an array entry (found by equality), an object member (found by its key), the tool's entries in an array (found by a field that starts with, or contains, one of the texts the tool chooses), or the tool's entries inside the groups of an array (found the same way)
 - [ ] KIT-2_AC-5 [ubiquitous]: A merge part SHALL own object members (found by their key) in the table of a TOML file
 - [ ] KIT-2_AC-4 [ubiquitous]: An external part SHALL be read and written by the tool itself through the kit's interface, with a location shown in reports
 
@@ -67,8 +67,8 @@ ACCEPTANCE CRITERIA
 
 - [ ] KIT-4_AC-1 [event]: WHEN `install` runs THEN the system SHALL write absent and stale parts, leave current and skipped parts, and leave edited parts unless forced
 - [ ] KIT-4_AC-2 [event]: WHEN `install` writes or finds current a part THEN the system SHALL record its content hash; a skipped part's hash SHALL be removed; an edited part left as found SHALL keep its recorded hash
-- [ ] KIT-4_AC-3 [ubiquitous]: The result SHALL give, per harness in the order named, per part in profile order, its name, its path relative to the root (an external part's location; a shared part's covering location), the state found, the harness that writes a shared part, and what install did: created (absent before), rewrote (a file part that existed), updated (a region or merge that existed), or nothing; then the items the harness does not support at the scope, and its notes (KIT-20); and, for the whole run, the warnings of KIT-19_AC-4
-- [ ] KIT-4_AC-4 [ubiquitous]: The text form SHALL be, per harness, a `<harness>:` line, one line per part, `<word> <path> (<part>)`, the word (the action, else the state) padded to seven columns, then `unsupported: <items>` when any, then one `note: <text>` line per note; then one `warning: <text>` line per warning; the JSON form SHALL carry the same content
+- [ ] KIT-4_AC-3 [ubiquitous]: The result SHALL give, per harness named, in the tool's order, per part in profile order, its name, its path relative to the root (an external part's location; a shared part's covering location), the state found, the harness that writes a shared part, and what install did: created (absent before), rewrote (a file part that existed), updated (a region or merge that existed), or nothing; then the items the harness does not support at the scope, and its notes (KIT-20); and, for the whole run, the warnings of KIT-19_AC-4
+- [ ] KIT-4_AC-4 [ubiquitous]: The text form SHALL be, per harness, a `<harness>:` line, then, indented two spaces, one line per part, `<word> <path> (<part>)` (`(<part>, by <harness>)` for a shared part), the word (the action, else the state) padded to seven columns, then `unsupported: <items>` when any, then one `note: <text>` line per note; then one `warning: <text>` line per warning; the JSON form SHALL carry the same content
 
 DEPENDS ON: KIT-3
 
@@ -127,8 +127,9 @@ ACCEPTANCE CRITERIA
 
 - [ ] KIT-10_AC-1 [ubiquitous]: A merge SHALL keep every other entry, the key order, the file's indent (that of its first indented line, else two spaces) and whether it ends with a newline; a new file SHALL use two spaces and a final newline
 - [ ] KIT-10_AC-2 [ubiquitous]: A merge SHALL create missing containers and SHALL refuse, naming the file and path, when a container has another type
-- [ ] KIT-10_AC-3 [ubiquitous]: For a group entry the tool SHALL own only its entries inside a group: the user's entries and other keys in the same group SHALL be kept and not count as an edit; the tool's entries SHALL replace its earlier ones in the first group holding one, else come as a new group
-- [ ] KIT-10_AC-4 [ubiquitous]: For owned entries in an array the tool's entries SHALL replace its earlier ones in place of the first, else be appended; the user's entries SHALL be kept and not count as an edit
+- [ ] KIT-10_AC-3 [ubiquitous]: For group entries the tool SHALL own only its entries inside the groups of an array: the user's entries and other keys SHALL be kept and not count as an edit; each of the tool's groups SHALL take the place of the tool's entries in the first group with the same other keys (e.g. a matcher) that held one, else be appended; a group that held only the tool's entries and gets none back SHALL be removed
+- [ ] KIT-10_AC-4 [ubiquitous]: For owned entries in an array the tool's entries SHALL take the place of its first one, else be appended, and its other entries be removed; the user's entries SHALL be kept and not count as an edit
+- [ ] KIT-10_AC-6 [ubiquitous]: An owned or group operation with no entries SHALL only remove the tool's entries, create no container, and expect nothing, so the tool's entries for a hook event it no longer uses make the part stale
 - [ ] KIT-10_AC-5 [ubiquitous]: A TOML merge SHALL keep every other key, comments, key order and formatting; a new file SHALL hold only the tool's tables
 
 ### KIT-11: Hooks [MUST]
@@ -193,7 +194,7 @@ AS A tool author, I WANT typed errors, SO THAT I can react to each kind of refus
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-16_AC-1 [ubiquitous]: Each refusal SHALL be its own error kind: unknown scope, unknown harness, unsupported scope, unknown part, a file that does not parse or has the wrong shape, and a refusal from a tool's own external part or store; IO failures SHALL name the path; each SHALL display a one-line message
+- [ ] KIT-16_AC-1 [ubiquitous]: Each refusal SHALL be its own error kind: unknown scope, unknown hook event, unknown harness, unsupported scope, unknown part, an unsupported answer, a file that does not parse or has the wrong shape, and a refusal from a tool's own external part or store; IO failures SHALL name the path; each SHALL display a one-line message
 
 ### KIT-17: Integration [MUST]
 
@@ -223,13 +224,13 @@ AS AN agent user, I WANT shared content installed once, SO THAT no agent loads t
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-19_AC-1 [ubiquitous]: `install` and `status` SHALL work on a set of harnesses: those named, plus those with a table in the scope's record
+- [ ] KIT-19_AC-1 [ubiquitous]: `install` and `status` SHALL work on a set of harnesses: those named, plus those the tool supports with a table in the scope's record; only the named harnesses' parts SHALL be written and reported
 - [ ] KIT-19_AC-2 [ubiquitous]: Per item, the system SHALL choose, from the locations the set's parts would write, the fewest that every harness not declining the item always loads one of; among equal choices, the one whose locations the most harnesses load, then the earliest harness order
-- [ ] KIT-19_AC-3 [ubiquitous]: A harness whose part is not chosen, and which loads a chosen location, SHALL get that part as shared, naming the location and the harness that writes it; nothing SHALL be written or recorded for it
+- [ ] KIT-19_AC-3 [ubiquitous]: Each chosen location SHALL be written by the earliest named harness whose part has it, else the earliest; every other harness's part for the item SHALL be shared, naming the first chosen location it loads and that location's writer; nothing SHALL be written or recorded for it
 - [ ] KIT-19_AC-4 [conditional]: IF a harness in the set loads, or may load, more than one chosen location of one item THEN the result SHALL carry a warning naming the harness, the item and the locations
 - [ ] KIT-19_AC-5 [conditional]: IF two harnesses' parts for one item and location differ THEN the system SHALL refuse with an internal error
 - [ ] KIT-19_AC-6 [conditional]: IF a harness's record holds a hash for a part that is now shared THEN the result SHALL warn that its earlier copy is left at its location, and the hash SHALL be kept
-- [ ] KIT-19_AC-7 [ubiquitous]: The harness order SHALL be the tool's list order, whatever order they are named in, so the same set always gives the same choice; a part's recorded hash SHALL be its writer's, else that of another harness in the set whose part for the item has the same location
+- [ ] KIT-19_AC-7 [ubiquitous]: The harness order SHALL be the tool's list order, whatever order they are named in, so the same set always gives the same choice of locations; a part's recorded hash SHALL be its writer's, else that of another harness in the set whose part for the item has the same location
 
 ### KIT-20: Notes [SHOULD]
 

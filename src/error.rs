@@ -3,6 +3,8 @@
 
 use std::{fmt, io, path::PathBuf};
 
+use crate::harness::Scope;
+
 /// Everything that can go wrong in the kit. Every variant but [`Error::Io`]
 /// and [`Error::Internal`] is a refusal: `install` returns it before any
 /// write.
@@ -15,17 +17,37 @@ pub enum Error {
         /// The name given.
         name: String,
     },
-    /// The tool has no profile for the harness at the scope.
-    UnknownProfile {
-        /// The harness name given.
+    /// A hook event name that is not one of [`Event`](crate::hook::Event)'s.
+    UnknownEvent {
+        /// The name given.
+        name: String,
+    },
+    /// A harness id the tool does not support.
+    UnknownHarness {
+        /// The harness id given.
         harness: String,
     },
-    /// A part name (e.g. in `--without`) the profile does not have.
+    /// A harness that has no files at the scope.
+    UnsupportedScope {
+        /// The harness id.
+        harness: String,
+        /// The scope given.
+        scope: Scope,
+    },
+    /// A part name (e.g. in `--without`) no named harness's profile has.
     UnknownPart {
-        /// The profile's harness.
+        /// The harness, or the harnesses named, comma-separated.
         harness: String,
         /// The part name given.
         part: String,
+    },
+    /// Something a harness cannot do, e.g. an answer it cannot express for
+    /// an event.
+    Unsupported {
+        /// The harness id.
+        harness: String,
+        /// What it cannot do, e.g. `answer deny at stop`.
+        what: String,
     },
     /// A file the kit must read does not parse or has the wrong shape.
     File {
@@ -46,7 +68,7 @@ pub enum Error {
         /// The underlying I/O error.
         source: io::Error,
     },
-    /// A bug or an inconsistent profile.
+    /// A bug, or an inconsistent integration or harness.
     Internal(String),
 }
 
@@ -72,9 +94,16 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::UnknownScope { name } => write!(f, "no scope named `{name}`"),
-            Error::UnknownProfile { harness } => write!(f, "no profile named `{harness}`"),
+            Error::UnknownEvent { name } => write!(f, "no hook event named `{name}`"),
+            Error::UnknownHarness { harness } => write!(f, "no harness named `{harness}`"),
+            Error::UnsupportedScope { harness, scope } => {
+                write!(f, "harness `{harness}` has no {scope} scope")
+            }
             Error::UnknownPart { harness, part } => {
-                write!(f, "profile `{harness}` has no part named `{part}`")
+                write!(f, "harness `{harness}` has no part named `{part}`")
+            }
+            Error::Unsupported { harness, what } => {
+                write!(f, "harness `{harness}` cannot {what}")
             }
             Error::File { file, message } => write!(f, "{file}: {message}"),
             Error::Refused(message) => f.write_str(message),
@@ -116,17 +145,35 @@ mod tests {
                 "no scope named `g`",
             ),
             (
-                Error::UnknownProfile {
+                Error::UnknownEvent { name: "e".into() },
+                "no hook event named `e`",
+            ),
+            (
+                Error::UnknownHarness {
                     harness: "x".into(),
                 },
-                "no profile named `x`",
+                "no harness named `x`",
+            ),
+            (
+                Error::UnsupportedScope {
+                    harness: "cursor".into(),
+                    scope: Scope::Local,
+                },
+                "harness `cursor` has no local scope",
             ),
             (
                 Error::UnknownPart {
                     harness: "claude".into(),
                     part: "p".into(),
                 },
-                "profile `claude` has no part named `p`",
+                "harness `claude` has no part named `p`",
+            ),
+            (
+                Error::Unsupported {
+                    harness: "copilot".into(),
+                    what: "answer context at stop".into(),
+                },
+                "harness `copilot` cannot answer context at stop",
             ),
             (
                 Error::file("a.json", "is not a JSON object"),

@@ -37,19 +37,19 @@ src/
 ├── hash.rs             FNV-1a, CRLF normalisation (internal)
 ├── integration/
 │   ├── mod.rs
-│   ├── integration.rs  Integration, Item
+│   ├── declaration.rs  Integration, Item
 │   └── items.rs        Skill, Hook, McpServer, Transport, Agent, Command
 ├── harness/
 │   ├── mod.rs
 │   ├── adapter.rs      Harness, Context, Reads, builtin, find
 │   ├── tool.rs         Tool, Scope
 │   ├── part.rs         Part, Profile, ExternalPart, private Kind
-│   ├── merge.rs        MergeOp, EntryMatch, the JSON merge (internal)
-│   ├── merge_toml.rs   the TOML merge (internal)
+│   ├── merge/          op.rs (MergeOp, EntryMatch), json.rs, toml.rs (internal merges), mod.rs (dispatch by extension)
 │   ├── region.rs       Markers
 │   ├── shared.rs       the shared-location choice (internal)
 │   ├── state.rs        State, internal Found / Observed / hash
 │   ├── install.rs      install, status, InstallOptions
+│   ├── file.rs         file part rendering (internal)
 │   ├── result.rs       InstallResult, HarnessResult, PartResult, Action
 │   ├── record.rs       the record (internal)
 │   ├── declined.rs     DeclinedStore, TomlDeclined
@@ -60,7 +60,8 @@ src/
 │   ├── input.rs        HookInput
 │   ├── answer.rs       Answer, Output, emit
 │   └── guard.rs        LoopGuard
-├── claude/ codex/ factory/ gemini/ copilot/ cursor/ pi/ agents_md/   (DESIGN-HAR)
+├── common/             pieces several harnesses share (DESIGN-HAR)
+├── claude/ codex/ factory/ gemini/ copilot/ cursor/ pi/ agents_md/   adapter.rs each (DESIGN-HAR)
 └── report/
     ├── mod.rs
     ├── finding.rs      Finding, Severity
@@ -97,6 +98,7 @@ impl Integration {
     pub fn skill(self, skill: Skill) -> Self;
     pub fn hook(self, hook: Hook) -> Self;
     pub fn hook_match(self, owned: EntryMatch) -> Self;      // for every hook without its own
+    pub fn allow_command(self, prefix: impl Into<String>) -> Self;
     pub fn mcp_server(self, server: McpServer) -> Self;
     pub fn allow_command(self, prefix: impl Into<String>) -> Self;
     pub fn agent(self, agent: Agent) -> Self;
@@ -190,7 +192,7 @@ pub fn find(id: &str) -> Option<Arc<dyn Harness>>;
 
 ### KIT-Harness
 
-`install` resolves the set: the named ids (each must be in `tool.harnesses()`, else `UnknownHarness`; each must list the scope, else `UnsupportedScope`), plus the harnesses with a table in the record, ordered by `tool.harnesses()`. Per harness it builds a `Context`, calls `render`, appends `integration.parts_for(id)` (a name clash with an item or another part is `Internal`), reads its declined list (`--without` names checked against the union of the named harnesses' part names, else `UnknownPart`), and asks `reads` for every item it rendered. KIT-Shared then marks parts shared. Every remaining part not declined is examined as in 0.1 (target, observe, state against the expected content and the recorded hash of KIT-19_AC-7); `install` decides, plans one `Plan` keyed by path across all harnesses (a second part in the same file renders on the planned text), updates each harness's record table, and applies: external parts, then files, then the record. Declined lists are stored after the writes when `--without` was given. `status` stops after examining. Notes come from `Harness::notes` with the harness's part results.
+`install` resolves the set: the named ids (each must be in `tool.harnesses()`, else `UnknownHarness`; each must list the scope, else `UnsupportedScope`), plus the supported harnesses with a table in the record, ordered by `tool.harnesses()`; only named members are written and reported. Per harness it builds a `Context`, calls `render`, appends `integration.parts_for(id)` (a name clash with an item or another part is `Internal`), reads its declined list (`--without` names checked against the union of the named harnesses' part names, else `UnknownPart`), and asks `reads` for every item it rendered. KIT-Shared then marks parts shared. Every remaining part not declined is examined as in 0.1 (target, observe, state against the expected content and the recorded hash of KIT-19_AC-7); `install` decides, plans one `Plan` keyed by path across all harnesses (a second part in the same file renders on the planned text), updates each harness's record table, and applies: external parts, then files, then the record. Declined lists are stored after the writes when `--without` was given. `status` stops after examining. Notes come from `Harness::notes` with the harness's part results.
 
 IMPLEMENTS: KIT-1_AC-1, KIT-1_AC-2, KIT-2_AC-1, KIT-2_AC-2, KIT-2_AC-4, KIT-3_AC-1, KIT-3_AC-2, KIT-4_AC-1, KIT-4_AC-2, KIT-5_AC-1, KIT-6_AC-1, KIT-6_AC-2, KIT-7_AC-1, KIT-7_AC-2, KIT-8_AC-1, KIT-8_AC-2, KIT-17_AC-3, KIT-17_AC-4, KIT-19_AC-1, KIT-20_AC-1
 
@@ -242,35 +244,36 @@ pub fn status<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(tool: 
 
 ### KIT-Shared
 
-Per item, over the harnesses in the set that rendered it and did not decline it: candidates are their parts' locations. Equal locations must hold equal parts, else `Internal` (KIT-19_AC-5). The chosen set `S` is the smallest subset of candidates such that each harness's `reads.always` meets `S`; ties go to the larger count of harnesses whose `always ∪ maybe` meets each location, then to the earliest writer in tool order. Each location in `S` is written by the earliest harness whose part has it; every other harness's part for the item is shared, `by` that writer, `path` the first location of `S` it always loads. A harness whose `always ∪ maybe` meets `S` more than once gets a double-load warning; a shared part with a recorded hash gets a left-over warning and keeps the hash.
+Per item, over the harnesses in the set that rendered it and did not decline it: candidates are their parts' locations. Equal locations must hold equal parts, else `Internal` (KIT-19_AC-5). The chosen set `S` is the smallest subset of candidates such that each harness's `reads.always` meets `S`; ties go to the larger count of harnesses whose `always ∪ maybe` meets each location, then to the earliest writer in tool order. Each location in `S` is written by the earliest named harness whose part has it, else the earliest; every other harness's part for the item is shared, `by` that writer, `path` the first location of `S` it always loads. A harness whose `always ∪ maybe` meets `S` more than once gets a double-load warning; a shared part with a recorded hash gets a left-over warning and keeps the hash.
 
 IMPLEMENTS: KIT-19_AC-2, KIT-19_AC-3, KIT-19_AC-4, KIT-19_AC-5, KIT-19_AC-6, KIT-19_AC-7
 
 ```rust
-pub(crate) struct Choice { pub writer: BTreeMap<String, usize>, pub shared: Vec<(usize, String, usize)>, pub warnings: Vec<String> }
-pub(crate) fn choose(item: Item, candidates: &[Candidate]) -> Result<Choice>;
-pub(crate) struct Candidate<'a> { pub harness: usize, pub part: &'a Part, pub reads: &'a Reads, pub recorded: bool }
+pub(crate) struct Candidate<'a> { harness: &'a str, named: bool, part: &'a Part, reads: &'a Reads }
+pub(crate) enum Role { Write, Shared { location: String, by: String } }
+pub(crate) struct Choice { roles: Vec<Role>, warnings: Vec<String> }
+pub(crate) fn choose(item: &str, candidates: &[Candidate<'_>]) -> Result<Choice>;   // the leftover warning (KIT-19_AC-6) is install's, from the record
 ```
 
 ### KIT-Merge
 
-`MergeOp` wraps a private `Op` (array entry, object member, owned entry, group entry), paths as key segments. A JSON file: parse (`File` refusal unless an object), apply each op (containers created; another type refuses), re-serialise with the file's indent and trailing newline. Owned entry: in the array at `path`, entries whose `field` `owned` matches are the tool's; the first is replaced by the tool's entry and the others removed, else it is appended. A TOML file (by extension): `toml_edit::DocumentMut`, object members only, the JSON value converted (objects → tables, arrays → arrays, null → `Internal`). `extract` reads back only the tool's entries for state and hash.
+`MergeOp` wraps a private `Op` (array entry, object member, owned entries, group entries), paths as key segments. A harness emits one owned or group op per hook event it has, holding all the tool's entries for the event (grouped by matcher), owned by `EntryMatch::Any` of the hooks' matches; an event without hooks gets an empty op, which only removes old entries, creates nothing and is left out of the expected content. A JSON file: parse (`File` refusal unless an object), apply each op (containers created; another type refuses), re-serialise with the file's indent and trailing newline. Owned entries: in the array at `path`, entries whose `field` `owned` matches are the tool's; they are removed and the tool's entries put where the first was, else appended. Group entries: the tool's entries are removed from every group; each wanted group goes where the tool's first entry was in the first unused group with the same other keys that held one, else is appended; groups that held only tool entries and got none back go. `extract` gives the tool's entries as found (group entries: the groups holding them, with their other keys). A TOML file (by extension): `toml_edit::DocumentMut`, object members only, the JSON value converted (objects → tables, arrays → arrays, null → `Internal`). `extract` reads back only the tool's entries for state and hash.
 
-IMPLEMENTS: KIT-2_AC-3, KIT-2_AC-5, KIT-10_AC-1, KIT-10_AC-2, KIT-10_AC-3, KIT-10_AC-4, KIT-10_AC-5
+IMPLEMENTS: KIT-2_AC-3, KIT-2_AC-5, KIT-10_AC-1, KIT-10_AC-2, KIT-10_AC-3, KIT-10_AC-4, KIT-10_AC-5, KIT-10_AC-6
 
 ```rust
 pub struct MergeOp { /* private Op */ }   // Debug, Clone, PartialEq, Eq
 impl MergeOp {
     pub fn array_entry<P: IntoIterator<Item = S>, S: Into<String>>(path: P, value: impl Into<Value>) -> Self;
     pub fn object_member<P: IntoIterator<Item = S>, S: Into<String>>(path: P, key: impl Into<String>, value: impl Into<Value>) -> Self;
-    pub fn owned_entry<P: IntoIterator<Item = S>, S: Into<String>>(path: P, field: impl Into<String>, owned: EntryMatch, entry: impl Into<Value>) -> Self;
-    pub fn group_entry<P: IntoIterator<Item = S>, S: Into<String>>(path: P, entries: impl Into<String>, field: impl Into<String>, owned: EntryMatch, group: impl Into<Value>) -> Self;
+    pub fn owned_entries<P: IntoIterator<Item = S>, S: Into<String>>(path: P, field: impl Into<String>, owned: EntryMatch, entries: Vec<Value>) -> Self;
+    pub fn group_entries<P: IntoIterator<Item = S>, S: Into<String>>(path: P, entries: impl Into<String>, field: impl Into<String>, owned: EntryMatch, groups: Vec<Value>) -> Self;
     pub fn value(&self) -> &Value;
 }
 
 #[non_exhaustive]
-pub enum EntryMatch { Prefix(String), Contains(String) }
-impl EntryMatch { pub fn matches(&self, text: &str) -> bool; }
+pub enum EntryMatch { Prefix(String), Contains(String), Any(Vec<EntryMatch>) }
+impl EntryMatch { pub fn matches(&self, text: &str) -> bool; pub fn any_of<I: IntoIterator<Item = EntryMatch>>(m: I) -> Self; }
 ```
 
 ### KIT-Region
@@ -292,7 +295,7 @@ impl Markers {
 
 ### KIT-Results
 
-`PartResult::verb` is the action's word, else the state's. `InstallResult::to_text` prints each harness (`<id>:`, parts padded to seven columns, `unsupported: …`, `note: …`), then `warning: …` lines. Serialised: `{"scope","root","harnesses":[{"harness","parts":[{"part","state","action"?,"path","by"?}],"unsupported":[…],"notes":[…]}],"warnings":[…]}`.
+`PartResult::verb` is the action's word, else the state's; `PartResult::to_line` pads it to seven columns. `InstallResult::to_text` prints each harness (`<id>:`, then indented: part lines, `unsupported: …`, `note: …`), then `warning: …` lines. Serialised: `{"scope","root","harnesses":[{"harness","parts":[{"part","state","action"?,"path","by"?}],"unsupported":[…],"notes":[…]}],"warnings":[…]}`.
 
 IMPLEMENTS: KIT-4_AC-3, KIT-4_AC-4
 
@@ -300,7 +303,7 @@ IMPLEMENTS: KIT-4_AC-3, KIT-4_AC-4
 #[non_exhaustive] pub enum State { Skipped, Shared, Absent, Current, Stale, Edited }
 #[non_exhaustive] pub enum Action { Created, Rewrote, Updated }
 #[non_exhaustive] pub struct PartResult { pub part: String, pub state: State, pub action: Option<Action>, pub path: String, pub by: Option<String> }
-impl PartResult { pub fn verb(&self) -> &'static str; }
+impl PartResult { pub fn verb(&self) -> &'static str; pub fn to_line(&self) -> String; }
 #[non_exhaustive] pub struct HarnessResult { pub harness: String, pub parts: Vec<PartResult>, pub unsupported: Vec<Item>, pub notes: Vec<String> }
 #[non_exhaustive] pub struct InstallResult { pub scope: Scope, pub root: PathBuf, pub harnesses: Vec<HarnessResult>, pub warnings: Vec<String> }
 impl InstallResult { pub fn to_text(&self) -> String; pub fn harness(&self, id: &str) -> Option<&HarnessResult>; }
@@ -433,6 +436,7 @@ IMPLEMENTS: KIT-16_AC-1
 #[non_exhaustive]
 pub enum Error {
     UnknownScope { name: String },                     // no scope named `{name}`
+    UnknownEvent { name: String },                     // no hook event named `{name}`
     UnknownHarness { harness: String },                // no harness named `{harness}`
     UnsupportedScope { harness: String, scope: Scope },// harness `{harness}` has no {scope} scope
     UnknownPart { harness: String, part: String },     // harness `{harness}` has no part named `{part}`
@@ -545,7 +549,7 @@ SOURCE: .zen/specs/REQ-KIT-harness-kit.md
 - KIT-8_AC-3 → KIT-Declined
 - KIT-9_AC-1..AC-4 → KIT-Region (KIT_P-1)
 - KIT-10_AC-1, KIT-10_AC-3, KIT-10_AC-4 → KIT-Merge (KIT_P-2)
-- KIT-10_AC-2 → KIT-Merge
+- KIT-10_AC-2, KIT-10_AC-6 → KIT-Merge
 - KIT-10_AC-5 → KIT-Merge (KIT_P-11)
 - KIT-11_AC-1..AC-6 → KIT-Hook
 - KIT-11_AC-7, KIT-11_AC-8 → KIT-Integration
@@ -562,7 +566,8 @@ SOURCE: .zen/specs/REQ-KIT-harness-kit.md
 - KIT-19_AC-1 → KIT-Harness
 - KIT-19_AC-2, KIT-19_AC-3, KIT-19_AC-7 → KIT-Shared (KIT_P-9)
 - KIT-19_AC-4 → KIT-Shared (KIT_P-10)
-- KIT-19_AC-5, KIT-19_AC-6 → KIT-Shared
+- KIT-19_AC-5 → KIT-Shared
+- KIT-19_AC-6 → KIT-Harness
 - KIT-20_AC-1 → KIT-Harness
 - KIT-21_AC-1 → KIT-Adapter
 

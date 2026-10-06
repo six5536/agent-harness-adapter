@@ -13,14 +13,18 @@ use std::{
 };
 
 use agent_harness_kit::{
-    DeclinedStore, EntryMatch, Error, ExternalPart, MergeOp, Part, Profile, Result, Scope,
-    TomlDeclined, Tool, claude,
+    DeclinedStore, Error, ExternalPart, Harness, InstallResult, Integration, Part, PartResult,
+    Result, Scope, TomlDeclined, Tool,
+    claude::Claude,
+    hook::Event,
+    integration::{Hook, McpServer, Skill},
 };
 use serde_json::json;
 
 pub const INSTRUCTIONS: &str = "This project uses tool.\nRead the tool skill first.\n";
-pub const SKILL: &str = "---\nname: tool\n---\n\n# Tool\n";
-pub const PREFIX: &str = "tool harness hook ";
+pub const SKILL_BODY: &str = "# Tool\n";
+pub const SKILL: &str = "---\nname: tool\ndescription: Use the tool.\n---\n\n# Tool\n";
+pub const COMMAND: &str = "tool harness hook {harness} {event}";
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 
@@ -65,17 +69,11 @@ impl TempTree {
     }
 
     pub fn tool(&self) -> TestTool {
-        TestTool {
-            dir: self.dir.clone(),
-            old: false,
-        }
+        TestTool::new(self, false)
     }
 
     pub fn old_tool(&self) -> TestTool {
-        TestTool {
-            dir: self.dir.clone(),
-            old: true,
-        }
+        TestTool::new(self, true)
     }
 }
 
@@ -101,8 +99,8 @@ fn walk(root: &Path, dir: &Path, out: &mut BTreeMap<String, Vec<u8>>) {
     }
 }
 
-/// The user-scope `mcp` part: stands in for `claude mcp add-json --scope
-/// user` by keeping the server's JSON in a file.
+/// A user-scope part the tool writes itself: stands in for `claude mcp
+/// add-json --scope user` by keeping the server's JSON in a file.
 #[derive(Debug)]
 pub struct FakeMcp {
     pub file: PathBuf,
@@ -135,51 +133,31 @@ impl ExternalPart for FakeMcp {
     }
 }
 
-/// The tool under test: named `tool`, with a `claude` profile per scope.
-/// `old` is an older version of it: another instructions block and only
-/// the `Stop` hook.
+/// The tool under test: named `tool`. `old` is an older version of it:
+/// another instructions block and only the stop hook. `harnesses` are the
+/// ones it supports (Claude Code by default).
 pub struct TestTool {
     pub dir: PathBuf,
     pub old: bool,
-}
-
-pub fn hooks_ops() -> Vec<MergeOp> {
-    hooks_ops_for(&["SessionStart", "UserPromptSubmit", "Stop"])
-}
-
-fn hooks_ops_for(events: &[&str]) -> Vec<MergeOp> {
-    events
-        .iter()
-        .map(|event| {
-            let hook = match *event {
-                "SessionStart" => "session-start",
-                "UserPromptSubmit" => "user-prompt-submit",
-                _ => "stop",
-            };
-            claude::hook_command(
-                event,
-                EntryMatch::Prefix(PREFIX.into()),
-                &format!("tool harness hook claude {hook}"),
-            )
-        })
-        .collect()
-}
-
-pub fn permissions_ops() -> Vec<MergeOp> {
-    vec![MergeOp::array_entry(["permissions", "allow"], "mcp__tool")]
-}
-
-pub fn mcp_ops() -> Vec<MergeOp> {
-    vec![MergeOp::object_member(
-        ["mcpServers"],
-        "tool",
-        json!({"command": "tool", "args": ["mcp"]}),
-    )]
+    pub harnesses: Vec<Arc<dyn Harness>>,
 }
 
 impl TestTool {
-    fn user_root(&self) -> PathBuf {
-        self.dir.join("home/.claude")
+    fn new(tree: &TempTree, old: bool) -> Self {
+        TestTool {
+            dir: tree.dir.clone(),
+            old,
+            harnesses: vec![Arc::new(Claude)],
+        }
+    }
+
+    pub fn with(mut self, harnesses: Vec<Arc<dyn Harness>>) -> Self {
+        self.harnesses = harnesses;
+        self
+    }
+
+    fn home(&self) -> PathBuf {
+        self.dir.join("home")
     }
 }
 
@@ -188,56 +166,49 @@ impl Tool for TestTool {
         "tool"
     }
 
-    fn profile(&self, harness: &str, scope: Scope) -> Option<Profile> {
-        if harness != "claude" {
-            return None;
-        }
-        let mcp = match scope {
-            Scope::User => Part::external(
-                "mcp",
-                Arc::new(FakeMcp {
-                    file: self.dir.join("home/claude-mcp-user.json"),
-                }),
-            ),
-            _ => Part::merge("mcp", ".mcp.json", mcp_ops()),
+    fn harnesses(&self) -> Vec<Arc<dyn Harness>> {
+        self.harnesses.clone()
+    }
+
+    fn integration(&self, scope: Scope) -> Integration {
+        let events: &[Event] = if self.old {
+            &[Event::Stop]
+        } else {
+            &[Event::SessionStart, Event::PromptSubmit, Event::Stop]
         };
-        Some(Profile::new(
-            "claude",
-            vec![
-                Part::files(
-                    "skills",
-                    ".claude/skills/tool",
-                    vec![("SKILL.md".into(), SKILL.into())],
+        let mut i = Integration::new()
+            .instructions(if self.old { "Old  text." } else { INSTRUCTIONS })
+            .skill(Skill::new("tool", "Use the tool.", SKILL_BODY))
+            .mcp_server(McpServer::stdio("tool", "tool", ["mcp"]))
+            .allow_command("tool");
+        for e in events {
+            i = i.hook(Hook::new(*e, COMMAND));
+        }
+        if scope == Scope::User {
+            i = i.part(
+                "claude",
+                Part::external(
+                    "claude-mcp",
+                    Arc::new(FakeMcp {
+                        file: self.home().join("claude-mcp-user.json"),
+                    }),
                 ),
-                claude::instructions(
-                    "instructions",
-                    if self.old { "Old  text." } else { INSTRUCTIONS },
-                ),
-                mcp,
-                Part::merge(
-                    "hooks",
-                    ".claude/settings.json",
-                    if self.old {
-                        hooks_ops_for(&["Stop"])
-                    } else {
-                        hooks_ops()
-                    },
-                ),
-                Part::merge("permissions", ".claude/settings.json", permissions_ops()),
-            ],
-        ))
+            );
+        }
+        i
     }
 
     fn root(&self, scope: Scope) -> Result<PathBuf> {
         Ok(match scope {
-            Scope::User => self.user_root(),
+            Scope::User => self.home(),
             _ => self.dir.clone(),
         })
     }
 
     fn record_path(&self, scope: Scope) -> Result<PathBuf> {
         Ok(match scope {
-            Scope::User => self.dir.join("home/.config/tool/harness.toml"),
+            Scope::User => self.home().join(".config/tool/harness.toml"),
+            Scope::Local => self.dir.join(".tool/harness.local.toml"),
             _ => self.dir.join(".tool/harness.toml"),
         })
     }
@@ -245,10 +216,26 @@ impl Tool for TestTool {
     fn declined_store(&self, scope: Scope) -> Result<Box<dyn DeclinedStore + '_>> {
         Ok(Box::new(match scope {
             Scope::User => TomlDeclined::new(
-                self.dir.join("home/.config/tool/config.toml"),
+                self.home().join(".config/tool/config.toml"),
                 "~/.config/tool/config.toml",
             ),
             _ => TomlDeclined::new(self.dir.join(".tool/config.toml"), ".tool/config.toml"),
         }))
     }
+}
+
+/// The parts of `harness` in `result`.
+pub fn parts<'a>(result: &'a InstallResult, harness: &str) -> &'a [PartResult] {
+    &result
+        .harness(harness)
+        .unwrap_or_else(|| panic!("no {harness} in {result:?}"))
+        .parts
+}
+
+/// The report word of each part of `harness`.
+pub fn verbs(result: &InstallResult, harness: &str) -> Vec<String> {
+    parts(result, harness)
+        .iter()
+        .map(|p| p.verb().to_string())
+        .collect()
 }

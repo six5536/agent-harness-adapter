@@ -3,7 +3,7 @@
 
 use std::{collections::BTreeMap, path::Path};
 
-use crate::{Error, Result, fs::read_text, harness::merge::parse_toml};
+use crate::{Error, Result, fs::read_text, harness::parse_toml};
 
 /// The record: harness name to part name to hash.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

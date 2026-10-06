@@ -10,7 +10,7 @@ use crate::{
     fs::read_text,
     harness::{
         Markers,
-        merge::{extract, parse_json},
+        merge::observe_entries,
         part::{Kind, Part},
     },
     hash::{Fnv, normalise},
@@ -25,6 +25,9 @@ use crate::{
 pub enum State {
     /// Declined by the user.
     Skipped,
+    /// Another harness's part puts the same content in a location this
+    /// harness loads; nothing is written for it.
+    Shared,
     /// The file, the block or the entries are not there.
     Absent,
     /// Equal to the tool's content.
@@ -41,6 +44,7 @@ impl State {
     pub fn as_str(self) -> &'static str {
         match self {
             State::Skipped => "skipped",
+            State::Shared => "shared",
             State::Absent => "absent",
             State::Current => "current",
             State::Stale => "stale",
@@ -77,9 +81,14 @@ pub(crate) fn expected(part: &Part) -> Found {
     match &part.kind {
         Kind::Files { files, .. } => Found::Files(files.clone()),
         Kind::Region { block, .. } => Found::Block(block.clone()),
-        Kind::Merge { ops, .. } => {
-            Found::Entries(ops.iter().map(|op| op.value().clone()).collect())
-        }
+        // An op that owns entries but has none (e.g. a hook event the tool no
+        // longer uses) expects nothing: its old entries make the part stale.
+        Kind::Merge { ops, .. } => Found::Entries(
+            ops.iter()
+                .filter(|op| !op.expects_nothing())
+                .map(|op| op.value().clone())
+                .collect(),
+        ),
         Kind::External(ext) => Found::Text(ext.expected()),
     }
 }
@@ -105,8 +114,7 @@ pub(crate) fn observe(root: &Path, part: &Part, path: &str, markers: &Markers) -
         },
         Kind::Merge { ops, .. } => match read_text(&fs_path)? {
             Some(text) => {
-                let doc = parse_json(path, &text)?;
-                let entries: Vec<Value> = ops.iter().filter_map(|op| extract(&doc, op)).collect();
+                let entries = observe_entries(path, &text, ops)?;
                 if entries.is_empty() {
                     Observed::Absent
                 } else {

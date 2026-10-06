@@ -1,126 +1,15 @@
-//! The `merge` kind: the tool owns entries in the user's JSON file, named by
-//! data-driven operations. Key order, the file's indent and its trailing
-//! newline are kept.
+//! The JSON merge: the tool's entries applied to the user's JSON file,
+//! named by data-driven operations. Key order, the file's indent and its
+//! trailing newline are kept.
 // @zen-component: KIT-Merge
 
 use serde::Serialize;
 use serde_json::{Map, Value, ser::PrettyFormatter};
 
-use crate::{Error, Result};
-
-/// One entry the tool owns in a JSON file, built by
-/// [`MergeOp::array_entry`], [`MergeOp::object_member`] or
-/// [`MergeOp::group_entry`].
-// @zen-impl: KIT-2_AC-3
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MergeOp(Op);
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Op {
-    ArrayEntry {
-        path: Vec<String>,
-        value: Value,
-    },
-    ObjectMember {
-        path: Vec<String>,
-        key: String,
-        value: Value,
-    },
-    GroupEntry {
-        path: Vec<String>,
-        entries: String,
-        field: String,
-        owned: EntryMatch,
-        group: Value,
-    },
-}
-
-/// Which entries of a group are the tool's: those whose owning field
-/// matches. See [`MergeOp::group_entry`].
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum EntryMatch {
-    /// The field starts with the text, e.g. `mytool harness hook `.
-    Prefix(String),
-    /// The field contains the text, e.g. ` harness hook `, for a tool whose
-    /// program users may rename or call by path.
-    Contains(String),
-}
-
-impl EntryMatch {
-    /// Whether `text` matches.
-    pub fn matches(&self, text: &str) -> bool {
-        match self {
-            EntryMatch::Prefix(p) => text.starts_with(p.as_str()),
-            EntryMatch::Contains(c) => text.contains(c.as_str()),
-        }
-    }
-}
-
-fn segments<P: IntoIterator<Item = S>, S: Into<String>>(path: P) -> Vec<String> {
-    path.into_iter().map(Into::into).collect()
-}
-
-impl MergeOp {
-    /// `value` is present once in the array at `path` (keys from the
-    /// top-level object, e.g. `["permissions", "allow"]`). Found by
-    /// equality.
-    pub fn array_entry<P: IntoIterator<Item = S>, S: Into<String>>(
-        path: P,
-        value: impl Into<Value>,
-    ) -> Self {
-        MergeOp(Op::ArrayEntry {
-            path: segments(path),
-            value: value.into(),
-        })
-    }
-
-    /// The member `key` of the object at `path` (empty for the top-level
-    /// object) is `value`, e.g. `tool` under `["mcpServers"]`. Found by its
-    /// key.
-    pub fn object_member<P: IntoIterator<Item = S>, S: Into<String>>(
-        path: P,
-        key: impl Into<String>,
-        value: impl Into<Value>,
-    ) -> Self {
-        MergeOp(Op::ObjectMember {
-            path: segments(path),
-            key: key.into(),
-            value: value.into(),
-        })
-    }
-
-    /// The tool's entries in the groups of the array at `path`. Each group is
-    /// an object holding its entries as an array under `entries`; an entry is
-    /// the tool's when its member `field` is a string that `owned` matches.
-    /// The tool owns those entries, not the group they sit in: they replace
-    /// the tool's entries in the first group that has one (the user's entries
-    /// and the group's other keys stay), or `group` (an object with the
-    /// tool's entries under `entries`) is appended as a new group.
-    pub fn group_entry<P: IntoIterator<Item = S>, S: Into<String>>(
-        path: P,
-        entries: impl Into<String>,
-        field: impl Into<String>,
-        owned: EntryMatch,
-        group: impl Into<Value>,
-    ) -> Self {
-        MergeOp(Op::GroupEntry {
-            path: segments(path),
-            entries: entries.into(),
-            field: field.into(),
-            owned,
-            group: group.into(),
-        })
-    }
-
-    /// The value the operation writes.
-    pub fn value(&self) -> &Value {
-        match &self.0 {
-            Op::ArrayEntry { value, .. } | Op::ObjectMember { value, .. } => value,
-            Op::GroupEntry { group, .. } => group,
-        }
-    }
-}
+use crate::{
+    Error, Result,
+    harness::merge::{EntryMatch, MergeOp, op::Op},
+};
 
 /// Parse a target file. A file that does not parse, or is not an object, is
 /// a refusal naming `display`.
@@ -131,13 +20,6 @@ pub(crate) fn parse_json(display: &str, text: &str) -> Result<Value> {
         return Err(Error::file(display, "is not a JSON object"));
     }
     Ok(doc)
-}
-
-/// Parse TOML, keeping its formatting; `display` names the file in the
-/// refusal.
-pub(crate) fn parse_toml(display: &str, text: &str) -> Result<toml_edit::DocumentMut> {
-    text.parse()
-        .map_err(|e: toml_edit::TomlError| Error::file(display, e.message()))
 }
 
 /// The indent of a file: the leading whitespace of its first indented line,
@@ -160,14 +42,22 @@ fn is_tool_entry(entry: &Value, field: &str, owned: &EntryMatch) -> bool {
     entry[field].as_str().is_some_and(|c| owned.matches(c))
 }
 
-/// Whether a group holds one of the tool's entries.
-fn has_tool_entry(group: &Value, entries: &str, field: &str, owned: &EntryMatch) -> bool {
-    group[entries]
-        .as_array()
-        .is_some_and(|es| es.iter().any(|e| is_tool_entry(e, field, owned)))
+/// A group's keys other than its entries: what tells groups apart (e.g. a
+/// `matcher`).
+fn other_keys(group: &Value, entries: &str) -> Map<String, Value> {
+    group
+        .as_object()
+        .map(|m| {
+            m.iter()
+                .filter(|(k, _)| *k != entries)
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
-/// The tool's entry of `op` as found in `doc`; `None` when it is not there.
+/// The tool's part of `op` as found in `doc`, in the form of
+/// [`MergeOp::value`]; `None` when none of it is there.
 pub(crate) fn extract(doc: &Value, op: &MergeOp) -> Option<Value> {
     match &op.0 {
         Op::ArrayEntry { path, value } => get(doc, path)?
@@ -176,28 +66,42 @@ pub(crate) fn extract(doc: &Value, op: &MergeOp) -> Option<Value> {
             .find(|v| *v == value)
             .cloned(),
         Op::ObjectMember { path, key, .. } => get(doc, path)?.as_object()?.get(key).cloned(),
-        Op::GroupEntry {
+        Op::OwnedEntries {
+            path, field, owned, ..
+        } => {
+            let ours: Vec<Value> = get(doc, path)?
+                .as_array()?
+                .iter()
+                .filter(|e| is_tool_entry(e, field, owned))
+                .cloned()
+                .collect();
+            (!ours.is_empty()).then_some(Value::Array(ours))
+        }
+        Op::GroupEntries {
             path,
             entries,
             field,
             owned,
             ..
         } => {
-            // Only the tool's entries: the user's entries and keys beside
-            // them are theirs, not an edit of the tool's entry.
-            let group = get(doc, path)?
-                .as_array()?
-                .iter()
-                .find(|g| has_tool_entry(g, entries, field, owned))?;
-            let ours: Vec<Value> = group[entries.as_str()]
-                .as_array()?
-                .iter()
-                .filter(|e| is_tool_entry(e, field, owned))
-                .cloned()
-                .collect();
-            let mut out = Map::new();
-            out.insert(entries.clone(), Value::Array(ours));
-            Some(Value::Object(out))
+            // Only the tool's entries, grouped as found: the user's entries
+            // and keys beside them are theirs, not an edit of the tool's.
+            let mut groups = Vec::new();
+            for g in get(doc, path)?.as_array()? {
+                let ours: Vec<Value> = g[entries.as_str()]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|e| is_tool_entry(e, field, owned))
+                    .cloned()
+                    .collect();
+                if !ours.is_empty() {
+                    let mut out = other_keys(g, entries);
+                    out.insert(entries.clone(), Value::Array(ours));
+                    groups.push(Value::Object(out));
+                }
+            }
+            (!groups.is_empty()).then_some(Value::Array(groups))
         }
     }
 }
@@ -237,11 +141,17 @@ fn array_at<'a>(doc: &'a mut Value, path: &[String], display: &str) -> Result<&'
         .ok_or_else(|| Error::file(display, format!("`{}` is not an array", path.join("."))))
 }
 
-/// Set the tool's entry of `op` in `doc`. Containers are created when
+/// Set the tool's part of `op` in `doc`. Containers are created when
 /// absent; a container of another type is a refusal naming `display`.
 // @zen-impl: KIT-10_AC-2
 // @zen-impl: KIT-10_AC-3
+// @zen-impl: KIT-10_AC-4
 fn apply(doc: &mut Value, op: &MergeOp, display: &str) -> Result<()> {
+    // An op that only removes the tool's old entries creates nothing.
+    // @zen-impl: KIT-10_AC-6
+    if op.expects_nothing() && get(doc, op.path()).is_none() {
+        return Ok(());
+    }
     match &op.0 {
         Op::ArrayEntry { path, value } => {
             let array = array_at(doc, path, display)?;
@@ -252,34 +162,72 @@ fn apply(doc: &mut Value, op: &MergeOp, display: &str) -> Result<()> {
         Op::ObjectMember { path, key, value } => {
             object_at(doc, path, display)?.insert(key.clone(), value.clone());
         }
-        Op::GroupEntry {
+        Op::OwnedEntries {
+            path,
+            field,
+            owned,
+            entries,
+        } => {
+            let array = array_at(doc, path, display)?;
+            // The tool's entries go where its first one was.
+            let at = array
+                .iter()
+                .position(|e| is_tool_entry(e, field, owned))
+                .unwrap_or(array.len());
+            array.retain(|e| !is_tool_entry(e, field, owned));
+            let ours = entries.as_array().cloned().unwrap_or_default();
+            array.splice(at..at, ours);
+        }
+        Op::GroupEntries {
             path,
             entries,
             field,
             owned,
-            group,
+            groups: wanted,
         } => {
             let groups = array_at(doc, path, display)?;
-            match groups
-                .iter_mut()
-                .find(|g| has_tool_entry(g, entries, field, owned))
-                .and_then(|g| g[entries.as_str()].as_array_mut())
-            {
-                Some(es) => {
-                    // The tool's entries go where its first one was.
-                    let at = es
-                        .iter()
-                        .position(|e| is_tool_entry(e, field, owned))
-                        .unwrap_or(es.len());
+            // Where each group held the tool's first entry, before removing
+            // the tool's entries everywhere.
+            let mut held: Vec<Option<usize>> = Vec::with_capacity(groups.len());
+            for g in groups.iter_mut() {
+                let es = g[entries.as_str()].as_array_mut();
+                let at = es
+                    .as_ref()
+                    .and_then(|es| es.iter().position(|e| is_tool_entry(e, field, owned)));
+                if let (Some(es), Some(_)) = (es, at) {
                     es.retain(|e| !is_tool_entry(e, field, owned));
-                    let ours = group[entries.as_str()]
-                        .as_array()
-                        .cloned()
-                        .unwrap_or_default();
-                    es.splice(at..at, ours);
                 }
-                None => groups.push(group.clone()),
+                held.push(at);
             }
+            let mut used = vec![false; groups.len()];
+            let mut appended = Vec::new();
+            for w in wanted.as_array().into_iter().flatten() {
+                let keys = other_keys(w, entries);
+                let ours = w[entries.as_str()].as_array().cloned().unwrap_or_default();
+                let slot = (0..held.len()).find(|&i| {
+                    held[i].is_some() && !used[i] && other_keys(&groups[i], entries) == keys
+                });
+                match slot {
+                    Some(i) => {
+                        used[i] = true;
+                        let at = held[i].expect("held");
+                        if let Some(es) = groups[i][entries.as_str()].as_array_mut() {
+                            es.splice(at..at, ours);
+                        }
+                    }
+                    None => appended.push(w.clone()),
+                }
+            }
+            // A group that held only the tool's entries and got none back goes.
+            let mut i = 0;
+            groups.retain(|g| {
+                let keep = !(held[i].is_some()
+                    && !used[i]
+                    && g[entries.as_str()].as_array().is_some_and(Vec::is_empty));
+                i += 1;
+                keep
+            });
+            groups.extend(appended);
         }
     }
     Ok(())
@@ -336,12 +284,12 @@ mod tests {
     /// A Claude Code style hook group op, built here so the core's tests do
     /// not depend on the `claude` module.
     fn hook(event: &str, command: &str) -> MergeOp {
-        MergeOp::group_entry(
+        MergeOp::group_entries(
             ["hooks", event],
             "hooks",
             "command",
             EntryMatch::Prefix(PREFIX.into()),
-            json!({ "hooks": [{ "type": "command", "command": command }] }),
+            vec![json!({ "hooks": [{ "type": "command", "command": command }] })],
         )
     }
 
@@ -383,7 +331,14 @@ mod tests {
                     m.shift_remove(key);
                 }
             }
-            Op::GroupEntry {
+            Op::OwnedEntries {
+                path, field, owned, ..
+            } => {
+                if let Some(array) = get_mut(doc, path).and_then(Value::as_array_mut) {
+                    array.retain(|e| !is_tool_entry(e, field, owned));
+                }
+            }
+            Op::GroupEntries {
                 path,
                 entries,
                 field,
@@ -468,9 +423,18 @@ mod tests {
                 { "type": "command", "command": "~/bin/notify.sh" }
             ]
         }]}});
-        let op = &hooks()[0];
+        // The tool's group has the same other keys: its entries go in place.
+        let op = MergeOp::group_entries(
+            ["hooks", "Stop"],
+            "hooks",
+            "command",
+            EntryMatch::Prefix(PREFIX.into()),
+            vec![
+                json!({ "matcher": "*", "hooks": [{ "type": "command", "command": "tool harness hook claude stop" }] }),
+            ],
+        );
         let mut doc = shared.clone();
-        apply(&mut doc, op, P).unwrap();
+        apply(&mut doc, &op, P).unwrap();
         assert_eq!(
             doc["hooks"]["Stop"],
             json!([{
@@ -481,7 +445,118 @@ mod tests {
                 ]
             }])
         );
+        assert_eq!(extract(&doc, &op).as_ref(), Some(op.value()));
+        // Other keys differ: the user's group keeps its own entry, the tool's
+        // group is appended.
+        let op = &hooks()[0];
+        let mut doc = shared.clone();
+        apply(&mut doc, op, P).unwrap();
+        assert_eq!(
+            doc["hooks"]["Stop"],
+            json!([
+                { "matcher": "*", "hooks": [{ "type": "command", "command": "~/bin/notify.sh" }] },
+                { "hooks": [{ "type": "command", "command": "tool harness hook claude stop" }] }
+            ])
+        );
         assert_eq!(extract(&doc, op).as_ref(), Some(op.value()));
+        // Found in the user's group, the tool's entry reads as that group.
+        assert_eq!(
+            extract(&shared, op),
+            Some(
+                json!([{ "matcher": "*", "hooks": [{ "type": "command", "command": "tool harness hook claude old" }] }])
+            )
+        );
+    }
+
+    // Two of the tool's groups for one event (e.g. two matchers), and a group
+    // the tool no longer has, which goes.
+    // @zen-test: KIT-10_AC-3
+    #[test]
+    fn several_groups_per_event() {
+        let owned = EntryMatch::Prefix(PREFIX.into());
+        let entry = |c: &str| json!({ "type": "command", "command": c });
+        let op = MergeOp::group_entries(
+            ["hooks", "PreToolUse"],
+            "hooks",
+            "command",
+            owned,
+            vec![
+                json!({ "matcher": "Bash", "hooks": [entry("tool harness hook shell")] }),
+                json!({ "matcher": "Edit", "hooks": [entry("tool harness hook edit")] }),
+            ],
+        );
+        let doc = json!({"hooks": {"PreToolUse": [
+            { "matcher": "Read", "hooks": [entry("tool harness hook read")] },
+            { "matcher": "Edit", "hooks": [entry("echo mine"), entry("tool harness hook old")] },
+        ]}});
+        let mut out = doc.clone();
+        apply(&mut out, &op, P).unwrap();
+        assert_eq!(
+            out["hooks"]["PreToolUse"],
+            json!([
+                { "matcher": "Edit", "hooks": [entry("echo mine"), entry("tool harness hook edit")] },
+                { "matcher": "Bash", "hooks": [entry("tool harness hook shell")] },
+            ])
+        );
+        let found = extract(&out, &op).unwrap();
+        assert_eq!(found.as_array().unwrap().len(), 2);
+        let mut again = out.clone();
+        apply(&mut again, &op, P).unwrap();
+        assert_eq!(again, out);
+    }
+
+    // @zen-test: KIT-10_AC-4
+    // @zen-test: KIT-10_AC-6
+    #[test]
+    fn owned_entries_replace_the_tools_and_keep_the_users() {
+        let op = MergeOp::owned_entries(
+            ["hooks", "stop"],
+            "command",
+            EntryMatch::Prefix(PREFIX.into()),
+            vec![json!({ "command": "tool harness hook cursor stop" })],
+        );
+        let doc = json!({"version": 1, "hooks": {"stop": [
+            { "command": "echo a" },
+            { "command": "tool harness hook cursor old" },
+            { "command": "echo b" },
+            { "command": "tool harness hook cursor older" },
+        ]}});
+        assert_eq!(
+            extract(&doc, &op),
+            Some(
+                json!([{ "command": "tool harness hook cursor old" }, { "command": "tool harness hook cursor older" }])
+            )
+        );
+        let mut out = doc.clone();
+        apply(&mut out, &op, P).unwrap();
+        assert_eq!(
+            out["hooks"]["stop"],
+            json!([{ "command": "echo a" }, { "command": "tool harness hook cursor stop" }, { "command": "echo b" }])
+        );
+        assert_eq!(extract(&out, &op).as_ref(), Some(op.value()));
+        // An op with nothing to write creates no container.
+        let none = MergeOp::owned_entries(
+            ["hooks", "stop"],
+            "command",
+            EntryMatch::Prefix(PREFIX.into()),
+            vec![],
+        );
+        let mut empty = json!({});
+        apply(&mut empty, &none, P).unwrap();
+        assert_eq!(empty, json!({}));
+        let mut old = doc.clone();
+        apply(&mut old, &none, P).unwrap();
+        assert_eq!(
+            old["hooks"]["stop"],
+            json!([{ "command": "echo a" }, { "command": "echo b" }])
+        );
+        let mut fresh = json!({});
+        apply(&mut fresh, &op, P).unwrap();
+        assert_eq!(
+            fresh,
+            json!({"hooks": {"stop": [{ "command": "tool harness hook cursor stop" }]}})
+        );
+        assert_eq!(extract(&json!({"hooks": {"stop": []}}), &op), None);
     }
 
     // A tool whose program users may rename owns its entries by a text they
@@ -489,12 +564,14 @@ mod tests {
     // @zen-test: KIT-2_AC-3
     #[test]
     fn entries_owned_by_contained_text() {
-        let op = MergeOp::group_entry(
+        let op = MergeOp::group_entries(
             ["hooks", "Stop"],
             "hooks",
             "command",
             EntryMatch::Contains(" harness hook ".into()),
-            json!({ "hooks": [{ "type": "command", "command": "tool harness hook claude stop" }] }),
+            vec![
+                json!({ "hooks": [{ "type": "command", "command": "tool harness hook claude stop" }] }),
+            ],
         );
         let doc = json!({"hooks": {"Stop": [{"hooks": [
             { "type": "command", "command": "/opt/bin/tool2 harness hook claude stop" },
@@ -503,7 +580,7 @@ mod tests {
         let found = extract(&doc, &op).unwrap();
         assert_eq!(
             found,
-            json!({ "hooks": [{ "type": "command", "command": "/opt/bin/tool2 harness hook claude stop" }] })
+            json!([{ "hooks": [{ "type": "command", "command": "/opt/bin/tool2 harness hook claude stop" }] }])
         );
         assert_ne!(&found, op.value());
         let mut out = doc.clone();
@@ -515,11 +592,6 @@ mod tests {
                 { "type": "command", "command": "echo hi" }
             ])
         );
-        assert!(
-            EntryMatch::Prefix("a".into()).matches("ab")
-                && !EntryMatch::Prefix("b".into()).matches("ab")
-        );
-        assert!(EntryMatch::Contains("b".into()).matches("abc"));
     }
 
     // @zen-test: KIT-10_AC-1
@@ -632,11 +704,6 @@ mod tests {
             render_merge(None, &[bad], P),
             Err(Error::Internal(_))
         ));
-        let e = parse_toml("c.toml", "a = ").unwrap_err();
-        assert!(
-            matches!(&e, Error::File { file, .. } if file == "c.toml"),
-            "{e}"
-        );
     }
 
     fn arb_key() -> impl Strategy<Value = String> {

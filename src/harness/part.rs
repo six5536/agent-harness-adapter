@@ -1,7 +1,7 @@
-//! Profiles and parts: data the tool supplies, one profile per harness and
-//! scope. The kit embeds no content.
+//! Profiles and parts: what a harness renders from a tool's integration,
+//! one profile per harness and scope. The kit embeds no content.
 
-use std::{fmt, path::Path, sync::Arc};
+use std::{fmt, sync::Arc};
 
 use crate::{Result, harness::MergeOp};
 
@@ -22,20 +22,6 @@ pub trait ExternalPart: fmt::Debug + Send + Sync {
     fn write(&self) -> Result<()>;
 }
 
-/// A rule that picks a region part's file under the root at install time,
-/// as a path relative to the root, `/`-separated. See
-/// [`Part::region_chosen`].
-pub type ChooseFile = fn(&Path) -> Result<String>;
-
-/// Where a region lives.
-#[derive(Debug, Clone)]
-pub(crate) enum Target {
-    /// A path the profile fixes, relative to the root, `/`-separated.
-    Fixed(String),
-    /// A path a rule chooses under the root.
-    Chosen(ChooseFile),
-}
-
 /// A part's kind and the content the tool wants there.
 #[derive(Debug, Clone)]
 pub(crate) enum Kind {
@@ -45,15 +31,15 @@ pub(crate) enum Kind {
         files: Vec<(String, String)>,
     },
     /// `region`: the tool owns one block between its markers.
-    Region { target: Target, block: String },
-    /// `merge`: the tool owns entries in the JSON object of `file`.
+    Region { file: String, block: String },
+    /// `merge`: the tool owns entries in the JSON or TOML file `file`.
     Merge { file: String, ops: Vec<MergeOp> },
     /// `external`: the tool reads and writes the part itself.
     External(Arc<dyn ExternalPart>),
 }
 
 /// One part of a profile, built by [`Part::files`], [`Part::region`],
-/// [`Part::region_chosen`], [`Part::merge`] or [`Part::external`].
+/// [`Part::merge`] or [`Part::external`].
 #[derive(Debug, Clone)]
 pub struct Part {
     name: String,
@@ -85,7 +71,8 @@ impl Part {
         )
     }
 
-    /// A `region` part in a fixed file.
+    /// A `region` part in `file`. A harness picks the file when it renders,
+    /// from the tree under the root.
     // @zen-impl: KIT-2_AC-2
     pub fn region(
         name: impl Into<String>,
@@ -95,29 +82,14 @@ impl Part {
         Self::new(
             name,
             Kind::Region {
-                target: Target::Fixed(file.into()),
+                file: file.into(),
                 block: block.into(),
             },
         )
     }
 
-    /// A `region` part in a file `choose` picks under the root when the part
-    /// is examined, e.g. [`claude::instructions_file`](crate::claude::instructions_file).
-    pub fn region_chosen(
-        name: impl Into<String>,
-        choose: ChooseFile,
-        block: impl Into<String>,
-    ) -> Self {
-        Self::new(
-            name,
-            Kind::Region {
-                target: Target::Chosen(choose),
-                block: block.into(),
-            },
-        )
-    }
-
-    /// A `merge` part: `ops` applied to the JSON object in `file`.
+    /// A `merge` part: `ops` applied to the JSON object in `file`, or to the
+    /// TOML document when `file` ends in `.toml`.
     pub fn merge(name: impl Into<String>, file: impl Into<String>, ops: Vec<MergeOp>) -> Self {
         Self::new(
             name,
@@ -137,10 +109,49 @@ impl Part {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    /// Where the part is written, relative to the root and `/`-separated:
+    /// the directory of a `file` part, the file of a region or merge, an
+    /// external part's location.
+    pub fn location(&self) -> String {
+        match &self.kind {
+            Kind::Files { dir, .. } => dir.clone(),
+            Kind::Region { file, .. } | Kind::Merge { file, .. } => file.clone(),
+            Kind::External(ext) => ext.location(),
+        }
+    }
+
+    /// A `merge` part's operations.
+    #[cfg(test)]
+    pub(crate) fn ops(&self) -> &[MergeOp] {
+        match &self.kind {
+            Kind::Merge { ops, .. } => ops,
+            _ => &[],
+        }
+    }
+
+    /// Whether `self` and `other` write the same content to the same
+    /// location (names aside); external parts by location and expected
+    /// content.
+    pub(crate) fn same_content(&self, other: &Part) -> bool {
+        match (&self.kind, &other.kind) {
+            (Kind::Files { dir: a, files: x }, Kind::Files { dir: b, files: y }) => {
+                a == b && x == y
+            }
+            (Kind::Region { file: a, block: x }, Kind::Region { file: b, block: y }) => {
+                a == b && x == y
+            }
+            (Kind::Merge { file: a, ops: x }, Kind::Merge { file: b, ops: y }) => a == b && x == y,
+            (Kind::External(x), Kind::External(y)) => {
+                x.location() == y.location() && x.expected() == y.expected()
+            }
+            _ => false,
+        }
+    }
 }
 
-/// A harness profile at one scope: its parts in profile order.
-// @zen-impl: KIT-1_AC-1
+/// A harness profile at one scope: its parts in profile order, as the
+/// harness rendered them from the integration, then the raw parts.
 #[derive(Debug, Clone)]
 pub struct Profile {
     harness: String,
@@ -148,9 +159,8 @@ pub struct Profile {
 }
 
 impl Profile {
-    /// The profile of `harness` (as `<NAME>` on the command line, e.g.
-    /// `claude`) with `parts` in profile order.
-    pub fn new(harness: impl Into<String>, parts: Vec<Part>) -> Self {
+    /// The profile of `harness` with `parts` in profile order.
+    pub(crate) fn new(harness: impl Into<String>, parts: Vec<Part>) -> Self {
         Profile {
             harness: harness.into(),
             parts,
@@ -195,10 +205,6 @@ mod tests {
         }
     }
 
-    fn agents(_: &Path) -> Result<String> {
-        Ok("AGENTS.md".into())
-    }
-
     // @zen-test: KIT-2_AC-1
     // @zen-test: KIT-2_AC-2
     // @zen-test: KIT-2_AC-4
@@ -212,28 +218,37 @@ mod tests {
                     ".claude/skills/t",
                     vec![("SKILL.md".into(), "s".into())],
                 ),
-                Part::region_chosen("instructions", agents, "b"),
                 Part::region("notes", "NOTES.md", "n"),
                 Part::merge("hooks", ".claude/settings.json", vec![]),
                 Part::external("mcp", Arc::new(Ext)),
             ],
         );
         assert_eq!(p.harness(), "claude");
-        assert_eq!(p.parts().len(), 5);
+        assert_eq!(p.parts().len(), 4);
         assert!(
             matches!(&p.part("skills").unwrap().kind, Kind::Files { dir, .. } if dir == ".claude/skills/t")
         );
         assert!(matches!(
-            &p.part("instructions").unwrap().kind,
-            Kind::Region {
-                target: Target::Chosen(_),
-                ..
-            }
-        ));
-        assert!(matches!(
             &p.part("notes").unwrap().kind,
-            Kind::Region { target: Target::Fixed(f), .. } if f == "NOTES.md"
+            Kind::Region { file, .. } if file == "NOTES.md"
         ));
+        let locations: Vec<_> = p.parts().iter().map(Part::location).collect();
+        assert_eq!(
+            locations,
+            [
+                ".claude/skills/t",
+                "NOTES.md",
+                ".claude/settings.json",
+                "ext (user)"
+            ]
+        );
+        let parts = p.parts();
+        assert!(parts[0].same_content(&parts[0].clone()));
+        assert!(!parts[0].same_content(&parts[1]));
+        assert!(parts[1].same_content(&Part::region("other name", "NOTES.md", "n")));
+        assert!(!parts[1].same_content(&Part::region("notes", "NOTES.md", "m")));
+        assert!(parts[2].same_content(&Part::merge("x", ".claude/settings.json", vec![])));
+        assert!(parts[3].same_content(&Part::external("y", Arc::new(Ext))));
         assert!(matches!(&p.part("hooks").unwrap().kind, Kind::Merge { .. }));
         assert!(matches!(&p.part("mcp").unwrap().kind, Kind::External(_)));
         assert_eq!(p.part("mcp").unwrap().name(), "mcp");

@@ -110,7 +110,7 @@ mod tests {
         assert!(err.is_empty());
         assert_eq!(
             exit_code(
-                Err(Error::UnknownProfile {
+                Err(Error::UnknownHarness {
                     harness: "x".into()
                 }),
                 &mut err
@@ -119,7 +119,7 @@ mod tests {
         );
         assert_eq!(
             String::from_utf8(err).unwrap(),
-            "error: no profile named `x`\n"
+            "error: no harness named `x`\n"
         );
         assert_eq!(finish::<Error>(Ok(0)), ExitCode::from(0));
     }

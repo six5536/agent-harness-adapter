@@ -1,16 +1,18 @@
-//! The tool a harness integration belongs to: its name, its profiles and
-//! where it keeps things.
+//! The tool a harness integration belongs to: its name, its integration,
+//! the harnesses it supports and where it keeps things.
 
-use std::{fmt, path::PathBuf, str::FromStr};
+use std::{fmt, path::PathBuf, str::FromStr, sync::Arc};
 
 use serde::Serialize;
 
 use crate::{
     Error, Result,
-    harness::{DeclinedStore, Profile},
+    harness::{DeclinedStore, Harness},
+    integration::Integration,
 };
 
 /// Where a harness integration is installed.
+// @zen-impl: KIT-21_AC-1
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -19,8 +21,12 @@ pub enum Scope {
     /// The project: files beside the project's own files.
     #[default]
     Project,
-    /// The user: files in the user's harness configuration.
+    /// The user: files under the home directory, in each harness's own
+    /// configuration directory.
     User,
+    /// The project's local, git-ignored files (e.g.
+    /// `.claude/settings.local.json`), under the project root.
+    Local,
 }
 
 impl Scope {
@@ -29,6 +35,7 @@ impl Scope {
         match self {
             Scope::Project => "project",
             Scope::User => "user",
+            Scope::Local => "local",
         }
     }
 }
@@ -46,6 +53,7 @@ impl FromStr for Scope {
         match s {
             "project" => Ok(Scope::Project),
             "user" => Ok(Scope::User),
+            "local" => Ok(Scope::Local),
             other => Err(Error::UnknownScope {
                 name: other.to_string(),
             }),
@@ -61,11 +69,17 @@ pub trait Tool {
     /// `<!-- mytool:harness -->` and `<!-- /mytool:harness -->`.
     fn name(&self) -> &str;
 
-    /// The profile of `harness` at `scope`; `None` when there is none.
-    fn profile(&self, harness: &str, scope: Scope) -> Option<Profile>;
+    /// The harnesses the tool supports, in the order it prefers them: the
+    /// earliest writes a location several share.
+    /// [`harness::builtin()`](crate::harness::builtin) for all the kit's.
+    fn harnesses(&self) -> Vec<Arc<dyn Harness>>;
 
-    /// The directory the parts' relative paths resolve against, e.g. the
-    /// project directory or `~/.claude`.
+    /// What the tool installs at `scope`.
+    fn integration(&self, scope: Scope) -> Integration;
+
+    /// The directory the parts' relative paths resolve against: the project
+    /// directory (project and local scope) or the home directory (user
+    /// scope).
     fn root(&self, scope: Scope) -> Result<PathBuf>;
 
     /// The record file of `scope`.
@@ -86,7 +100,7 @@ mod tests {
 
     #[test]
     fn scopes_parse_and_print() {
-        for s in [Scope::Project, Scope::User] {
+        for s in [Scope::Project, Scope::User, Scope::Local] {
             assert_eq!(s.as_str().parse::<Scope>().unwrap(), s);
             assert_eq!(s.to_string(), s.as_str());
         }

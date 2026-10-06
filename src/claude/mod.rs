@@ -1,10 +1,6 @@
-//! Claude Code: its hook input and answers, the instructions file it reads,
-//! and the hook groups of its `settings.json`. Parts and operations built
-//! here are ordinary [`harness`](crate::harness) values.
-// @zen-component: KIT-Claude
+//! Claude Code: [`Claude`], the harness, and [`instructions_file`], its
+//! rule for the instructions file it reads.
 
-mod hook;
-mod parts;
+mod adapter;
 
-pub use hook::{Answer, HookInput, emit};
-pub use parts::{hook_command, instructions, instructions_file};
+pub use adapter::{Claude, instructions_file};

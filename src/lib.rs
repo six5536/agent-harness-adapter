@@ -1,12 +1,15 @@
 //! agent-harness-kit: shared plumbing for CLIs that plug into LLM agent
-//! harnesses (Claude Code first).
+//! harnesses (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor,
+//! Factory Droid, Pi, and any agent that reads `AGENTS.md`).
 //!
-//! - [`harness`]: the parts a tool installs (`file`, `region`, `merge`,
-//!   `external`), their states, and [`install`] / [`status`] generic over a
-//!   [`Tool`]. The same for every harness.
-//! - [`claude`]: Claude Code's hook input and answers, the instructions file
-//!   it reads, and the hook groups of its `settings.json`.
-//! - [`LoopGuard`]: lets a stop hook block only once on the same text.
+//! - [`integration`]: what a tool installs, declared once without naming a
+//!   harness.
+//! - [`harness`]: the [`Harness`] contract, the parts a harness renders,
+//!   their states, and [`install`] / [`status`] over a set of harnesses,
+//!   with shared content written once.
+//! - [`hook`]: hook events, the input a harness sends, the answer a hook
+//!   gives, [`emit`](hook::emit), and the [`LoopGuard`](hook::LoopGuard).
+//! - One module per harness: [`claude`].
 //! - [`report`]: findings (error / warning / info) and their text and JSON
 //!   forms.
 //! - [`cli`]: exit codes, stdout, broken pipes and the `error:` runner.
@@ -17,8 +20,8 @@
 #[cfg(doctest)]
 pub struct ReadmeDoctests;
 
+mod common;
 mod error;
-mod guard;
 mod hash;
 #[cfg(test)]
 mod test_support;
@@ -27,12 +30,15 @@ pub mod claude;
 pub mod cli;
 pub mod fs;
 pub mod harness;
+pub mod hook;
+pub mod integration;
 pub mod report;
 
 pub use error::{Error, Result};
-pub use guard::LoopGuard;
 pub use harness::{
-    Action, DeclinedStore, EntryMatch, ExternalPart, HarnessResult, InstallOptions, MergeOp, Part,
-    PartResult, Profile, Scope, State, TomlDeclined, Tool, install, status,
+    Action, DeclinedStore, EntryMatch, ExternalPart, Harness, HarnessResult, InstallOptions,
+    InstallResult, MergeOp, Part, PartResult, Profile, Scope, State, TomlDeclined, Tool, install,
+    status,
 };
+pub use integration::{Integration, Item};
 pub use report::{Finding, Report, Severity};
