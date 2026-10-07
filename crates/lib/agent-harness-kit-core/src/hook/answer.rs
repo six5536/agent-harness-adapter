@@ -3,6 +3,7 @@
 
 use std::{fmt::Display, io::Write};
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
@@ -12,15 +13,22 @@ use crate::{
 };
 
 /// What a hook decides. Each harness renders it in its own form
-/// ([`Harness::answer`]).
+/// (`Harness::answer`).
+///
+/// As JSON (the hook contract's answer, AHK-2): `{"answer": "allow",
+/// "stderr"?}`, `{"answer": "deny", "reason"}`, `{"answer": "continue",
+/// "reason"}` or `{"answer": "context", "text"}`.
 // @zen-impl: KIT-11_AC-4
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "answer", rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum Answer {
     /// Nothing to say; at stop, the agent may stop. `stderr` carries text
     /// for the user, e.g. a report the hook already blocked on.
     Allow {
         /// Text for stderr, when there is one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         stderr: Option<String>,
     },
     /// Before a tool or a prompt: refuse it, with the reason.

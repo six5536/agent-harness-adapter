@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AHK hook answer",
+  "description": "What a hook decides. Each harness renders it in its own form\n(`Harness::answer`).\n\nAs JSON (the hook contract's answer, AHK-2): `{\"answer\": \"allow\",\n\"stderr\"?}`, `{\"answer\": \"deny\", \"reason\"}`, `{\"answer\": \"continue\",\n\"reason\"}` or `{\"answer\": \"context\", \"text\"}`.",
+  "oneOf": [
+    {
+      "description": "Nothing to say; at stop, the agent may stop. `stderr` carries text\nfor the user, e.g. a report the hook already blocked on.",
+      "type": "object",
+      "properties": {
+        "stderr": {
+          "description": "Text for stderr, when there is one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "answer": {
+          "type": "string",
+          "const": "allow"
+        },
+        "v": {
+          "description": "The contract's version.",
+          "const": 1
+        }
+      },
+      "required": [
+        "answer"
+      ]
+    },
+    {
+      "description": "Before a tool or a prompt: refuse it, with the reason.",
+      "type": "object",
+      "properties": {
+        "reason": {
+          "description": "The reason, shown to the agent and the user.",
+          "type": "string"
+        },
+        "answer": {
+          "type": "string",
+          "const": "deny"
+        },
+        "v": {
+          "description": "The contract's version.",
+          "const": 1
+        }
+      },
+      "required": [
+        "answer",
+        "reason"
+      ]
+    },
+    {
+      "description": "At stop: keep the agent going, with the reason as its input.",
+      "type": "object",
+      "properties": {
+        "reason": {
+          "description": "The reason.",
+          "type": "string"
+        },
+        "answer": {
+          "type": "string",
+          "const": "continue"
+        },
+        "v": {
+          "description": "The contract's version.",
+          "const": 1
+        }
+      },
+      "required": [
+        "answer",
+        "reason"
+      ]
+    },
+    {
+      "description": "Session start, prompt submit, after a tool: text added to the agent's\ncontext.",
+      "type": "object",
+      "properties": {
+        "text": {
+          "description": "The text.",
+          "type": "string"
+        },
+        "answer": {
+          "type": "string",
+          "const": "context"
+        },
+        "v": {
+          "description": "The contract's version.",
+          "const": 1
+        }
+      },
+      "required": [
+        "answer",
+        "text"
+      ]
+    }
+  ]
+}

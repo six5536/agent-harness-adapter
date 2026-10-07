@@ -1,0 +1,980 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AHK manifest",
+  "description": "A manifest file (version 1).",
+  "type": "object",
+  "properties": {
+    "version": {
+      "description": "The manifest format's version: 1.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "name": {
+      "description": "The tool's name: letters, digits, `-`, `_` and `.`.",
+      "type": "string"
+    },
+    "harnesses": {
+      "description": "`\"all\"` (the default), or harness ids in preference order.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Harnesses"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ahk": {
+      "description": "The command bridged hooks run: `ahk` by default.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "record": {
+      "description": "The record file, relative to the scope's root.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "declined": {
+      "description": "The declined parts' file, relative to the scope's root.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "instructions": {
+      "description": "The instructions block, placed between the tool's markers in the\nfile each harness reads.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Text"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "hook_match": {
+      "description": "Which hook entries are the tool's, for hooks without `owned`.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Match"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "skills": {
+      "description": "Agent skills.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/SkillFile"
+      }
+    },
+    "hooks": {
+      "description": "Hooks.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/HookFile"
+      }
+    },
+    "mcp_servers": {
+      "description": "MCP servers.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/McpFile"
+      }
+    },
+    "allow_commands": {
+      "description": "Command prefixes the agent may run without asking.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "default": null
+    },
+    "allow_mcp_tools": {
+      "description": "MCP tools the agent may call without asking.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/McpToolFile"
+      }
+    },
+    "agents": {
+      "description": "Subagents.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/PromptFile"
+      }
+    },
+    "commands": {
+      "description": "Slash commands.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/PromptFile"
+      }
+    },
+    "parts": {
+      "description": "Raw parts for one harness.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/$defs/PartFile"
+      }
+    },
+    "scopes": {
+      "description": "Per scope: the items and paths that replace the top level's.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScopesFile"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "name"
+  ],
+  "$defs": {
+    "Harnesses": {
+      "description": "`\"all\"`, or harness ids in the order the tool prefers them.",
+      "anyOf": [
+        {
+          "description": "`\"all\"`: every built-in harness.",
+          "type": "string"
+        },
+        {
+          "description": "These harnesses.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "Text": {
+      "description": "Text inline, or the contents of a file relative to the manifest.",
+      "anyOf": [
+        {
+          "description": "The text itself.",
+          "type": "string"
+        },
+        {
+          "description": "A file's contents.",
+          "$ref": "#/$defs/FileRef"
+        }
+      ]
+    },
+    "FileRef": {
+      "description": "`{ file = \"<path>\" }`: a file relative to the manifest's directory.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "The path, relative to the manifest's directory.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "file"
+      ]
+    },
+    "Match": {
+      "description": "Which hook entries are the tool's: `{ prefix = \"..\" }`,\n`{ contains = \"..\" }` or `{ any = [..] }`.",
+      "oneOf": [
+        {
+          "description": "The command starts with the text.",
+          "type": "object",
+          "properties": {
+            "prefix": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "prefix"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "The command contains the text.",
+          "type": "object",
+          "properties": {
+            "contains": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "contains"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Any of these matches.",
+          "type": "object",
+          "properties": {
+            "any": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Match"
+              }
+            }
+          },
+          "required": [
+            "any"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "SkillFile": {
+      "description": "An agent skill.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The skill's name: lowercase, digits and `-`.",
+          "type": "string"
+        },
+        "description": {
+          "description": "When the agent should use it.",
+          "type": "string"
+        },
+        "body": {
+          "description": "The body after the frontmatter.",
+          "$ref": "#/$defs/Text"
+        },
+        "files": {
+          "description": "Extra files beside `SKILL.md`: path → text.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ordered_Text"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "description",
+        "body"
+      ]
+    },
+    "Ordered_Text": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Text"
+      }
+    },
+    "HookFile": {
+      "description": "A hook: `command` (a template the harness runs) or `run` (a command\n`ahk hook` runs with the hook contract), not both.",
+      "type": "object",
+      "properties": {
+        "event": {
+          "description": "The event.",
+          "$ref": "#/$defs/Event"
+        },
+        "command": {
+          "description": "A hook command template: `{harness}` and `{event}` are filled in.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "run": {
+          "description": "A command bridged through `ahk hook`: it reads the hook input on\nstdin and writes an answer on stdout.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "tools": {
+          "description": "Only for tool calls of this kind (pre tool, post tool).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "timeout": {
+          "description": "A timeout in seconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0,
+          "default": null
+        },
+        "commands": {
+          "description": "Per-harness command templates: harness id → template.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ordered_string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owned": {
+          "description": "Which entries in a harness's file are this hook's.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Match"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "event"
+      ]
+    },
+    "Event": {
+      "description": "A hook event. Each harness installs it under its own name and leaves out\nthe events it lacks.",
+      "oneOf": [
+        {
+          "description": "A session starts (or resumes).",
+          "type": "string",
+          "const": "session-start"
+        },
+        {
+          "description": "A session ends.",
+          "type": "string",
+          "const": "session-end"
+        },
+        {
+          "description": "The user submits a prompt.",
+          "type": "string",
+          "const": "prompt-submit"
+        },
+        {
+          "description": "Before a tool runs.",
+          "type": "string",
+          "const": "pre-tool"
+        },
+        {
+          "description": "After a tool ran.",
+          "type": "string",
+          "const": "post-tool"
+        },
+        {
+          "description": "The agent is about to stop.",
+          "type": "string",
+          "const": "stop"
+        },
+        {
+          "description": "Before the context is compacted.",
+          "type": "string",
+          "const": "pre-compact"
+        }
+      ]
+    },
+    "ToolKind": {
+      "description": "What a tool call does, from the harness's tool name.",
+      "oneOf": [
+        {
+          "description": "Runs a shell command.",
+          "type": "string",
+          "const": "shell"
+        },
+        {
+          "description": "Reads or searches files.",
+          "type": "string",
+          "const": "read"
+        },
+        {
+          "description": "Creates or edits a file.",
+          "type": "string",
+          "const": "write"
+        },
+        {
+          "description": "Calls an MCP server's tool.",
+          "type": "string",
+          "const": "mcp"
+        },
+        {
+          "description": "Anything else.",
+          "type": "string",
+          "const": "other"
+        }
+      ]
+    },
+    "Ordered_string": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "McpFile": {
+      "description": "An MCP server: `command` (with `args`, `env`) or `url` (with `headers`).",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The server's name.",
+          "type": "string"
+        },
+        "command": {
+          "description": "The program of a local server.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "args": {
+          "description": "Its arguments.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "env": {
+          "description": "Its environment variables.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ordered_string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "description": "The URL of a remote server.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "headers": {
+          "description": "Its HTTP headers.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ordered_string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ]
+    },
+    "McpToolFile": {
+      "description": "A tool of an MCP server the agent may call without asking.",
+      "type": "object",
+      "properties": {
+        "server": {
+          "description": "The server's name.",
+          "type": "string"
+        },
+        "tool": {
+          "description": "The tool's name.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "server",
+        "tool"
+      ]
+    },
+    "PromptFile": {
+      "description": "A subagent or a slash command.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Its name.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Its description.",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "Its prompt (a command's `$ARGUMENTS` stands for what the user typed).",
+          "$ref": "#/$defs/Text"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "description",
+        "prompt"
+      ]
+    },
+    "PartFile": {
+      "description": "A raw part for one harness.",
+      "oneOf": [
+        {
+          "description": "Whole files under a directory.",
+          "type": "object",
+          "properties": {
+            "harness": {
+              "description": "The harness id.",
+              "type": "string"
+            },
+            "name": {
+              "description": "The part's name.",
+              "type": "string"
+            },
+            "dir": {
+              "description": "The directory, relative to the root.",
+              "type": "string"
+            },
+            "files": {
+              "description": "Path (relative to `dir`) → text.",
+              "$ref": "#/$defs/Ordered_Text"
+            },
+            "kind": {
+              "type": "string",
+              "const": "file"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "harness",
+            "name",
+            "dir",
+            "files"
+          ]
+        },
+        {
+          "description": "The block between the tool's markers in a file.",
+          "type": "object",
+          "properties": {
+            "harness": {
+              "description": "The harness id.",
+              "type": "string"
+            },
+            "name": {
+              "description": "The part's name.",
+              "type": "string"
+            },
+            "file": {
+              "description": "The file, relative to the root.",
+              "type": "string"
+            },
+            "block": {
+              "description": "The block.",
+              "$ref": "#/$defs/Text"
+            },
+            "kind": {
+              "type": "string",
+              "const": "region"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "harness",
+            "name",
+            "file",
+            "block"
+          ]
+        },
+        {
+          "description": "Entries in a JSON file, or members in a TOML file (`.toml`).",
+          "type": "object",
+          "properties": {
+            "harness": {
+              "description": "The harness id.",
+              "type": "string"
+            },
+            "name": {
+              "description": "The part's name.",
+              "type": "string"
+            },
+            "file": {
+              "description": "The file, relative to the root.",
+              "type": "string"
+            },
+            "ops": {
+              "description": "The entries.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/OpFile"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "merge"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "harness",
+            "name",
+            "file",
+            "ops"
+          ]
+        }
+      ]
+    },
+    "OpFile": {
+      "description": "One merge operation (REQ-KIT KIT-2_AC-3).",
+      "oneOf": [
+        {
+          "description": "`value` once in the array at `path`.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "Keys from the top level.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "value": {
+              "description": "The entry."
+            },
+            "op": {
+              "type": "string",
+              "const": "array_entry"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "path",
+            "value"
+          ]
+        },
+        {
+          "description": "The member `key` of the object at `path` is `value`.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "Keys from the top level.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "key": {
+              "description": "The member's key.",
+              "type": "string"
+            },
+            "value": {
+              "description": "Its value."
+            },
+            "op": {
+              "type": "string",
+              "const": "object_member"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "path",
+            "key",
+            "value"
+          ]
+        },
+        {
+          "description": "The tool's entries (by `field`) in the array at `path`.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "Keys from the top level.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "field": {
+              "description": "The field that marks an entry as the tool's.",
+              "type": "string"
+            },
+            "owned": {
+              "description": "Which values of the field are the tool's.",
+              "$ref": "#/$defs/Match"
+            },
+            "entries": {
+              "description": "The tool's entries.",
+              "type": "array",
+              "items": true
+            },
+            "op": {
+              "type": "string",
+              "const": "owned_entries"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "path",
+            "field",
+            "owned",
+            "entries"
+          ]
+        },
+        {
+          "description": "The tool's entries in the groups of the array at `path`.",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "Keys from the top level.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "entries": {
+              "description": "The key of a group's entries.",
+              "type": "string"
+            },
+            "field": {
+              "description": "The field that marks an entry as the tool's.",
+              "type": "string"
+            },
+            "owned": {
+              "description": "Which values of the field are the tool's.",
+              "$ref": "#/$defs/Match"
+            },
+            "groups": {
+              "description": "The groups, each holding the tool's entries under `entries`.",
+              "type": "array",
+              "items": true
+            },
+            "op": {
+              "type": "string",
+              "const": "group_entries"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "path",
+            "entries",
+            "field",
+            "owned",
+            "groups"
+          ]
+        }
+      ]
+    },
+    "ScopesFile": {
+      "description": "The scope tables.",
+      "type": "object",
+      "properties": {
+        "project": {
+          "description": "Project scope.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScopeFile"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "user": {
+          "description": "User scope.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScopeFile"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "local": {
+          "description": "Local scope.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScopeFile"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ScopeFile": {
+      "description": "What one scope replaces.",
+      "type": "object",
+      "properties": {
+        "record": {
+          "description": "The record file at this scope.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "declined": {
+          "description": "The declined parts' file at this scope.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "instructions": {
+          "description": "The instructions block, placed between the tool's markers in the\nfile each harness reads.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Text"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hook_match": {
+          "description": "Which hook entries are the tool's, for hooks without `owned`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Match"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "skills": {
+          "description": "Agent skills.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/SkillFile"
+          }
+        },
+        "hooks": {
+          "description": "Hooks.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/HookFile"
+          }
+        },
+        "mcp_servers": {
+          "description": "MCP servers.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/McpFile"
+          }
+        },
+        "allow_commands": {
+          "description": "Command prefixes the agent may run without asking.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "allow_mcp_tools": {
+          "description": "MCP tools the agent may call without asking.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/McpToolFile"
+          }
+        },
+        "agents": {
+          "description": "Subagents.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/PromptFile"
+          }
+        },
+        "commands": {
+          "description": "Slash commands.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/PromptFile"
+          }
+        },
+        "parts": {
+          "description": "Raw parts for one harness.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/PartFile"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

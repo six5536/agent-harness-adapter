@@ -7,6 +7,7 @@ mod answer;
 mod event;
 mod guard;
 mod input;
+pub mod wire;
 
 pub use answer::{Answer, Output, emit};
 pub use event::{Event, ToolCall, ToolKind};

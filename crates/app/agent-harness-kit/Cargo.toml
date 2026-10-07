@@ -18,8 +18,10 @@ name = "ahk"
 path = "src/main.rs"
 
 [dependencies]
-agent-harness-kit-core.workspace = true
+agent-harness-kit-core = { workspace = true, features = ["schemars"] }
+serde_json.workspace = true
 clap.workspace = true
 
 [dev-dependencies]
 assert_cmd.workspace = true
+serde_json.workspace = true

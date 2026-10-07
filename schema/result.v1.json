@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AHK install result",
+  "description": "The outcome of install or status.",
+  "type": "object",
+  "properties": {
+    "scope": {
+      "description": "The scope.",
+      "$ref": "#/$defs/Scope"
+    },
+    "root": {
+      "description": "The root directory the paths are relative to.",
+      "type": "string"
+    },
+    "harnesses": {
+      "description": "One entry per harness named, in the tool's order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/HarnessResult"
+      }
+    },
+    "warnings": {
+      "description": "Content an agent may load twice.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "scope",
+    "root",
+    "harnesses",
+    "warnings"
+  ],
+  "$defs": {
+    "Scope": {
+      "description": "Where a harness integration is installed.",
+      "oneOf": [
+        {
+          "description": "The project: files beside the project's own files.",
+          "type": "string",
+          "const": "project"
+        },
+        {
+          "description": "The user: files under the home directory, in each harness's own\nconfiguration directory.",
+          "type": "string",
+          "const": "user"
+        },
+        {
+          "description": "The project's local, git-ignored files (e.g.\n`.claude/settings.local.json`), under the project root.",
+          "type": "string",
+          "const": "local"
+        }
+      ]
+    },
+    "HarnessResult": {
+      "description": "One harness's part of the outcome.",
+      "type": "object",
+      "properties": {
+        "harness": {
+          "description": "The harness id.",
+          "type": "string"
+        },
+        "parts": {
+          "description": "One entry per part, in profile order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PartResult"
+          }
+        },
+        "unsupported": {
+          "description": "The integration's items the harness does not take at the scope.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Item"
+          }
+        },
+        "notes": {
+          "description": "What the user still has to do.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "harness",
+        "parts",
+        "unsupported",
+        "notes"
+      ]
+    },
+    "PartResult": {
+      "description": "One line of the report.",
+      "type": "object",
+      "properties": {
+        "part": {
+          "description": "The part's name.",
+          "type": "string"
+        },
+        "state": {
+          "description": "The part's state before any write.",
+          "$ref": "#/$defs/State"
+        },
+        "action": {
+          "description": "What `install` did; `None` when the part was left as found, and\nalways for `status`. Left out of the JSON when `None`.",
+          "$ref": "#/$defs/Action"
+        },
+        "path": {
+          "description": "The part's path relative to the root, `/`-separated; an external\npart's location; a shared part's covering location.",
+          "type": "string"
+        },
+        "by": {
+          "description": "The harness that writes a shared part. Left out of the JSON when\n`None`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "part",
+        "state",
+        "path"
+      ]
+    },
+    "State": {
+      "description": "The state of a part.",
+      "oneOf": [
+        {
+          "description": "Declined by the user.",
+          "type": "string",
+          "const": "skipped"
+        },
+        {
+          "description": "Another harness's part puts the same content in a location this\nharness loads; nothing is written for it.",
+          "type": "string",
+          "const": "shared"
+        },
+        {
+          "description": "The file, the block or the entries are not there.",
+          "type": "string",
+          "const": "absent"
+        },
+        {
+          "description": "Equal to the tool's content.",
+          "type": "string",
+          "const": "current"
+        },
+        {
+          "description": "Differs from the tool's content and equals the recorded hash: the\ntool wrote it and has changed since.",
+          "type": "string",
+          "const": "stale"
+        },
+        {
+          "description": "Differs from both, or present with no recorded hash.",
+          "type": "string",
+          "const": "edited"
+        }
+      ]
+    },
+    "Action": {
+      "description": "What install did to a part.",
+      "oneOf": [
+        {
+          "description": "Written where nothing was.",
+          "type": "string",
+          "const": "created"
+        },
+        {
+          "description": "A `file` part's files written again.",
+          "type": "string",
+          "const": "rewrote"
+        },
+        {
+          "description": "A region or merge part written into the existing file, or an\nexternal part written again.",
+          "type": "string",
+          "const": "updated"
+        }
+      ]
+    },
+    "Item": {
+      "description": "One kind of thing in an integration. An item becomes at most one part\nper harness, named by the item's name (e.g. `hooks`).",
+      "oneOf": [
+        {
+          "description": "The instructions block.",
+          "type": "string",
+          "const": "instructions"
+        },
+        {
+          "description": "Skills.",
+          "type": "string",
+          "const": "skills"
+        },
+        {
+          "description": "Hooks.",
+          "type": "string",
+          "const": "hooks"
+        },
+        {
+          "description": "MCP servers.",
+          "type": "string",
+          "const": "mcp"
+        },
+        {
+          "description": "Allowed commands.",
+          "type": "string",
+          "const": "permissions"
+        },
+        {
+          "description": "Subagents.",
+          "type": "string",
+          "const": "agents"
+        },
+        {
+          "description": "Slash commands.",
+          "type": "string",
+          "const": "commands"
+        }
+      ]
+    }
+  }
+}

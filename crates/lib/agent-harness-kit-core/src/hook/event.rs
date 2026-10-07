@@ -2,7 +2,7 @@
 
 use std::{fmt, str::FromStr};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::Error;
@@ -11,7 +11,7 @@ use crate::Error;
 /// the events it lacks.
 // @zen-impl: KIT-11_AC-1
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
 pub enum Event {
@@ -80,7 +80,7 @@ impl FromStr for Event {
 /// What a tool call does, from the harness's tool name.
 // @zen-impl: KIT-11_AC-6
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum ToolKind {
@@ -97,7 +97,8 @@ pub enum ToolKind {
 }
 
 /// The tool call a hook is about.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ToolCall {
     /// The harness's name for the tool, e.g. `Bash`.
@@ -105,6 +106,7 @@ pub struct ToolCall {
     /// What it does.
     pub kind: ToolKind,
     /// Its input, as the harness gives it.
+    #[serde(default)]
     pub input: Value,
 }
 

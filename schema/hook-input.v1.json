@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AHK hook input",
+  "description": "What a harness sends a hook command, parsed by that harness into one\nshape. Every field is optional; the raw JSON keeps the rest.\n\nAs JSON (the hook contract's input, AHK-2), an absent value is left out:\n`continuing` when false and `raw` when null too.",
+  "type": "object",
+  "properties": {
+    "harness": {
+      "description": "The harness that ran the hook, e.g. `claude`.",
+      "type": "string",
+      "default": ""
+    },
+    "event": {
+      "description": "The event, when known.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Event"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "session_id": {
+      "description": "The session (or conversation) id.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cwd": {
+      "description": "The working directory.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "transcript_path": {
+      "description": "The session transcript's path.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "prompt": {
+      "description": "The user's prompt (prompt submit).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tool": {
+      "description": "The tool call (pre tool, post tool).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ToolCall"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "tool_output": {
+      "description": "The tool's output (post tool)."
+    },
+    "source": {
+      "description": "What started the session, e.g. `startup`, `resume`, `clear`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "continuing": {
+      "description": "Whether the agent is already continuing because a stop hook asked it\nto: Claude's `stop_hook_active`, Cursor's `loop_count` above 0.",
+      "type": "boolean"
+    },
+    "last_message": {
+      "description": "The agent's last message (stop), when the harness sends it.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "raw": {
+      "description": "The JSON as the harness sent it."
+    },
+    "v": {
+      "description": "The contract's version.",
+      "const": 1
+    }
+  },
+  "$defs": {
+    "Event": {
+      "description": "A hook event. Each harness installs it under its own name and leaves out\nthe events it lacks.",
+      "oneOf": [
+        {
+          "description": "A session starts (or resumes).",
+          "type": "string",
+          "const": "session-start"
+        },
+        {
+          "description": "A session ends.",
+          "type": "string",
+          "const": "session-end"
+        },
+        {
+          "description": "The user submits a prompt.",
+          "type": "string",
+          "const": "prompt-submit"
+        },
+        {
+          "description": "Before a tool runs.",
+          "type": "string",
+          "const": "pre-tool"
+        },
+        {
+          "description": "After a tool ran.",
+          "type": "string",
+          "const": "post-tool"
+        },
+        {
+          "description": "The agent is about to stop.",
+          "type": "string",
+          "const": "stop"
+        },
+        {
+          "description": "Before the context is compacted.",
+          "type": "string",
+          "const": "pre-compact"
+        }
+      ]
+    },
+    "ToolCall": {
+      "description": "The tool call a hook is about.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The harness's name for the tool, e.g. `Bash`.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "What it does.",
+          "$ref": "#/$defs/ToolKind"
+        },
+        "input": {
+          "description": "Its input, as the harness gives it.",
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "kind"
+      ]
+    },
+    "ToolKind": {
+      "description": "What a tool call does, from the harness's tool name.",
+      "oneOf": [
+        {
+          "description": "Runs a shell command.",
+          "type": "string",
+          "const": "shell"
+        },
+        {
+          "description": "Reads or searches files.",
+          "type": "string",
+          "const": "read"
+        },
+        {
+          "description": "Creates or edits a file.",
+          "type": "string",
+          "const": "write"
+        },
+        {
+          "description": "Calls an MCP server's tool.",
+          "type": "string",
+          "const": "mcp"
+        },
+        {
+          "description": "Anything else.",
+          "type": "string",
+          "const": "other"
+        }
+      ]
+    }
+  },
+  "required": [
+    "v"
+  ]
+}

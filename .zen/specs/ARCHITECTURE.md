@@ -9,7 +9,8 @@ agent-harness-kit is a Rust workspace: the library `agent-harness-kit-core` for 
 - Integration (`integration`): the tool's neutral declaration
 - Harness core (`harness`): the `Harness` contract, parts, profiles, states, shared-location choice, `install` / `status`, record, declined parts
 - Harness modules (`claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`, `pi`, `agents_md`): one adapter per harness for its files, formats and hook IO
-- Hooks (`hook`): neutral events, input, answers, `emit`, `LoopGuard`
+- Hooks (`hook`): neutral events, input, answers, `emit`, `LoopGuard`; the hook contract's JSON (`hook::wire`)
+- Manifest (`manifest`): a tool's integration from a TOML or JSON file, as a `Tool`
 - Report (`report`): findings and their text and JSON forms
 - CLI conventions (`cli`): exit codes, stdout, broken pipes, the `error:` runner
 - File IO (`fs`): whole-file reads and atomic writes
@@ -19,9 +20,9 @@ agent-harness-kit is a Rust workspace: the library `agent-harness-kit-core` for 
 ## Technology Stack
 
 - `Rust 1 (edition 2024)` — the library; MSRV 1.85
-- `serde 1` / `serde_json 1` — hook JSON, results, and JSON merges (`preserve_order` keeps the user's key order)
-- `toml_edit 0` — the record, the declined parts and TOML merges (Codex `config.toml`), edited in place
-- `schemars 1` — optional feature: JSON Schema of the result types
+- `serde 1` / `serde_json 1` — hook JSON, results, manifests, and JSON merges (`preserve_order` keeps the user's key order)
+- `toml_edit 0` — the record, the declined parts and TOML merges (Codex `config.toml`), edited in place; manifests through its `serde` feature
+- `schemars 1` — optional feature: JSON Schema of the result, manifest and hook contract (on in `ahk`)
 - `proptest 1`, `insta 1` — property and snapshot tests
 - `clap 4` — the `ahk` command line
 - `assert_cmd 2` — tests that run the binary
@@ -69,14 +70,16 @@ crates/lib/agent-harness-kit-core/        # the library crate (crates.io `agent-
   src/                                    # lib.rs, error, fs, cli
   src/integration/                        # the neutral declaration: Integration and its items
   src/harness/                            # Harness contract, install / status, shared locations, parts, states, merge (JSON, TOML), region, record, declined
-  src/hook/                               # neutral hook events, input, answers, emit, LoopGuard
+  src/hook/                               # neutral hook events, input, answers, emit, LoopGuard, wire (the hook contract)
+  src/manifest/                           # Manifest, ManifestTool: the integration from a file
   src/common/                             # crate-private pieces several harnesses share: Claude-family protocol, instructions region, group hooks, skills, MCP JSON
   src/<harness>/                          # one adapter per harness: claude, codex, factory, gemini, copilot, cursor, pi, agents_md
   src/report/                             # findings, report, text form
   tests/                                  # integration tests through the public API (a test Tool over a temp dir)
 crates/app/agent-harness-kit/             # the `ahk` CLI crate (crates.io `agent-harness-kit`)
-  src/                                    # main.rs
+  src/                                    # main.rs (clap), schema.rs
   tests/                                  # the binary run as a user runs it
+schema/                                   # the contracts' JSON Schemas, as `ahk schema` prints them
 packages/agent-harness-kit/               # npm launcher `@six5536/agent-harness-kit` (bin `ahk`)
 packages/agent-harness-kit-<platform>/    # one prebuilt-binary package per platform
 scripts/                                  # validate-consumers.sh; set / verify version, release, release and launcher smoke tests
@@ -134,6 +137,24 @@ RESPONSIBILITIES
 
 - Events, `HookInput`, `Answer`, `emit` through a harness
 - `LoopGuard`: block a stop hook once per text per key
+- The hook contract (`hook::wire`): the input and answer as versioned JSON, for `ahk hook` and the bindings
+
+### Manifest
+
+A tool's integration declared in a TOML or JSON file (REQ-AHK), for tools not written in Rust.
+
+RESPONSIBILITIES
+
+- Load and check the file (unknown keys, versions, harness ids, TEXT files) with the place of each mistake
+- Per scope: the integration, the record and declined paths; `ManifestTool` makes it a `Tool`
+
+CONSTRAINTS
+
+- A manifest that loads never fails later because of its content
+
+### ahk CLI
+
+The `ahk` command (crate `agent-harness-kit`): `install`, `status`, `hook` (the bridge), `schema`. Thin over the library; also shipped through npm.
 
 ### Report
 

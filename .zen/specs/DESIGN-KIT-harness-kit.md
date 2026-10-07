@@ -59,7 +59,9 @@ crates/lib/agent-harness-kit-core/src/
 │   ├── event.rs        Event, ToolKind, ToolCall
 │   ├── input.rs        HookInput
 │   ├── answer.rs       Answer, Output, emit
-│   └── guard.rs        LoopGuard
+│   ├── guard.rs        LoopGuard
+│   └── wire.rs         the hook contract's JSON (DESIGN-AHK)
+├── manifest/           an integration from a TOML or JSON file (DESIGN-AHK)
 ├── common/             pieces several harnesses share (DESIGN-HAR)
 ├── claude/ codex/ factory/ gemini/ copilot/ cursor/ pi/ agents_md/   adapter.rs each (DESIGN-HAR)
 └── report/

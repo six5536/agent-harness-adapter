@@ -20,6 +20,7 @@ test("binaryName appends .exe only on Windows", () => {
   assert.strictEqual(binaryName("win32"), "ahk.exe");
 });
 
+// @zen-test: AHK-6_AC-2
 test("resolveBinary returns the resolved path for a supported platform", () => {
   const fakeResolve = (spec) => `/fake/node_modules/${spec}`;
   assert.strictEqual(
@@ -33,6 +34,7 @@ test("resolveBinary returns the resolved path for a supported platform", () => {
   );
 });
 
+// @zen-test: AHK-6_AC-3
 test("resolveBinary errors clearly on unsupported platform", () => {
   assert.throws(
     () => resolveBinary("win32", "arm64", () => "unused"),
@@ -45,6 +47,7 @@ test("exitCode forwards a normal exit status", () => {
   assert.strictEqual(exitCode({ status: 2, signal: null }), 2);
 });
 
+// @zen-test: AHK-6_AC-2
 test("exitCode encodes a signal death as 128 + signum", () => {
   const signals = { SIGINT: 2, SIGTERM: 15 };
   // Ctrl-C should surface as 130, the shell convention — not a misleading 1.
@@ -57,6 +60,7 @@ test("exitCode falls back to 1 for an unknown signal or null status", () => {
   assert.strictEqual(exitCode({ status: null, signal: null }), 1);
 });
 
+// @zen-test: AHK-6_AC-3
 test("resolveBinary errors clearly when the platform package is missing", () => {
   const throwing = () => {
     throw new Error("Cannot find module");

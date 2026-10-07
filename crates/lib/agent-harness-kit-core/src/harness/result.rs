@@ -111,6 +111,15 @@ pub struct InstallResult {
 }
 
 impl InstallResult {
+    /// The JSON Schema of the result's JSON (`--json`).
+    #[cfg(feature = "schemars")]
+    pub fn schema() -> serde_json::Value {
+        let mut s = serde_json::to_value(schemars::schema_for!(InstallResult))
+            .expect("a schema serialises");
+        s["title"] = "AHK install result".into();
+        s
+    }
+
     /// The result of the harness `id`.
     pub fn harness(&self, id: &str) -> Option<&HarnessResult> {
         self.harnesses.iter().find(|h| h.harness == id)
@@ -226,7 +235,8 @@ mod tests {
     #[cfg(feature = "schemars")]
     #[test]
     fn the_schema_describes_the_json() {
-        let schema = serde_json::to_value(schemars::schema_for!(InstallResult)).unwrap();
+        let schema = InstallResult::schema();
+        assert_eq!(schema["title"], "AHK install result");
         let part = &schema["$defs"]["PartResult"];
         let required: Vec<_> = part["required"].as_array().unwrap().iter().collect();
         assert!(required.contains(&&serde_json::json!("state")));

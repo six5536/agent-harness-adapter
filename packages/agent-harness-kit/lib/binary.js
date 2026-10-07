@@ -1,4 +1,5 @@
 "use strict";
+// @zen-component: AHK-Launcher
 
 // Maps the host platform to the prebuilt binary package and resolves the binary
 // path. Logic is dependency-injected (platform, arch, requireResolve) so it is
@@ -32,6 +33,7 @@ function binaryName(platform) {
  * never installed — each error names the fix. `requireResolve` defaults to the
  * real `require.resolve`.
  */
+// @zen-impl: AHK-6_AC-3
 function resolveBinary(platform, arch, requireResolve = require.resolve) {
   const pkg = selectPackage(platform, arch);
   if (!pkg) {
@@ -60,6 +62,7 @@ function resolveBinary(platform, arch, requireResolve = require.resolve) {
  * than a misleading 1. `signals` is injected for testability and defaults to
  * Node's own table.
  */
+// @zen-impl: AHK-6_AC-2
 function exitCode(result, signals = require("node:os").constants.signals) {
   if (result.signal) {
     const signum = signals[result.signal];

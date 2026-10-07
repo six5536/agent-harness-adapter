@@ -11,6 +11,8 @@
 //!   gives, [`emit`](hook::emit), and the [`LoopGuard`](hook::LoopGuard).
 //! - One module per harness: [`claude`], [`codex`], [`factory`], [`gemini`],
 //!   [`copilot`], [`cursor`], [`pi`], [`agents_md`].
+//! - [`manifest`]: an integration declared in a TOML or JSON file, for
+//!   tools not written in Rust; [`hook::wire`] is their hook contract.
 //! - [`report`]: findings (error / warning / info) and their text and JSON
 //!   forms.
 //! - [`cli`]: exit codes, stdout, broken pipes and the `error:` runner.
@@ -39,6 +41,7 @@ pub mod gemini;
 pub mod harness;
 pub mod hook;
 pub mod integration;
+pub mod manifest;
 pub mod pi;
 pub mod report;
 
