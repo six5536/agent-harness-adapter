@@ -112,7 +112,7 @@ fn full_builder() -> Integration {
         .hook(
             Hook::new(
                 Event::PreTool,
-                "/opt/agent-harness-adapter hook --tool mytool {harness} {event} -- mytool decide --x {{y}}",
+                "/opt/agent-harness-adapter hook --tool mytool --tools shell {harness} {event} -- mytool decide --x {{y}}",
             )
             .tools(ToolKind::Shell)
             .timeout(Duration::from_secs(10))

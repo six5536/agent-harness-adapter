@@ -59,7 +59,7 @@ agent-harness-adapter status  --manifest mytool.harness.toml
 ```text
 agent-harness-adapter install --manifest <file> --harness <ids|all> [--scope project|user|local] [--root <dir>] [--force] [--without <parts>] [--json]
 agent-harness-adapter status  --manifest <file> [--harness <ids|all>] [--scope ..] [--root <dir>] [--json]
-agent-harness-adapter hook [--tool <name>] <harness> <event> -- <command> [args..]
+agent-harness-adapter hook [--tool <name>] [--tools <kind>] <harness> <event> -- <command> [args..]
 agent-harness-adapter schema <manifest|hook-input|hook-answer|result>
 ```
 
@@ -100,7 +100,10 @@ Events: `session-start`, `session-end`, `prompt-submit`, `pre-tool`,
 
 ## The hook contract
 
-A bridged hook runs `agent-harness-adapter hook --tool <name> <harness> <event> -- <run>`.
+A bridged hook runs `agent-harness-adapter hook --tool <name> <harness> <event> -- <run>`
+(with `--tools <kind>` when the hook gives `tools`: on harnesses that cannot
+match tools, such as Copilot, Cursor and Pi, the bridge then skips your
+command for other tools).
 Your command gets one JSON object on stdin:
 
 ```json

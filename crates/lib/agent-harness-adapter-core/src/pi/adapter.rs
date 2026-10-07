@@ -174,9 +174,10 @@ impl Harness for Pi {
             (Answer::Continue { reason }, Event::Stop) => {
                 Output::json(json!({ "answer": "continue", "reason": reason }))
             }
-            (Answer::Context { text }, Event::PromptSubmit | Event::PostTool) => {
-                Output::json(json!({ "answer": "context", "text": text }))
-            }
+            (
+                Answer::Context { text },
+                Event::SessionStart | Event::PromptSubmit | Event::PostTool,
+            ) => Output::json(json!({ "answer": "context", "text": text })),
             _ => return Err(protocol::unsupported(ID, event, answer)),
         })
     }
@@ -345,7 +346,12 @@ mod tests {
             out(Event::PostTool, Answer::Context { text: "c".into() }).unwrap(),
             r#"{"answer":"context","text":"c"}"#
         );
-        assert!(out(Event::SessionStart, Answer::Context { text: "c".into() }).is_err());
+        // Kept by the extension and added to the first prompt.
+        assert_eq!(
+            out(Event::SessionStart, Answer::Context { text: "c".into() }).unwrap(),
+            r#"{"answer":"context","text":"c"}"#
+        );
+        assert!(out(Event::Stop, Answer::Context { text: "c".into() }).is_err());
         assert!(out(Event::PromptSubmit, Answer::Deny { reason: "r".into() }).is_err());
     }
 

@@ -97,15 +97,15 @@ IMPLEMENTS: AHA-3_AC-1, AHA-3_AC-2, AHA-3_AC-3, AHA-3_AC-4, AHA-5_AC-1, AHA-6_AC
 ```text
 agent-harness-adapter install --manifest <file> --harness <ids|all>[,..] [--scope project|user|local] [--root <dir>] [--force] [--without <parts>] [--json]
 agent-harness-adapter status  --manifest <file> [--harness <ids|all>] [--scope ..] [--root <dir>] [--json]
-agent-harness-adapter hook [--tool <name>] <harness> <event> -- <command> [args..]
+agent-harness-adapter hook [--tool <name>] [--tools <kind>] <harness> <event> -- <command> [args..]
 agent-harness-adapter schema <manifest|hook-input|hook-answer|result>
 ```
 
 ### AHA-Bridge
 
-Reads stdin, parses it through the harness (an input with only `harness` and `event` when it is not JSON), spawns the command with piped stdin and stdout and inherited stderr, writes `input_json`, waits, and parses the answer. A spawn failure, a non-zero exit or a bad answer becomes `Answer::Allow { stderr: "<tool>: <reason>\n" }`. The answer goes out through `hook::emit`, whose exit code `agent-harness-adapter` returns.
+Reads stdin, parses it through the harness (an input with only `harness` and `event` when it is not JSON), spawns the command with piped stdin and stdout and inherited stderr, writes `input_json`, waits, and parses the answer. With `--tools`, an input whose tool is of another kind is allowed without running the command. A spawn failure, a non-zero exit or a bad answer becomes `Answer::Allow { stderr: "<tool>: <reason>\n" }`. The answer goes out through `hook::emit`, whose exit code `agent-harness-adapter` returns.
 
-IMPLEMENTS: AHA-4_AC-1, AHA-4_AC-2, AHA-4_AC-3, AHA-4_AC-4
+IMPLEMENTS: AHA-4_AC-1, AHA-4_AC-2, AHA-4_AC-3, AHA-4_AC-4, AHA-4_AC-5
 
 ### AHA-Launcher
 
@@ -243,6 +243,7 @@ SOURCE: .zen/specs/REQ-AHA-agent-harness-adapter.md
 - AHA-4_AC-2 → AHA-Bridge
 - AHA-4_AC-3 → AHA-Bridge
 - AHA-4_AC-4 → AHA-Bridge
+- AHA-4_AC-5 → AHA-Bridge
 - AHA-5_AC-1 → AHA-Cli
 - AHA-5_AC-2 → AHA-Cli
 - AHA-6_AC-1 → AHA-Cli

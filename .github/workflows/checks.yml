@@ -209,6 +209,8 @@ jobs:
           root="$(pwd -W 2>/dev/null || pwd)"
           AHA="$root/target/debug/agent-harness-adapter" AHA_NODE_ADDON="$root/target/debug/agent_harness_adapter_node.node" \
             npm run test:node
+          # The generated Pi extension against a stand-in for Pi's API.
+          AHA="$root/target/debug/agent-harness-adapter" npm run test:pi
 
   deny:
     # Deterministic supply-chain checks only: these fail when *we* change

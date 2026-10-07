@@ -157,3 +157,36 @@ fn an_unknown_harness_or_event_runs_nothing() {
     let (code, _, _) = output(adapter().args(["hook", "claude", "stop"]));
     assert_eq!(code, 2);
 }
+
+// @zen-test: AHA-4_AC-5
+#[test]
+fn tools_runs_the_command_only_for_its_kind() {
+    let run = |tool: &str| {
+        output(
+            adapter()
+                .args(["hook", "--tools", "shell", "claude", "pre-tool", "--"])
+                .arg(fake_tool())
+                .arg("deny")
+                .write_stdin(format!(r#"{{"tool_name":"{tool}","tool_input":{{}}}}"#)),
+        )
+    };
+    // Another kind: allowed, the command never runs.
+    let (code, out, err) = run("Read");
+    assert_eq!((code, err.as_str()), (0, ""), "{out}");
+    let claude = harness::find("claude").unwrap();
+    let allow = claude
+        .answer(Event::PreTool, &Answer::Allow { stderr: None })
+        .unwrap()
+        .stdout;
+    assert_eq!(out, format!("{allow}\n"));
+    // Its kind: the command runs and denies.
+    let (code, out, err) = run("Bash");
+    assert_eq!(code, 0);
+    assert!(err.starts_with("fake-tool ran"), "{err}");
+    assert!(out.contains("deny"), "{out}");
+    // A bad kind is a usage error.
+    let (code, _, err) =
+        output(adapter().args(["hook", "--tools", "net", "claude", "stop", "--", "x"]));
+    assert_eq!(code, 2);
+    assert!(err.contains("no tool kind `net`"), "{err}");
+}

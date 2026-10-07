@@ -60,10 +60,16 @@ async function first(event: string, kind: string, payload: Record<string, unknow
 }
 
 export default function (pi: ExtensionAPI) {
+	// Whether the last stop asked the agent to go on (`continuing`); a new
+	// prompt starts over.
 	let continued = false;
+	// Context from session start, added to the first prompt: Pi takes
+	// context only with a prompt.
+	let pending: string[] = [];
 
 	pi.on("session_start", async (event, ctx) => {
-		await first("session-start", "", { source: event.reason }, ctx);
+		const a = await first("session-start", "context", { source: event.reason }, ctx);
+		if (a?.text) pending.push(a.text);
 	});
 
 	pi.on("session_shutdown", async (event, ctx) => {
@@ -71,8 +77,13 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
+		continued = false;
 		const a = await first("prompt-submit", "context", { prompt: event.prompt }, ctx);
-		if (a?.text) return { message: { customType: TOOL, content: a.text, display: false } };
+		const texts = [...pending, ...(a?.text ? [a.text] : [])];
+		pending = [];
+		if (texts.length > 0) {
+			return { message: { customType: TOOL, content: texts.join("\n\n"), display: false } };
+		}
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
@@ -94,11 +105,10 @@ export default function (pi: ExtensionAPI) {
 		await first("pre-compact", "", { reason: event.reason }, ctx);
 	});
 
-	pi.on("agent_before_settle", async (event, ctx) => {
-		if (!event.context.canContinue) {
-			continued = false;
-			return;
-		}
+	// Every settle is a stop: `event.context.canContinue` is false whenever
+	// the model's answer is last, and turns true once the entry below is
+	// added, so it is no guard here.
+	pi.on("agent_before_settle", async (_event, ctx) => {
 		const a = await first("stop", "continue", { continuing: continued }, ctx);
 		continued = a !== undefined;
 		if (a) {

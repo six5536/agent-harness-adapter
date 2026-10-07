@@ -96,6 +96,19 @@ pub enum ToolKind {
     Other,
 }
 
+impl ToolKind {
+    /// The kind's name, as JSON and `--tools` give it, e.g. `shell`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ToolKind::Shell => "shell",
+            ToolKind::Read => "read",
+            ToolKind::Write => "write",
+            ToolKind::Mcp => "mcp",
+            ToolKind::Other => "other",
+        }
+    }
+}
+
 /// The tool call a hook is about.
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -124,6 +137,22 @@ impl ToolCall {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tool_kinds_print_as_their_json() {
+        for k in [
+            ToolKind::Shell,
+            ToolKind::Read,
+            ToolKind::Write,
+            ToolKind::Mcp,
+            ToolKind::Other,
+        ] {
+            assert_eq!(
+                serde_json::to_value(k).unwrap(),
+                serde_json::json!(k.as_str())
+            );
+        }
+    }
 
     #[test]
     fn events_parse_and_print() {

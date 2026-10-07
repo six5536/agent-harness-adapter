@@ -110,9 +110,12 @@ impl Ctx<'_> {
         let template = match (&h.command, &h.run) {
             (Some(c), None) => c.clone(),
             (None, Some(run)) => format!(
-                "{} hook --tool {} {{harness}} {{event}} -- {}",
+                "{} hook --tool {}{} {{harness}} {{event}} -- {}",
                 escape(self.adapter),
                 escape(self.name),
+                h.tools
+                    .map(|k| format!(" --tools {}", k.as_str()))
+                    .unwrap_or_default(),
                 escape(run)
             ),
             _ => return Err(self.err(key, "give `command` or `run`, not both")),

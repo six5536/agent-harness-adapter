@@ -78,7 +78,7 @@ fn built() -> Integration {
         .hook(
             Hook::new(
                 Event::PreTool,
-                "agent-harness-adapter hook --tool mytool {harness} {event} -- mytool guard",
+                "agent-harness-adapter hook --tool mytool --tools shell {harness} {event} -- mytool guard",
             )
             .tools(ToolKind::Shell)
             .timeout(Duration::from_secs(5)),

@@ -32,7 +32,7 @@ ACCEPTANCE CRITERIA
 - [ ] AHA-1_AC-5 [ubiquitous]: A TEXT value SHALL be a string or `{ file = "<path>" }` relative to the MANIFEST DIR, read when the manifest is loaded
 - [ ] AHA-1_AC-6 [ubiquitous]: A table `scopes.<scope>` SHALL replace, for that scope only, each item it names and `record` and `declined`
 - [ ] AHA-1_AC-7 [conditional]: IF the manifest has an unknown key, a value of the wrong type, an unknown harness, event or tool kind, or a TEXT file that cannot be read THEN the system SHALL refuse it with an error naming the manifest and the place (line and column, or the key)
-- [ ] AHA-1_AC-8 [ubiquitous]: A hook SHALL give either `command` (a hook command template, KIT-11_AC-2) or `run` (a BRIDGED HOOK: the template `<adapter> hook --tool <name> {harness} {event} -- <run>`, where `<adapter>` is the manifest's `adapter` key, default `agent-harness-adapter`), not both
+- [ ] AHA-1_AC-8 [ubiquitous]: A hook SHALL give either `command` (a hook command template, KIT-11_AC-2) or `run` (a BRIDGED HOOK: the template `<adapter> hook --tool <name> [--tools <kind>] {harness} {event} -- <run>`, with `--tools` when the hook gives `tools`, where `<adapter>` is the manifest's `adapter` key, default `agent-harness-adapter`), not both
 - [ ] AHA-1_AC-9 [ubiquitous]: A loaded manifest SHALL be a tool (KIT-1) whose root is the given project directory at project and local scope and the home directory at user scope
 
 ### AHA-2: Hook contract [MUST]
@@ -66,6 +66,7 @@ ACCEPTANCE CRITERIA
 - [ ] AHA-4_AC-2 [conditional]: IF the command cannot start, exits non-zero, or writes no valid answer THEN the system SHALL allow, with `<tool>: <reason>` on stderr (`--tool`, default the command's name)
 - [ ] AHA-4_AC-3 [conditional]: IF stdin is not JSON THEN the system SHALL send an input holding only `v`, `harness` and `event`
 - [ ] AHA-4_AC-4 [conditional]: IF the harness or the event is unknown THEN the system SHALL write `error: <message>` to stderr and exit 1 without running the command
+- [ ] AHA-4_AC-5 [conditional]: IF `--tools <kind>` is given and the harness's input names a tool of another kind THEN the system SHALL allow without running the command, so a harness that cannot match tools (Copilot, Cursor, Pi) runs the tool's command only for its kind
 
 ### AHA-5: Schemas [SHOULD]
 

@@ -14,7 +14,7 @@ use agent_harness_adapter_core::{
     Harness,
     cli::EXIT_ERRORS,
     harness,
-    hook::{Answer, Event, HookInput, emit, wire},
+    hook::{Answer, Event, HookInput, ToolKind, emit, wire},
 };
 use clap::Args;
 use serde_json::Value;
@@ -25,6 +25,10 @@ pub struct HookArgs {
     /// The tool's name in messages (default: the command's name).
     #[arg(long, value_name = "NAME")]
     pub tool: Option<String>,
+    /// Run the command only for tool calls of this kind (shell, read,
+    /// write, mcp, other); allow the others without running it.
+    #[arg(long, value_name = "KIND", value_parser = parse_kind)]
+    pub tools: Option<ToolKind>,
     /// The harness that runs the hook, e.g. claude.
     pub harness: String,
     /// The event, e.g. pre-tool.
@@ -70,9 +74,13 @@ fn bridge(
     };
     let input = parse(h.as_ref(), event, text);
     let tool = args.tool.clone().unwrap_or_else(|| name(&args.command[0]));
-    let answer = ask(&args.command, &input).unwrap_or_else(|reason| Answer::Allow {
-        stderr: Some(format!("{tool}: {reason}\n")),
-    });
+    let answer = if other_kind(args.tools, &input) {
+        Answer::Allow { stderr: None }
+    } else {
+        ask(&args.command, &input).unwrap_or_else(|reason| Answer::Allow {
+            stderr: Some(format!("{tool}: {reason}\n")),
+        })
+    };
     emit(
         h.as_ref(),
         event,
@@ -80,6 +88,18 @@ fn bridge(
         stdout,
         stderr,
     )
+}
+
+/// Whether `input` is a tool call of another kind than `tools`.
+// @zen-impl: AHA-4_AC-5
+fn other_kind(tools: Option<ToolKind>, input: &HookInput) -> bool {
+    matches!((tools, &input.tool), (Some(k), Some(t)) if t.kind != k)
+}
+
+/// `--tools`'s value: a tool kind's name.
+fn parse_kind(s: &str) -> Result<ToolKind, String> {
+    serde_json::from_value(Value::String(s.into()))
+        .map_err(|_| format!("no tool kind `{s}`: shell, read, write, mcp or other"))
 }
 
 /// The harness's input; with only `harness` and `event` when it is not JSON.
