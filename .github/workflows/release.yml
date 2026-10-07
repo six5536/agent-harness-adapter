@@ -291,7 +291,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # npm provenance
+      id-token: write # npm trusted publishing (OIDC) and provenance
     env:
       VERSION: ${{ needs.meta.outputs.version }}
       NPM_TAG: ${{ needs.meta.outputs.npm_tag }}
@@ -302,6 +302,15 @@ jobs:
         with:
           node-version: 26
           registry-url: https://registry.npmjs.org
+
+      # npm publishes through its trusted publisher (OIDC): each package names
+      # this repository and workflow on npmjs.com; no token is stored. That
+      # needs npm 11.5.1 or later.
+      - name: Check npm supports trusted publishing
+        run: |
+          npm --version
+          node -e 'const [a,b,c]=process.argv[1].split(".").map(Number); process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)' "$(npm --version)" \
+            || npm install -g npm@^11.5.1
 
       - name: Install the pinned toolchain
         run: rustup toolchain install --profile minimal
@@ -340,8 +349,6 @@ jobs:
           fi
 
       - name: Dry-run every publish before doing any of them
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cargo publish --workspace --locked --dry-run
           for pkg in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
@@ -363,22 +370,16 @@ jobs:
       # optionalDependencies, so publishing it first would briefly point users
       # at versions that do not exist yet.
       - name: Publish platform packages to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for pkg in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
             npm publish "./packages/agent-harness-adapter-$pkg" --provenance --tag "$NPM_TAG"
           done
 
       - name: Publish the launcher to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish ./packages/agent-harness-adapter --provenance --tag "$NPM_TAG"
 
       # Addon packages first, as for the launcher.
       - name: Publish the Node binding to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for pkg in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64; do
             npm publish "./packages/agent-harness-adapter-node-$pkg" --provenance --tag "$NPM_TAG"
@@ -386,10 +387,13 @@ jobs:
           npm publish ./packages/agent-harness-adapter-node --provenance --tag "$NPM_TAG"
 
   # PyPI by trusted publishing: the project's publisher names this workflow
-  # and the `pypi` environment; no token is stored.
+  # and the `pypi` environment; no token is stored. Off until the repository
+  # variable PUBLISH_PYPI is `true` (the publisher awaits PyPI's approval).
+  # The wheels stay a workflow artefact of the run.
   publish-pypi:
     name: publish to PyPI
     needs: [meta, publish]
+    if: vars.PUBLISH_PYPI == 'true'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -408,6 +412,8 @@ jobs:
   github-release:
     name: github release
     needs: [meta, publish, publish-pypi]
+    # PyPI may be skipped (PUBLISH_PYPI), never failed.
+    if: ${{ !cancelled() && needs.publish.result == 'success' && contains(fromJSON('["success","skipped"]'), needs.publish-pypi.result) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

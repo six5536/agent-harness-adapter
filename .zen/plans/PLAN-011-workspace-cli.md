@@ -122,6 +122,9 @@ Where the build differs from §2–§6, and why:
 
 ## 9. Before P9
 
-- Secrets / settings: `CARGO_REGISTRY_TOKEN`; `NPM_TOKEN` with publish rights on the `@six5536` scope; a PyPI trusted publisher for `six5536-agent-harness-kit` naming this repository, `release.yml` and the environment `pypi` (and that environment in the repository).
+- Secrets / settings (revised 2026-10-07):
+  - crates.io: `CARGO_REGISTRY_TOKEN` (set).
+  - npm: trusted publishing (OIDC), no token. A package must exist before its trusted publisher can be set, so: `npm login` here, `node scripts/release/reserve-npm.mjs --publish` (a `0.0.0-reserved.0` placeholder of each of the 12 packages, dist-tag `reserved`), then on npmjs.com each package's trusted publisher: repository `six5536/agent-harness-adapter`, workflow `release.yml`.
+  - PyPI: the trusted publisher for `six5536-agent-harness-adapter` awaits PyPI's approval; `release.yml` skips PyPI until the repository variable `PUBLISH_PYPI` is `true` (then the environment `pypi` is needed). 0.1.0 ships on crates.io, npm and GitHub; PyPI follows.
 - Push `main`, let CI pass on three OSes, then `npm run release 0.1.0` (commit and tag; never pushes) and push the tag only on explicit confirmation.
 - Consumers then switch from the path dependency to `agent-harness-kit-core = "0.1"`.

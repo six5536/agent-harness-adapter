@@ -90,7 +90,7 @@ packages/agent-harness-adapter/               # npm launcher `@six5536/agent-har
 packages/agent-harness-adapter-<platform>/    # one prebuilt-binary package per platform
 packages/agent-harness-adapter-node/          # the Node binding `@six5536/agent-harness-adapter-node`: loader, wrapper, types, tests
 packages/agent-harness-adapter-node-<platform>/  # one prebuilt-addon package per platform
-scripts/release/                          # release.mjs (commit and tag), set-version / verify-version
+scripts/release/                          # release.mjs (commit and tag), set-version / verify-version, reserve-npm (placeholders for npm trusted publishing)
 scripts/build/                            # build-node.mjs: the Node addon for the host
 tests/                                    # checks of the shipped product outside cargo's tests (tests/README.md)
   smoke/                                  # the release binary, the packed npm launcher
@@ -238,7 +238,7 @@ sequenceDiagram
 
 STATUS: Alpha
 
-Unreleased; 0.1.0 (every crate and package) is published by PLAN-011 P9. The API may change in minor versions before 1.0.
+Unreleased; 0.1.0 (every crate and package) is published by PLAN-011 P9: crates.io and npm (trusted publishing) first; PyPI once its trusted publisher is approved (`release.yml` publishes there only when the repository variable `PUBLISH_PYPI` is `true`). The API may change in minor versions before 1.0.
 
 ## Developer Commands
 
