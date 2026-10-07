@@ -1,0 +1,33 @@
+/target
+**/*.rs.bk
+/.vs
+/.idea
+/.vscode/mise-tools
+/.DS_Store
+/.playwright-mcp
+
+/node_modules/
+/packages/*/node_modules/
+# Release binaries staged into the platform packages (release.yml).
+/packages/agent-harness-adapter-*/bin/agent-harness-adapter
+/packages/agent-harness-adapter-*/bin/agent-harness-adapter.exe
+
+# Local checkouts of the private consumers (tests/consumers/validate-consumers.sh).
+/consumers/
+
+/.cache/
+*.local.json
+.mise.local.toml
+
+# Coverage artifacts (cargo-llvm-cov)
+/target/llvm-cov
+/target/llvm-cov-target
+*.profraw
+
+# maturin / Python
+__pycache__/
+*.so
+/dist/
+.venv/
+# Node addons built locally or staged by release.yml
+*.node

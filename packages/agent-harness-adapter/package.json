@@ -1,0 +1,46 @@
+{
+  "name": "@six5536/agent-harness-adapter",
+  "version": "0.1.0",
+  "description": "agent-harness-adapter: plug a command-line tool, in any language, into LLM agent harnesses (Claude Code, Codex, Gemini CLI, Copilot, Cursor, Factory, Pi, AGENTS.md) from a manifest file.",
+  "homepage": "https://github.com/six5536/agent-harness-adapter#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/six5536/agent-harness-adapter.git",
+    "directory": "packages/agent-harness-adapter"
+  },
+  "bugs": {
+    "url": "https://github.com/six5536/agent-harness-adapter/issues"
+  },
+  "author": "six5536 <10079653+six5536@users.noreply.github.com>",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "cli",
+    "llm",
+    "agent",
+    "claude-code",
+    "hooks"
+  ],
+  "bin": {
+    "agent-harness-adapter": "bin/agent-harness-adapter.js"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@six5536/agent-harness-adapter-linux-x64": "0.1.0",
+    "@six5536/agent-harness-adapter-linux-arm64": "0.1.0",
+    "@six5536/agent-harness-adapter-darwin-x64": "0.1.0",
+    "@six5536/agent-harness-adapter-darwin-arm64": "0.1.0",
+    "@six5536/agent-harness-adapter-win32-x64": "0.1.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

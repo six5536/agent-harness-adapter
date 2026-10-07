@@ -1,0 +1,27 @@
+[package]
+name = "agent-harness-adapter"
+description = "agent-harness-adapter: install a tool's integration into LLM agent harnesses (Claude Code, Codex, Gemini CLI, Copilot, Cursor, Factory, Pi, AGENTS.md) from a manifest file, and bridge their hooks to a command in any language over one JSON format."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["llm", "agent", "claude-code", "hooks", "cli"]
+categories = ["command-line-utilities", "development-tools"]
+include = ["/src", "/README.md", "/LICENSE", "/CHANGELOG.md"]
+
+[[bin]]
+name = "agent-harness-adapter"
+path = "src/main.rs"
+
+[dependencies]
+agent-harness-adapter-core = { workspace = true, features = ["schemars"] }
+serde_json.workspace = true
+clap.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,32 @@
+{
+  "name": "@six5536/agent-harness-adapter-node-darwin-arm64",
+  "version": "0.1.0",
+  "description": "Prebuilt agent-harness-adapter Node addon for darwin-arm64.",
+  "homepage": "https://github.com/six5536/agent-harness-adapter#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/six5536/agent-harness-adapter.git",
+    "directory": "packages/agent-harness-adapter-node-darwin-arm64"
+  },
+  "bugs": {
+    "url": "https://github.com/six5536/agent-harness-adapter/issues"
+  },
+  "author": "six5536 <10079653+six5536@users.noreply.github.com>",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "napi"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "index.node",
+  "files": [
+    "index.node"
+  ],
+  "license": "MIT"
+}

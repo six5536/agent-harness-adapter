@@ -1,0 +1,19 @@
+{
+  "name": "@six5536/agent-harness-adapter-workspace",
+  "private": true,
+  "description": "agent-harness-adapter: npm packages for the agent-harness-adapter CLI.",
+  "workspaces": [
+    "packages/agent-harness-adapter",
+    "packages/agent-harness-adapter-node"
+  ],
+  "scripts": {
+    "build:darwin-arm64": "rustup target add aarch64-apple-darwin && mise exec -- cargo zigbuild --release --target aarch64-apple-darwin -p agent-harness-adapter && install -m 0755 target/aarch64-apple-darwin/release/agent-harness-adapter packages/agent-harness-adapter-darwin-arm64/bin/agent-harness-adapter",
+    "build:darwin-x64": "rustup target add x86_64-apple-darwin && mise exec -- cargo zigbuild --release --target x86_64-apple-darwin -p agent-harness-adapter && install -m 0755 target/x86_64-apple-darwin/release/agent-harness-adapter packages/agent-harness-adapter-darwin-x64/bin/agent-harness-adapter",
+    "build:linux-arm64": "rustup target add aarch64-unknown-linux-musl && mise exec -- cargo zigbuild --release --target aarch64-unknown-linux-musl -p agent-harness-adapter && install -m 0755 target/aarch64-unknown-linux-musl/release/agent-harness-adapter packages/agent-harness-adapter-linux-arm64/bin/agent-harness-adapter",
+    "build:linux-x64": "rustup target add x86_64-unknown-linux-musl && mise exec -- cargo zigbuild --release --target x86_64-unknown-linux-musl -p agent-harness-adapter && install -m 0755 target/x86_64-unknown-linux-musl/release/agent-harness-adapter packages/agent-harness-adapter-linux-x64/bin/agent-harness-adapter",
+    "build:node": "node scripts/build/build-node.mjs",
+    "smoke": "node tests/smoke/release-smoke.mjs",
+    "smoke:launcher": "node tests/smoke/launcher-smoke.mjs",
+    "verify-version": "node scripts/release/verify-version.mjs"
+  }
+}
