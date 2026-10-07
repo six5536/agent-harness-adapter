@@ -1,0 +1,25 @@
+[package]
+name = "agent-harness-kit-node"
+description = "Node binding of agent-harness-kit (npm @six5536/agent-harness-kit-node)."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+# The addon's symbols come from Node at load time: a test binary could not
+# link them. Tested from Node (packages/agent-harness-kit-node/test).
+test = false
+doctest = false
+
+[dependencies]
+agent-harness-kit-bind = { path = "../agent-harness-kit-bind" }
+napi = { workspace = true }
+napi-derive = { workspace = true }
+
+[build-dependencies]
+napi-build = { workspace = true }

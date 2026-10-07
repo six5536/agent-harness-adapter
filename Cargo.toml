@@ -5,6 +5,7 @@ members = [
   "crates/app/agent-harness-kit",
   "crates/bind/agent-harness-kit-bind",
   "crates/bind/agent-harness-kit-py",
+  "crates/bind/agent-harness-kit-node",
 ]
 
 [workspace.package]
@@ -27,3 +28,6 @@ assert_cmd = "2"
 insta = "1.47"
 proptest = "1.11"
 pyo3 = { version = "0.29", features = ["abi3-py39"] }
+napi = { version = "3", default-features = false, features = ["napi4"] }
+napi-derive = "3"
+napi-build = "2"

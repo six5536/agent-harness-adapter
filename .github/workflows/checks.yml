@@ -181,6 +181,34 @@ jobs:
         # can run; elsewhere it fails and `pwd` is used.
         run: AHK="$(pwd -W 2>/dev/null || pwd)/target/debug/ahk" python -m unittest discover -s crates/bind/agent-harness-kit-py/tests -v
 
+  node-binding:
+    # The Node binding, built for the host and tested on every OS, against
+    # the ahk binary's own results (BND_P-1).
+    name: node binding (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned toolchain
+        run: rustup toolchain install --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      - name: Build ahk and the addon
+        run: |
+          cargo build --locked -p agent-harness-kit
+          node scripts/build-node.mjs
+      - name: Test
+        shell: bash
+        run: |
+          root="$(pwd -W 2>/dev/null || pwd)"
+          AHK="$root/target/debug/ahk" AHK_NODE_ADDON="$root/target/debug/agent_harness_kit_node.node" \
+            npm run test:node
+
   deny:
     # Deterministic supply-chain checks only: these fail when *we* change
     # dependencies. Advisories are handled by audit.yml on a schedule so a new

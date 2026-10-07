@@ -29,3 +29,5 @@ __pycache__/
 *.so
 /dist/
 .venv/
+# Node addons built locally or staged by release.yml
+*.node

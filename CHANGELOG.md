@@ -27,6 +27,9 @@ First release: the library `agent-harness-kit-core` and the `ahk` command
 - Python binding `six5536-agent-harness-kit` (module `agent_harness_kit`):
   `install`, `status`, `parse_hook`, `answer_hook`, `run_hook`, `schema`;
   abi3 wheels for CPython 3.9+.
+- Node binding `@six5536/agent-harness-kit-node`: `install`, `status`,
+  `parseHook`, `answerHook`, `runHook`, `schema`, with TypeScript types;
+  prebuilt addons for Linux (glibc), macOS and Windows.
 - `fs::home_dir`, `harness::expand` (`all`).
 - `manifest`: `Manifest` (TOML or JSON, version 1; text inline or from
   files; per-scope tables; mistakes reported with their place) and

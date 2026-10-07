@@ -13,6 +13,7 @@ what the user changed, and speaks every harness's hook protocol.
 | [`agent-harness-kit-core`](crates/lib/agent-harness-kit-core) | The Rust library. |
 | [`agent-harness-kit`](crates/app/agent-harness-kit) | The `ahk` command, for tools in any language; also on npm as [`@six5536/agent-harness-kit`](packages/agent-harness-kit). |
 | [`six5536-agent-harness-kit`](crates/bind/agent-harness-kit-py) (PyPI) | The Python binding. |
+| [`@six5536/agent-harness-kit-node`](packages/agent-harness-kit-node) (npm) | The Node binding, with TypeScript types. |
 
 ## Examples
 

@@ -220,11 +220,74 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
+  # 3c. Node addons. Linux builds against glibc 2.17 (zigbuild), so one
+  # addon serves every glibc distribution of the last decade.
+  # ---------------------------------------------------------------------------
+  node-addons:
+    name: node addon ${{ matrix.pkg }}
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, glibc: .2.17, pkg: linux-x64-gnu, builder: zigbuild }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, glibc: .2.17, pkg: linux-arm64-gnu, builder: zigbuild }
+          - { os: macos-latest, target: x86_64-apple-darwin, pkg: darwin-x64, builder: cargo }
+          - { os: macos-latest, target: aarch64-apple-darwin, pkg: darwin-arm64, builder: cargo }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, pkg: win32-x64, builder: cargo }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned toolchain and target
+        run: |
+          rustup toolchain install --profile minimal
+          rustup target add ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-zigbuild
+        if: matrix.builder == 'zigbuild'
+        uses: taiki-e/install-action@v2.85.6
+        with:
+          tool: cargo-zigbuild
+      - name: Read the pinned zig version
+        if: matrix.builder == 'zigbuild'
+        id: zig
+        run: echo "version=$(grep -oE '^zig = "[^"]+"' .mise.toml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" >> "$GITHUB_OUTPUT"
+      - name: Install zig
+        if: matrix.builder == 'zigbuild'
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ steps.zig.outputs.version }}
+          cache-key: node-${{ matrix.target }}
+      - name: Build (zigbuild)
+        if: matrix.builder == 'zigbuild'
+        run: |
+          cargo zigbuild --release --locked --target ${{ matrix.target }}${{ matrix.glibc }} -p agent-harness-kit-node
+          cp target/${{ matrix.target }}/release/libagent_harness_kit_node.so packages/agent-harness-kit-node-${{ matrix.pkg }}/index.node
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      - name: Build (cargo)
+        if: matrix.builder == 'cargo'
+        shell: bash
+        run: node scripts/build-node.mjs --release --target ${{ matrix.target }} --out packages/agent-harness-kit-node-${{ matrix.pkg }}/index.node
+      # Run the binding's tests on the addon itself, where the runner can
+      # load it.
+      - name: Test the addon
+        if: matrix.pkg != 'linux-arm64-gnu' && matrix.pkg != 'darwin-x64'
+        shell: bash
+        run: AHK_NODE_ADDON="$(pwd -W 2>/dev/null || pwd)/packages/agent-harness-kit-node-${{ matrix.pkg }}/index.node" npm run test:node
+      - uses: actions/upload-artifact@v7
+        with:
+          name: node-addon-${{ matrix.pkg }}
+          path: packages/agent-harness-kit-node-${{ matrix.pkg }}/index.node
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
   # 4. Publish. Nothing here runs until the tag, the gate and the builds agree.
   # ---------------------------------------------------------------------------
   publish:
     name: publish
-    needs: [meta, checks, build, python-wheels, python-sdist]
+    needs: [meta, checks, build, python-wheels, python-sdist, node-addons]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -256,6 +319,18 @@ jobs:
           done
           install -m 0755 "artifacts/ahk-win32-x64/ahk.exe" "packages/agent-harness-kit-win32-x64/bin/ahk.exe"
 
+      - name: Download the Node addons
+        uses: actions/download-artifact@v8
+        with:
+          pattern: node-addon-*
+          path: addons
+
+      - name: Place the addons into their platform packages
+        run: |
+          for pkg in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64; do
+            cp "addons/node-addon-$pkg/index.node" "packages/agent-harness-kit-node-$pkg/index.node"
+          done
+
       - name: Smoke-test the built binary
         run: |
           actual="$(./packages/agent-harness-kit-linux-x64/bin/ahk --version)"
@@ -273,6 +348,10 @@ jobs:
             npm publish "./packages/agent-harness-kit-$pkg" --dry-run --tag "$NPM_TAG"
           done
           npm publish ./packages/agent-harness-kit --dry-run --tag "$NPM_TAG"
+          for pkg in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64; do
+            npm publish "./packages/agent-harness-kit-node-$pkg" --dry-run --tag "$NPM_TAG"
+          done
+          npm publish ./packages/agent-harness-kit-node --dry-run --tag "$NPM_TAG"
 
       # `--workspace` publishes the core before the CLI that depends on it.
       - name: Publish crates to crates.io
@@ -295,6 +374,16 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish ./packages/agent-harness-kit --provenance --tag "$NPM_TAG"
+
+      # Addon packages first, as for the launcher.
+      - name: Publish the Node binding to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for pkg in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64; do
+            npm publish "./packages/agent-harness-kit-node-$pkg" --provenance --tag "$NPM_TAG"
+          done
+          npm publish ./packages/agent-harness-kit-node --provenance --tag "$NPM_TAG"
 
   # PyPI by trusted publishing: the project's publisher names this workflow
   # and the `pypi` environment; no token is stored.
