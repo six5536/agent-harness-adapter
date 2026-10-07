@@ -1,0 +1,71 @@
+name: Docs
+
+# The mdBook site (docs/) on GitHub Pages. Its pages include the READMEs,
+# the changelog and the example, so it changes whenever they do; the JSON
+# schemas are served beside it under schema/.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - "**/README.md"
+      - CHANGELOG.md
+      - examples/python-tool/**
+      - schema/**
+      - .github/workflows/docs.yml
+  pull_request:
+    paths:
+      - docs/**
+      - "**/README.md"
+      - CHANGELOG.md
+      - examples/python-tool/**
+      - schema/**
+      - .github/workflows/docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time; a newer push replaces a waiting one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install mdBook
+        uses: taiki-e/install-action@v2.85.6
+        with:
+          tool: mdbook@0.5.4
+
+      - name: Build the book
+        run: |
+          mdbook build docs
+          cp -r schema docs/book/schema
+
+      - name: Upload the site
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/book
+
+  deploy:
+    name: deploy
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

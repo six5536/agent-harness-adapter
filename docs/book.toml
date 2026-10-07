@@ -1,0 +1,11 @@
+[book]
+title = "agent-harness-adapter"
+description = "Plug a command-line tool into LLM agent harnesses: one integration, every agent's files and hooks."
+authors = ["six5536"]
+language = "en"
+src = "src"
+
+[output.html]
+git-repository-url = "https://github.com/six5536/agent-harness-adapter"
+edit-url-template = "https://github.com/six5536/agent-harness-adapter/edit/main/docs/{path}"
+site-url = "/agent-harness-adapter/"

@@ -31,3 +31,6 @@ __pycache__/
 .venv/
 # Node addons built locally or staged by release.yml
 *.node
+
+# The mdBook site, built by docs.yml.
+/docs/book/

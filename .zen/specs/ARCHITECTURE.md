@@ -86,6 +86,7 @@ crates/bind/agent-harness-adapter-py/         # the Python binding (PyO3 + matur
 crates/bind/agent-harness-adapter-node/       # the Node addon (napi)
 schema/                                   # the contracts' JSON Schemas, as `agent-harness-adapter schema` prints them
 examples/python-tool/                     # a Python tool driven by agent-harness-adapter, end to end (CI)
+docs/                                     # the mdBook site: pages that include the READMEs, changelog and example
 packages/agent-harness-adapter/               # npm launcher `@six5536/agent-harness-adapter` (bin `agent-harness-adapter`)
 packages/agent-harness-adapter-<platform>/    # one prebuilt-binary package per platform
 packages/agent-harness-adapter-node/          # the Node binding `@six5536/agent-harness-adapter-node`: loader, wrapper, types, tests
@@ -97,7 +98,7 @@ tests/                                    # checks of the shipped product outsid
   agents/                                 # real-agent checks, on demand (needs logins)
   consumers/                              # smllm and sokf against this checkout
 .zen/                                     # specs, plans, rules
-.github/workflows/                        # ci (checks), release, audit
+.github/workflows/                        # ci (checks), release, audit, docs (the mdBook site on GitHub Pages)
 ```
 
 ## Component Details

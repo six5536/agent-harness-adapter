@@ -41,6 +41,7 @@ manifest file.
 
 ## Harnesses
 
+<!-- ANCHOR: harnesses -->
 | Harness | Id | Instructions | Hooks | Skills | MCP | Allowed commands | Agents | Commands |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Claude Code | `claude` | `CLAUDE.md` or `AGENTS.md` | `.claude/settings.json` | `.claude/skills` | `.mcp.json` | yes | yes | yes |
@@ -65,6 +66,7 @@ several harnesses read one location (`AGENTS.md`, `.agents/skills`,
 read, Claude Code's files that Devin also reads, OpenCode's `opencode.json`
 that Kilo Code also reads), the content is written there once and the others report it as
 `shared`.
+<!-- ANCHOR_END: harnesses -->
 
 ## Installation
 

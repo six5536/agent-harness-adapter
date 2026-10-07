@@ -6,6 +6,8 @@ that reads `AGENTS.md`. Declare the integration once; the adapter writes it into
 each harness's own files, puts shared content in one place, never overwrites
 what the user changed, and speaks every harness's hook protocol.
 
+Documentation: <https://six5536.github.io/agent-harness-adapter/>.
+
 ## Crates
 
 | Crate | What it is |
