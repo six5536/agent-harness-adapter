@@ -36,6 +36,9 @@ unused-allowed-license = "allow"
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# Path dependencies without a version are fine in crates that are never
+# published (the bindings: `publish = false`); a published crate still needs one.
+allow-wildcard-paths = true
 # A duplicate of one of these would mean two copies of real logic in the binary,
 # not just a leaf utility crate.
 highlight = "all"

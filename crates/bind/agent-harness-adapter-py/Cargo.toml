@@ -17,6 +17,9 @@ crate-type = ["cdylib", "rlib"]
 agent-harness-adapter-bind = { path = "../agent-harness-adapter-bind" }
 pyo3 = { workspace = true }
 
+[build-dependencies]
+pyo3-build-config = { workspace = true }
+
 [features]
-# maturin turns it on for wheels; plain cargo builds link libpython.
+# maturin turns it on for wheels.
 extension-module = ["pyo3/extension-module"]
