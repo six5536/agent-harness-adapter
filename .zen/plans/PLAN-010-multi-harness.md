@@ -2,7 +2,7 @@
 
 | Meta               | Value |
 | ------------------ | ----- |
-| Status             | in progress: P1–P8 done (2026-10-07); remaining: smoke checks inside each agent (N4), P9 release |
+| Status             | in progress: P1–P8 done (2026-10-07); remaining: smoke checks inside each agent (N4), P9 release (moved to PLAN-011 P9, D11-3) |
 | Workflow direction | top-down (architecture → requirements → design → code → docs → consumers → release) |
 | Traces to          | ARCHITECTURE (harness core, harness modules), KIT-1, KIT-2, KIT-3, KIT-4, KIT-10, KIT-11, KIT-12; PLAN-009 D9-17 |
 
@@ -114,7 +114,7 @@ The per-harness locations, formats and sources are in §10.
 | P6 Pi | `pi`, with the extension (F5). | As P4, plus the extension type-checks against the Pi package |
 | P7 Docs | README, CHANGELOG (F11); D10-11 settled; smoke checks (N4). | `cargo publish --dry-run` passes |
 | P8 Consumers | F12. | smllm and sokf pass on the checkout |
-| P9 Release | PLAN-009 P8 and P9: tag `v0.1.0`, consumers move to `"0.1"`. | On crates.io; consumers' CI green |
+| P9 Release | PLAN-009 P8 and P9: tag `v0.1.0`, consumers move to `"0.1"`. | Moved to PLAN-011 P9 (D11-3) |
 
 ## 7. Risks
 
