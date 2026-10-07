@@ -184,11 +184,11 @@ impl Harness for Pi {
 
     // @zen-impl: HAR-7_AC-7
     fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
-        if !parts.iter().any(|p| p.action.is_some()) {
+        if !parts.iter().any(PartResult::changed) {
             return Vec::new();
         }
         let mut out = Vec::new();
-        if cx.scope == Scope::Project {
+        if cx.scope == Scope::Project && parts.iter().any(PartResult::wrote) {
             out.push("Pi loads the project's .pi files only once you trust the project".into());
         }
         out.push("run /reload in Pi to load the changes".into());
@@ -368,6 +368,10 @@ mod tests {
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
         assert!(Pi.notes(&cx, &[part(None)]).is_empty());
         assert_eq!(Pi.notes(&cx, &[part(Some(Action::Created))]).len(), 2);
+        assert_eq!(
+            Pi.notes(&cx, &[part(Some(Action::Removed))]),
+            ["run /reload in Pi to load the changes"]
+        );
         let user = Context::new("t", Scope::User, "/nowhere", None);
         assert_eq!(
             Pi.notes(&user, &[part(Some(Action::Created))]),

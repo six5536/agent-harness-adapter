@@ -149,12 +149,13 @@ impl Harness for Codex {
 
     // @zen-impl: HAR-2_AC-7
     fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
-        let written = |name: &str| parts.iter().any(|p| p.part == name && p.action.is_some());
+        let written = |name: &str| parts.iter().any(|p| p.part == name && p.wrote());
         let mut out = Vec::new();
-        if !parts.iter().any(|p| p.action.is_some()) {
+        if !parts.iter().any(PartResult::changed) {
             return out;
         }
-        if cx.scope == Scope::Project {
+        // Trust and approval matter for what was written, not removed.
+        if cx.scope == Scope::Project && parts.iter().any(PartResult::wrote) {
             out.push(
                 "Codex reads the project's .codex files only once you trust the project".into(),
             );
@@ -329,6 +330,16 @@ mod tests {
         assert_eq!(
             Codex.notes(&user, &[part("skills", Some(Action::Created))]),
             ["restart Codex to load the changes"]
+        );
+        // After an uninstall: no trust or approval, only the restart.
+        assert_eq!(
+            Codex.notes(&cx, &[part("hooks", Some(Action::Removed))]),
+            ["restart Codex to load the changes"]
+        );
+        assert!(
+            Codex
+                .notes(&cx, &[part("hooks", Some(Action::Kept))])
+                .is_empty()
         );
     }
 }

@@ -8,14 +8,14 @@
 // Each agent runs under its own HOME in the work folder, so your own
 // agent setup is never touched; log in there once with `login`.
 //
-//   node scripts/agents/run.mjs setup [--agents codex,pi]
-//   node scripts/agents/run.mjs login codex|pi
-//   node scripts/agents/run.mjs run [--agents codex,pi] [options]
+//   node scripts/agents/run.mjs setup [--agents claude,codex,gemini,copilot,pi]
+//   node scripts/agents/run.mjs login <agent>
+//   node scripts/agents/run.mjs run [--agents ...] [options]
 //
 // Options:
 //   --work <dir>        work folder (default target/agent-checks)
 //   --adapter <path>    the binary under test (default target/debug/agent-harness-adapter)
-//   --codex-model <m>   --pi-model <m>   models to use (default: the agent's)
+//   --<agent>-model <m> the model an agent uses (default: the agent's own)
 //   --codex-full-access run Codex without its sandbox (needed where it cannot
 //                       start, e.g. dev containers without user namespaces)
 //
@@ -33,6 +33,64 @@ const exe = process.platform === "win32" ? ".cmd" : "";
 
 /** The agents, pinned to the versions last checked (PLAN-013 §6). */
 const AGENTS = {
+  claude: {
+    pkg: "@anthropic-ai/claude-code",
+    version: "2.1.292",
+    bin: "claude",
+    login: (a) => run(a.binPath, ["auth", "login"], { env: a.env, stdio: "inherit" }),
+    // -p skips the workspace trust dialog; the hooks refuse what they must,
+    // so tool permissions are bypassed. stream-json holds every message.
+    prompt: (a, text) => [
+      "-p",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--dangerously-skip-permissions",
+      ...(a.opts.claudeModel ? ["--model", a.opts.claudeModel] : []),
+      text,
+    ],
+    prepare: () => {},
+  },
+  gemini: {
+    pkg: "@google/gemini-cli",
+    version: "0.63.0",
+    bin: "gemini",
+    login: (a) =>
+      console.log(
+        `Gemini CLI logs in from its own screen. In a terminal, run:\n\n` +
+          `  HOME=${JSON.stringify(a.home)} ${JSON.stringify(a.binPath)}\n\n` +
+          `pick "Sign in with Google" (or set GEMINI_API_KEY), then quit.`,
+      ),
+    // yolo approves every tool (the hooks refuse what they must);
+    // GEMINI_CLI_TRUST_WORKSPACE trusts the folder in a headless run.
+    prompt: (a, text) => [
+      "-p",
+      text,
+      "--approval-mode",
+      "yolo",
+      "-o",
+      "stream-json",
+      ...(a.opts.geminiModel ? ["-m", a.opts.geminiModel] : []),
+    ],
+    env: { GEMINI_CLI_TRUST_WORKSPACE: "true" },
+    prepare: () => {},
+  },
+  copilot: {
+    pkg: "@github/copilot",
+    version: "1.0.92",
+    bin: "copilot",
+    login: (a) => run(a.binPath, ["login", "--device-code"], { env: a.env, stdio: "inherit" }),
+    prompt: (a, text) => [
+      "-p",
+      text,
+      "--allow-all",
+      "--no-ask-user",
+      "--output-format",
+      "json",
+      ...(a.opts.copilotModel ? ["--model", a.opts.copilotModel] : []),
+    ],
+    prepare: () => {},
+  },
   codex: {
     pkg: "@openai/codex",
     version: "0.160.1",
@@ -92,6 +150,15 @@ const AGENTS = {
   },
 };
 
+/**
+ * The environment without a surrounding Claude Code session's variables
+ * (`CLAUDE_CONFIG_DIR` would point an agent at the real config), so each
+ * agent sees only the checks' HOME.
+ */
+function cleanEnv() {
+  return Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^CLAUDE/.test(k)));
+}
+
 /** Every file under `dir`. */
 function walk(dir) {
   if (!existsSync(dir)) return [];
@@ -128,6 +195,9 @@ function parse(argv) {
     else if (a === "--adapter") opts.adapter = resolve(value());
     else if (a === "--codex-model") opts.codexModel = value();
     else if (a === "--pi-model") opts.piModel = value();
+    else if (a === "--claude-model") opts.claudeModel = value();
+    else if (a === "--gemini-model") opts.geminiModel = value();
+    else if (a === "--copilot-model") opts.copilotModel = value();
     else if (a === "--codex-full-access") opts.codexFullAccess = true;
     else if (a.startsWith("--")) fail(`unknown option ${a}`);
     else opts.positional.push(a);
@@ -148,7 +218,7 @@ function agent(id, opts) {
     opts,
     home,
     binPath: bin,
-    env: { ...process.env, HOME: home, USERPROFILE: home },
+    env: { ...cleanEnv(), ...(def.env ?? {}), HOME: home, USERPROFILE: home },
   };
 }
 

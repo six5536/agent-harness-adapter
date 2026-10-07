@@ -72,6 +72,19 @@ pub struct PartResult {
 
 impl PartResult {
     /// The report word: the action, else the state.
+    /// Whether this run wrote the part (created, rewrote or updated it).
+    pub fn wrote(&self) -> bool {
+        matches!(
+            self.action,
+            Some(Action::Created | Action::Rewrote | Action::Updated)
+        )
+    }
+
+    /// Whether this run wrote or removed the part.
+    pub fn changed(&self) -> bool {
+        self.wrote() || self.action == Some(Action::Removed)
+    }
+
     pub fn verb(&self) -> &'static str {
         self.action
             .map_or_else(|| self.state.as_str(), Action::as_str)

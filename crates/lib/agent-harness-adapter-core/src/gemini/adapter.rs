@@ -239,7 +239,7 @@ impl Harness for Gemini {
 
     // @zen-impl: HAR-4_AC-9
     fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
-        if cx.scope == Scope::Project && parts.iter().any(|p| p.action.is_some()) {
+        if cx.scope == Scope::Project && parts.iter().any(PartResult::wrote) {
             vec!["with folder trust on, Gemini CLI reads the project's settings only in a trusted folder".into()]
         } else {
             Vec::new()

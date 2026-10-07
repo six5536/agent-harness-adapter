@@ -85,6 +85,15 @@ Test conditions: Codex's own sandbox cannot start in the dev container (`bwrap`)
 
 After the fixes (`ff4d029`) and uninstall (`5671768`): Codex 0.160.1 and Pi 1.0.4 pass A1–A10, A7b included (Codex with `--codex-full-access` in the dev container; Pi with `--pi-model openai-codex/gpt-6-luna`, as the ChatGPT account lacks Pi's default model). The first Pi run failed A2–A4 and A9 in the checker only: `pi -p` prints just the last message, so the checks now read Pi's session file.
 
+### More agents (2026-10-07)
+
+`scripts/agents` gained Claude Code 2.1.292, Gemini CLI 0.63.0 and Copilot CLI 1.0.92.
+
+- Gemini CLI: passes A1–A10, A7b included.
+- Copilot CLI: A1 and A10 pass; every check that needs the model fails because the account's monthly quota is used up (HTTP 402 `quota_exceeded`). Without the model, `copilot instruction list` shows `AGENTS.md` and `copilot skill list` shows the `aha-check` skill (A2, A3 statically); the hooks stay unchecked: the session-start hook did not run before the quota error. To rerun with quota.
+- Claude Code: waits for a login in the checks' own `HOME` (the user's real login is not used, so user-scope checks never touch the real `~/.claude`).
+- Finding 4 (all, small): after uninstall, Codex still said "new hooks run only once approved in Codex's /hooks" (and Pi and Gemini their trust notes). Notes now separate what was written (trust, approval) from any change (restart, reload): `PartResult::wrote` / `changed`; HAR-2_AC-7, HAR-4_AC-9, HAR-7_AC-7.
+
 ### Findings
 
 - Finding 1 (Pi, session-start context): Pi has no way to add context at session start; the adapter refuses that answer (by design, HAR-7), so a tool's session-start context silently vanishes on Pi while Claude and Codex deliver it. Fix: the extension keeps the text and adds it to the first prompt (`before_agent_start`), and the adapter accepts `context` at session start. Spec: HAR-7_AC-3.

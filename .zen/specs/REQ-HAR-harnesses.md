@@ -49,7 +49,7 @@ ACCEPTANCE CRITERIA
 - [ ] HAR-2_AC-4 [ubiquitous]: Skills SHALL be skill dirs under `.agents/skills`; agents `<name>.toml` under `.codex/agents` with `name`, `description`, `developer_instructions`; commands unsupported (deprecated in Codex)
 - [ ] HAR-2_AC-5 [ubiquitous]: MCP servers SHALL be TOML tables `[mcp_servers.<name>]` in `.codex/config.toml`: `command`, `args`, `env`, or `url`, `http_headers`
 - [ ] HAR-2_AC-6 [ubiquitous]: Allowed commands SHALL be unsupported — rule-file syntax not confirmed
-- [ ] HAR-2_AC-7 [ubiquitous]: After an install that wrote a part, notes SHALL say that the project must be trusted (project scope), that new hooks run only once approved in `/hooks` (when hooks were written), and that Codex must be restarted
+- [ ] HAR-2_AC-7 [ubiquitous]: After an install that wrote a part, notes SHALL say that the project must be trusted (project scope) and that new hooks run only once approved in `/hooks` (when hooks were written); after any part was written or removed, that Codex must be restarted
 
 ### HAR-3: Factory Droid (`factory`) [MUST]
 
@@ -78,7 +78,7 @@ ACCEPTANCE CRITERIA
 - [ ] HAR-4_AC-6 [ubiquitous]: Skills SHALL be skill dirs under `.agents/skills`; agents markdown agents under `.gemini/agents`; commands `<name>.toml` under `.gemini/commands` with `description` and `prompt`, `$ARGUMENTS` written as `{{args}}`
 - [ ] HAR-4_AC-7 [ubiquitous]: MCP servers SHALL be MCP JSON under `mcpServers` of `.gemini/settings.json`, an http server's URL as `httpUrl`
 - [ ] HAR-4_AC-8 [ubiquitous]: An allowed command SHALL be `run_shell_command(<prefix>)` in `tools.allowed` of `.gemini/settings.json`; allowed MCP tools SHALL be unsupported (form not confirmed)
-- [ ] HAR-4_AC-9 [ubiquitous]: Notes SHALL say that a trusted folder is needed when folder trust is on
+- [ ] HAR-4_AC-9 [ubiquitous]: Notes SHALL say, when a part was written at project scope, that a trusted folder is needed when folder trust is on
 
 ### HAR-5: GitHub Copilot (`copilot`) [MUST]
 
@@ -123,7 +123,7 @@ ACCEPTANCE CRITERIA
 - [ ] HAR-7_AC-4 [ubiquitous]: Hook input SHALL be the extension's JSON: `event`, `session_id`, `transcript_path` (from Pi's session manager), `cwd`, `prompt`, `source`, `tool_name`, `tool_input`, `tool_output`, `continuing` (the extension asked to continue at the last stop of the current prompt; a new prompt resets it); answers SHALL be the library's JSON `{"answer":"allow"|"deny"|"continue"|"context","reason"?,"text"?}`, exit 0
 - [ ] HAR-7_AC-5 [ubiquitous]: Skills SHALL be skill dirs under `.agents/skills`; commands prompt templates `<name>.md` under `.pi/prompts` with frontmatter `description`; agents unsupported
 - [ ] HAR-7_AC-6 [ubiquitous]: MCP servers SHALL be MCP JSON in `.pi/mcp.json`; allowed commands unsupported
-- [ ] HAR-7_AC-7 [ubiquitous]: Notes SHALL say that the project must be trusted and that Pi must `/reload`
+- [ ] HAR-7_AC-7 [ubiquitous]: Notes SHALL say that the project must be trusted (when a part was written at project scope) and that Pi must `/reload` (when a part was written or removed)
 
 ### HAR-8: Generic `AGENTS.md` agent (`agents`) [MUST]
 

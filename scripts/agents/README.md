@@ -7,10 +7,9 @@ CI.
 
 ```sh
 cargo build -p agent-harness-adapter
-node scripts/agents/run.mjs setup              # pinned Codex and Pi, into target/agent-checks
-node scripts/agents/run.mjs login codex        # once: device-code login
-node scripts/agents/run.mjs login pi           # once: prints how to /login in Pi
-node scripts/agents/run.mjs run [--agents codex,pi] [--codex-full-access] [--pi-model <m>] [--codex-model <m>]
+node scripts/agents/run.mjs setup              # pinned agents, into target/agent-checks
+node scripts/agents/run.mjs login <agent>      # once per agent (see below)
+node scripts/agents/run.mjs run [--agents claude,codex,gemini,copilot,pi] [--codex-full-access] [--<agent>-model <m>]
 ```
 
 Every agent runs with `HOME` set to `target/agent-checks/home`, so your own
@@ -30,6 +29,8 @@ log and `results.json` under `target/agent-checks/run-<time>/`.
 | A9 user scope | from an empty project, the reply holds the codeword |
 | A10 uninstall | `status` absent at user scope; the project holds nothing of the tool, the reply has no codeword and no hook runs |
 
+Agents and their logins: `claude` (Claude Code: `login claude` signs in), `codex` (device code), `gemini` (prints how to sign in from Gemini CLI's screen, or set `GEMINI_API_KEY`), `copilot` (device code; needs Copilot quota), `pi` (prints how to `/login` in Pi).
+
 Notes:
 
 - Codex runs new project hooks only after you approve them in its `/hooks`;
@@ -37,6 +38,9 @@ Notes:
   project is trusted in the checks' own Codex config.
 - `--codex-full-access` turns Codex's sandbox off, for machines where it
   cannot start (e.g. containers without user namespaces).
+- Claude Code runs with `-p` (no trust dialog) and `--dangerously-skip-permissions`; the checks remove any `CLAUDE*` variables of a surrounding Claude Code session, so the test agent uses only the checks' `HOME`.
+- Gemini CLI runs with `--approval-mode yolo` and `GEMINI_CLI_TRUST_WORKSPACE=true`.
+- Copilot CLI runs with `--allow-all --no-ask-user`.
 - Pi trusts the project through `--approve`. `pi -p` prints only its last
   message, so the checks read Pi's session file for the whole reply.
 - To add an agent: an entry in `AGENTS` in `run.mjs` (package, version, how
