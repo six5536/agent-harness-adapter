@@ -15,6 +15,7 @@ agent-harness-kit is a Rust workspace: the library `agent-harness-kit-core` for 
 - CLI conventions (`cli`): exit codes, stdout, broken pipes, the `error:` runner
 - File IO (`fs`): whole-file reads and atomic writes
 - `ahk` CLI (crate `agent-harness-kit`): a tool's integration from a manifest file, for tools in any language
+- Bindings: Python (`six5536-agent-harness-kit`, PyO3) and Node (`@six5536/agent-harness-kit-node`, napi) over one shared JSON glue crate
 - Distribution: crates.io crates `agent-harness-kit-core` (the library) and `agent-harness-kit` (`ahk`); npm `@six5536/agent-harness-kit` (launcher) with one prebuilt-binary package per platform; GitHub release archives. Source at `github.com/six5536/agent-harness-kit`
 
 ## Technology Stack
@@ -26,6 +27,7 @@ agent-harness-kit is a Rust workspace: the library `agent-harness-kit-core` for 
 - `proptest 1`, `insta 1` — property and snapshot tests
 - `clap 4` — the `ahk` command line
 - `assert_cmd 2` — tests that run the binary
+- `pyo3 0.29` (abi3-py39) + maturin — the Python binding; `napi 3` — the Node binding
 - Node (launcher, version and smoke scripts), `cargo-zigbuild` + zig (static musl release binaries)
 - `cargo-nextest`, `cargo-llvm-cov`, `cargo-deny` — CI tooling
 
@@ -79,6 +81,8 @@ crates/lib/agent-harness-kit-core/        # the library crate (crates.io `agent-
 crates/app/agent-harness-kit/             # the `ahk` CLI crate (crates.io `agent-harness-kit`)
   src/                                    # main.rs (clap), schema.rs
   tests/                                  # the binary run as a user runs it
+crates/bind/agent-harness-kit-bind/       # the bindings' shared JSON glue (not published)
+crates/bind/agent-harness-kit-py/         # the Python binding (PyO3 + maturin): src/ (_native), python/agent_harness_kit, tests/
 schema/                                   # the contracts' JSON Schemas, as `ahk schema` prints them
 examples/python-tool/                     # a Python tool driven by ahk, end to end (CI)
 packages/agent-harness-kit/               # npm launcher `@six5536/agent-harness-kit` (bin `ahk`)
@@ -156,6 +160,10 @@ CONSTRAINTS
 ### ahk CLI
 
 The `ahk` command (crate `agent-harness-kit`): `install`, `status`, `hook` (the bridge), `schema`. Thin over the library; also shipped through npm.
+
+### Bindings
+
+Python and Node APIs (REQ-BND): `install`, `status`, `parse_hook`, `answer_hook`, `run_hook`, `schema`. One glue crate turns JSON strings into library calls; the PyO3 and napi layers and a small Python / JS wrapper only move strings and raise errors.
 
 ### Report
 
@@ -235,6 +243,7 @@ Unreleased; 0.1.0 is published once PLAN-010 is done. The API may change in mino
 - `cargo +nightly llvm-cov nextest --fail-under-lines 90` — coverage gate
 - `cargo publish --dry-run --workspace` — package check
 - `npm run test:launcher` — npm launcher tests
+- `maturin develop -m crates/bind/agent-harness-kit-py/Cargo.toml` then `python -m unittest discover -s crates/bind/agent-harness-kit-py/tests` — the Python binding (in a virtualenv)
 - `python3 examples/python-tool/test_example.py target/debug/ahk` — the example tool, end to end
 - `npm run verify-version` / `npm run set-version <v>` — one version across Cargo, packages and lockfiles
 - `npm run smoke` / `npm run smoke:launcher` — the release binary and the packed launcher

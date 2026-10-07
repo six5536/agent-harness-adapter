@@ -24,6 +24,10 @@ First release: the library `agent-harness-kit-core` and the `ahk` command
   (the contracts' JSON Schemas, also in `schema/`). Prebuilt binaries for
   Linux and macOS (x64, arm64) and Windows (x64) through npm and the GitHub
   release.
+- Python binding `six5536-agent-harness-kit` (module `agent_harness_kit`):
+  `install`, `status`, `parse_hook`, `answer_hook`, `run_hook`, `schema`;
+  abi3 wheels for CPython 3.9+.
+- `fs::home_dir`, `harness::expand` (`all`).
 - `manifest`: `Manifest` (TOML or JSON, version 1; text inline or from
   files; per-scope tables; mistakes reported with their place) and
   `ManifestTool`, a `Tool` over it.

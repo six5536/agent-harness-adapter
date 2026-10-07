@@ -172,11 +172,59 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
+  # 3b. Python wheels (abi3: one per platform serves CPython 3.9+) and sdist.
+  # ---------------------------------------------------------------------------
+  python-wheels:
+    name: wheel ${{ matrix.os }} ${{ matrix.target }}
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64 }
+          - { os: ubuntu-latest, target: aarch64 }
+          - { os: macos-latest, target: x86_64 }
+          - { os: macos-latest, target: aarch64 }
+          - { os: windows-latest, target: x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: auto
+          args: --release --locked --out dist --manifest-path crates/bind/agent-harness-kit-py/Cargo.toml
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-wheel-${{ matrix.os }}-${{ matrix.target }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  python-sdist:
+    name: sdist
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist --manifest-path crates/bind/agent-harness-kit-py/Cargo.toml
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
   # 4. Publish. Nothing here runs until the tag, the gate and the builds agree.
   # ---------------------------------------------------------------------------
   publish:
     name: publish
-    needs: [meta, checks, build]
+    needs: [meta, checks, build, python-wheels, python-sdist]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -198,6 +246,7 @@ jobs:
       - name: Download platform binaries
         uses: actions/download-artifact@v8
         with:
+          pattern: ahk-*
           path: artifacts
 
       - name: Place binaries into platform packages
@@ -247,12 +296,29 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish ./packages/agent-harness-kit --provenance --tag "$NPM_TAG"
 
+  # PyPI by trusted publishing: the project's publisher names this workflow
+  # and the `pypi` environment; no token is stored.
+  publish-pypi:
+    name: publish to PyPI
+    needs: [meta, publish]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: python-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
   # ---------------------------------------------------------------------------
   # 5. GitHub Release: archives, checksums, notes.
   # ---------------------------------------------------------------------------
   github-release:
     name: github release
-    needs: [meta, publish]
+    needs: [meta, publish, publish-pypi]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -264,6 +330,7 @@ jobs:
       - name: Download platform binaries
         uses: actions/download-artifact@v8
         with:
+          pattern: ahk-*
           path: artifacts
 
       - name: Build archives and checksums

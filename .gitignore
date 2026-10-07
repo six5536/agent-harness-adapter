@@ -23,3 +23,9 @@
 /target/llvm-cov
 /target/llvm-cov-target
 *.profraw
+
+# maturin / Python
+__pycache__/
+*.so
+/dist/
+.venv/

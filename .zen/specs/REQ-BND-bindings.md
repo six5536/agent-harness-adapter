@@ -35,6 +35,7 @@ ACCEPTANCE CRITERIA
 - [ ] BND-2_AC-1 [event]: WHEN `parse_hook(harness, event, text)` is called THEN the BINDING SHALL return the hook contract's input (AHK-2_AC-1) parsed from the harness's input text, holding only `v`, `harness` and `event` when the text is not JSON
 - [ ] BND-2_AC-2 [event]: WHEN `answer_hook(harness, event, answer)` is called with a contract answer (AHK-2_AC-2) THEN the BINDING SHALL return what the hook command writes: `stdout` (with its final newline), `stderr` (or none) and `exit`, as `ahk hook` would emit it
 - [ ] BND-2_AC-3 [conditional]: IF the harness or event is unknown, the answer is not a contract answer, or the harness cannot express it for the event THEN the BINDING SHALL raise or throw with the kit's message
+- [ ] BND-2_AC-4 [event]: WHEN `run_hook(harness, event, decide)` (Node: `runHook`) is called THEN the BINDING SHALL read the harness's input from stdin, pass its contract input to `decide`, write `decide`'s answer as the harness expects it to stdout and stderr, and return the exit code
 
 ### BND-3: Schemas and versions [SHOULD]
 

@@ -1,0 +1,15 @@
+[package]
+name = "agent-harness-kit-bind"
+description = "The JSON glue the Python and Node bindings of agent-harness-kit share."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+agent-harness-kit-core = { workspace = true, features = ["schemars"] }
+serde.workspace = true
+serde_json.workspace = true
