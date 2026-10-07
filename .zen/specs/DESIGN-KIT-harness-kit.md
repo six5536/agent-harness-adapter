@@ -136,6 +136,8 @@ impl Hook {
     pub fn tools(self, kind: ToolKind) -> Self;
     pub fn timeout(self, timeout: Duration) -> Self;
     pub fn owned(self, owned: EntryMatch) -> Self;
+    pub fn command_for(self, harness: impl Into<String>, command: impl Into<String>) -> Self;
+    pub fn template_for(&self, harness: &str) -> &str;
     pub fn event(&self) -> Event;
     pub fn template(&self) -> &str;
     pub fn command(&self, harness: &str) -> String;            // placeholders filled, `{{` / `}}` unescaped
@@ -173,6 +175,7 @@ IMPLEMENTS: KIT-18_AC-1, KIT-18_AC-2, KIT-18_AC-3, KIT-18_AC-4, KIT-21_AC-1
 pub trait Harness: Debug + Send + Sync {
     fn id(&self) -> &str;
     fn scopes(&self) -> &[Scope];
+    fn hook_events(&self) -> &[Event] { &Event::ALL }
     /// Parts for the integration's items at `cx`, each named by its item.
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>>;
     /// Locations this harness loads for `item` at `cx`.
@@ -248,7 +251,7 @@ pub fn status<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(tool: 
 
 ### KIT-Shared
 
-Per item, over the harnesses in the set that rendered it and did not decline it: candidates are their parts' locations. Equal locations must hold equal parts, else `Internal` (KIT-19_AC-5). The chosen set `S` is the smallest subset of candidates such that each harness's `reads.always` meets `S`; ties go to the larger count of harnesses whose `always ∪ maybe` meets each location, then to the earliest writer in tool order. Each location in `S` is written by the earliest named harness whose part has it, else the earliest; every other harness's part for the item is shared, `by` that writer, `path` the first location of `S` it always loads. A harness whose `always ∪ maybe` meets `S` more than once gets a double-load warning; a shared part with a recorded hash gets a left-over warning and keeps the hash.
+Per item, over the harnesses in the set that rendered it and did not decline it: candidates are their parts' locations. Equal locations must hold equal parts, else `Internal` (KIT-19_AC-5). The chosen set `S` is the smallest subset of candidates such that each harness's `reads.always` meets `S`; ties go to the larger count of harnesses whose `always ∪ maybe` meets each location, then to the earliest writer in tool order. Each location in `S` is written by the earliest named harness whose part has it, else the earliest; every other harness's part for the item is shared, `by` that writer, `path` the first location of `S` it always loads. A named harness whose `always ∪ maybe` meets `S` more than once gets a double-load warning; a shared part with a recorded hash gets a left-over warning and keeps the hash.
 
 IMPLEMENTS: KIT-19_AC-2, KIT-19_AC-3, KIT-19_AC-4, KIT-19_AC-5, KIT-19_AC-6, KIT-19_AC-7
 

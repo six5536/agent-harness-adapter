@@ -139,8 +139,8 @@ AS A tool author, I WANT one hook model for every harness, SO THAT my hook comma
 ACCEPTANCE CRITERIA
 
 - [ ] KIT-11_AC-1 [ubiquitous]: A hook SHALL be a hook event and a command template; each harness SHALL install it under its own name for the event, and leave out events it lacks
-- [ ] KIT-11_AC-2 [ubiquitous]: The command template SHALL be any command line the tool chooses, with no required words or argument order; the installed command SHALL be the template with each `{harness}` replaced by the harness id, each `{event}` by the event's name (`session-start`, `session-end`, `prompt-submit`, `pre-tool`, `post-tool`, `stop`, `pre-compact`), and `{{` / `}}` by literal braces; placeholders SHALL be optional
-- [ ] KIT-11_AC-7 [ubiquitous]: A hook's entries SHALL be found by the entry match set on the hook, else the one set for all the tool's hooks, else a prefix: the template's text before its first placeholder, or the whole template when it has none
+- [ ] KIT-11_AC-2 [ubiquitous]: The command template SHALL be any command line the tool chooses, with no required words or argument order; the installed command SHALL be the template with each `{harness}` replaced by the harness id, each `{event}` by the event's name (`session-start`, `session-end`, `prompt-submit`, `pre-tool`, `post-tool`, `stop`, `pre-compact`), and `{{` / `}}` by literal braces; placeholders SHALL be optional; a hook MAY give its own template for one harness
+- [ ] KIT-11_AC-7 [ubiquitous]: A hook's entries SHALL be found by the entry match set on the hook, else the one set for all the tool's hooks, else a prefix of each of its templates: the text before its first placeholder, or the whole template when it has none
 - [ ] KIT-11_AC-8 [conditional]: IF a hook's match would be an empty prefix (the template starts with a placeholder) THEN the system SHALL refuse with an internal error
 - [ ] KIT-11_AC-3 [ubiquitous]: Hook input SHALL parse, by the harness and event, into one input: session, working directory, transcript path, prompt, the tool call (name, kind, input), the tool's output, the session start source, whether the agent is already continuing from a stop hook, the last assistant message, and the raw JSON; every field optional, unknown fields ignored; input that is not JSON SHALL be an error the caller handles
 - [ ] KIT-11_AC-4 [ubiquitous]: An answer SHALL be allow (optionally with text for stderr), deny with a reason (before a tool or a prompt), continue with a reason (at stop), or context text (session start, prompt submit, after a tool); each harness SHALL render it as its stdout JSON and exit code; an answer a harness cannot express for the event SHALL be an error
@@ -213,7 +213,7 @@ AS A tool author, I WANT harnesses as values behind one contract, SO THAT I pick
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-18_AC-1 [ubiquitous]: A harness SHALL give its id, its scopes, the locations it reads per item and scope (those it always loads, and those it may load), the parts it renders from an integration, hook input parsing, answer rendering, and notes
+- [ ] KIT-18_AC-1 [ubiquitous]: A harness SHALL give its id, its scopes, the hook events it runs, the locations it reads per item and scope (those it always loads, and those it may load), the parts it renders from an integration, hook input parsing, answer rendering, and notes
 - [ ] KIT-18_AC-2 [ubiquitous]: The system SHALL provide the harnesses of REQ-HAR, a list of them all, and a lookup by id
 - [ ] KIT-18_AC-3 [ubiquitous]: A harness from outside the kit SHALL work with `install`, `status` and the hook functions without a kit change
 - [ ] KIT-18_AC-4 [ubiquitous]: A harness SHALL render and decide what it reads from the integration and the files under the root, so its choices follow the user's tree
@@ -227,7 +227,7 @@ ACCEPTANCE CRITERIA
 - [ ] KIT-19_AC-1 [ubiquitous]: `install` and `status` SHALL work on a set of harnesses: those named, plus those the tool supports with a table in the scope's record; only the named harnesses' parts SHALL be written and reported
 - [ ] KIT-19_AC-2 [ubiquitous]: Per item, the system SHALL choose, from the locations the set's parts would write, the fewest that every harness not declining the item always loads one of; among equal choices, the one whose locations the most harnesses load, then the earliest harness order
 - [ ] KIT-19_AC-3 [ubiquitous]: Each chosen location SHALL be written by the earliest named harness whose part has it, else the earliest; every other harness's part for the item SHALL be shared, naming the first chosen location it loads and that location's writer; nothing SHALL be written or recorded for it
-- [ ] KIT-19_AC-4 [conditional]: IF a harness in the set loads, or may load, more than one chosen location of one item THEN the result SHALL carry a warning naming the harness, the item and the locations
+- [ ] KIT-19_AC-4 [conditional]: IF a harness named loads, or may load, more than one chosen location of one item THEN the result SHALL carry a warning naming the harness, the item and the locations
 - [ ] KIT-19_AC-5 [conditional]: IF two harnesses' parts for one item and location differ THEN the system SHALL refuse with an internal error
 - [ ] KIT-19_AC-6 [conditional]: IF a harness's record holds a hash for a part that is now shared THEN the result SHALL warn that its earlier copy is left at its location, and the hash SHALL be kept
 - [ ] KIT-19_AC-7 [ubiquitous]: The harness order SHALL be the tool's list order, whatever order they are named in, so the same set always gives the same choice of locations; a part's recorded hash SHALL be its writer's, else that of another harness in the set whose part for the item has the same location

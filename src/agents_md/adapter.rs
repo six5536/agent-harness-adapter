@@ -50,6 +50,10 @@ impl Harness for AgentsMd {
         Ok(out)
     }
 
+    fn hook_events(&self) -> &[Event] {
+        &[]
+    }
+
     fn reads(&self, item: Item, cx: &Context) -> Result<Reads> {
         Ok(Reads::always(location(item, cx)))
     }
@@ -96,6 +100,8 @@ mod tests {
             Reads::default()
         );
         assert_eq!(AgentsMd.scopes().len(), 2);
+        assert!(AgentsMd.hook_events().is_empty());
+        assert_eq!(crate::claude::Claude.hook_events().len(), 7);
         assert_eq!(
             AgentsMd.parse_hook(Event::Stop, "{}").unwrap().harness,
             "agents"

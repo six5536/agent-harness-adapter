@@ -133,7 +133,8 @@ pub(crate) fn choose(item: &str, candidates: &[Candidate<'_>]) -> Result<Choice>
             .map(|&l| locations[l].as_str())
             .filter(|l| may(c, l))
             .collect();
-        if loaded.len() > 1 {
+        // Only for the harnesses named: the others are not this run's concern.
+        if c.named && loaded.len() > 1 {
             let list: Vec<&str> = chosen
                 .iter()
                 .map(|&l| locations[l].as_str())
@@ -267,6 +268,18 @@ mod tests {
         let r = Reads::always(["AGENTS.md"]);
         let e = choose("instructions", &[cand("codex", &a, &r), cand("pi", &b, &r)]).unwrap_err();
         assert!(matches!(e, Error::Internal(_)), "{e}");
+    }
+
+    #[test]
+    fn harnesses_not_named_are_not_warned_about() {
+        let claude = Part::merge("hooks", ".claude/settings.json", vec![]);
+        let cursor = Part::merge("hooks", ".cursor/hooks.json", vec![]);
+        let rc = Reads::always([".claude/settings.json"]);
+        let ru = Reads::always([".cursor/hooks.json"]).maybe([".claude/settings.json"]);
+        let mut unnamed = cand("cursor", &cursor, &ru);
+        unnamed.named = false;
+        let c = choose("hooks", &[cand("claude", &claude, &rc), unnamed]).unwrap();
+        assert!(c.warnings.is_empty());
     }
 
     // A named harness writes a location before one only in the record.

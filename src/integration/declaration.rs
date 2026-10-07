@@ -189,24 +189,26 @@ impl Integration {
     }
 
     /// The hook entries that are `hook`'s in a harness's file: its own match,
-    /// else the integration's, else a prefix: the command's text before its
-    /// first placeholder (the whole command when it has none). A command that
-    /// starts with a placeholder needs a match: an empty prefix would own
-    /// every entry.
+    /// else the integration's, else a prefix of each of its commands (the
+    /// hook's and each harness's own): the text before its first placeholder
+    /// (the whole command when it has none). A command that starts with a
+    /// placeholder needs a match: an empty prefix would own every entry.
     // @zen-impl: KIT-11_AC-7
     // @zen-impl: KIT-11_AC-8
     pub fn hook_owner(&self, hook: &Hook) -> Result<EntryMatch> {
         if let Some(m) = hook.owned_by().or(self.hook_match.as_ref()) {
             return Ok(m.clone());
         }
-        let prefix = hook.prefix();
-        if prefix.is_empty() {
+        let prefixes = hook.prefixes();
+        if prefixes.iter().any(String::is_empty) {
             return Err(Error::Internal(format!(
                 "the hook command `{}` starts with a placeholder: give it an entry match",
                 hook.template()
             )));
         }
-        Ok(EntryMatch::Prefix(prefix))
+        Ok(EntryMatch::any_of(
+            prefixes.into_iter().map(EntryMatch::Prefix),
+        ))
     }
 
     /// The MCP servers.
@@ -322,6 +324,24 @@ mod tests {
             i.hook_owner(&own).unwrap(),
             EntryMatch::Contains(" t".into())
         );
+        // A harness's own command adds its prefix.
+        let over = plain
+            .clone()
+            .command_for("claude", "$CLAUDE_PROJECT_DIR/t hook {harness} {event}");
+        assert_eq!(
+            over.command("claude"),
+            "$CLAUDE_PROJECT_DIR/t hook claude stop"
+        );
+        assert_eq!(over.command("codex"), "t hook codex stop");
+        assert_eq!(
+            i.hook_owner(&over).unwrap(),
+            EntryMatch::Any(vec![
+                EntryMatch::Prefix("t hook ".into()),
+                EntryMatch::Prefix("$CLAUDE_PROJECT_DIR/t hook ".into())
+            ])
+        );
+        let bad = plain.clone().command_for("pi", "{harness} x");
+        assert!(i.hook_owner(&bad).is_err());
         let i = i.hook_match(EntryMatch::Contains("t".into()));
         assert_eq!(
             i.hook_owner(&first).unwrap(),

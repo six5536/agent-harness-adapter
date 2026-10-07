@@ -111,6 +111,7 @@ pub struct Hook {
     kind: Option<ToolKind>,
     timeout: Option<Duration>,
     owned: Option<EntryMatch>,
+    overrides: Vec<(String, String)>,
 }
 
 impl Hook {
@@ -122,7 +123,18 @@ impl Hook {
             kind: None,
             timeout: None,
             owned: None,
+            overrides: Vec::new(),
         }
+    }
+
+    /// Run `command` (a template) instead for the harness `harness`, e.g. a
+    /// path through an environment variable only that harness sets.
+    #[must_use]
+    pub fn command_for(mut self, harness: impl Into<String>, command: impl Into<String>) -> Self {
+        let harness = harness.into();
+        self.overrides.retain(|(h, _)| *h != harness);
+        self.overrides.push((harness, command.into()));
+        self
     }
 
     /// Only for tool calls of `kind` (pre tool, post tool). A harness that
@@ -161,9 +173,17 @@ impl Hook {
         &self.template
     }
 
+    /// The template `harness` runs: its own, else the hook's.
+    pub fn template_for(&self, harness: &str) -> &str {
+        self.overrides
+            .iter()
+            .find(|(h, _)| h == harness)
+            .map_or(&self.template, |(_, t)| t)
+    }
+
     /// The command a harness runs: placeholders filled, braces unescaped.
     pub fn command(&self, harness: &str) -> String {
-        fill(&self.template, harness, self.event.as_str())
+        fill(self.template_for(harness), harness, self.event.as_str())
     }
 
     /// The tool kind the hook is limited to.
@@ -181,28 +201,37 @@ impl Hook {
         self.owned.as_ref()
     }
 
-    /// The template's text before its first placeholder, unescaped; the whole
-    /// template when it has none.
-    pub(crate) fn prefix(&self) -> String {
-        let mut out = String::new();
-        let mut rest = self.template.as_str();
-        while !rest.is_empty() {
-            if let Some(r) = rest.strip_prefix("{{") {
-                out.push('{');
-                rest = r;
-            } else if let Some(r) = rest.strip_prefix("}}") {
-                out.push('}');
-                rest = r;
-            } else if rest.starts_with("{harness}") || rest.starts_with("{event}") {
-                break;
-            } else {
-                let c = rest.chars().next().expect("not empty");
-                out.push(c);
-                rest = &rest[c.len_utf8()..];
-            }
-        }
-        out
+    /// For each template (the hook's, then each harness's own), its text
+    /// before its first placeholder, unescaped; the whole template when it
+    /// has none.
+    pub(crate) fn prefixes(&self) -> Vec<String> {
+        std::iter::once(self.template.as_str())
+            .chain(self.overrides.iter().map(|(_, t)| t.as_str()))
+            .map(prefix)
+            .collect()
     }
+}
+
+/// `template`'s text before its first placeholder, unescaped.
+fn prefix(template: &str) -> String {
+    let mut out = String::new();
+    let mut rest = template;
+    while !rest.is_empty() {
+        if let Some(r) = rest.strip_prefix("{{") {
+            out.push('{');
+            rest = r;
+        } else if let Some(r) = rest.strip_prefix("}}") {
+            out.push('}');
+            rest = r;
+        } else if rest.starts_with("{harness}") || rest.starts_with("{event}") {
+            break;
+        } else {
+            let c = rest.chars().next().expect("not empty");
+            out.push(c);
+            rest = &rest[c.len_utf8()..];
+        }
+    }
+    out
 }
 
 /// `template` with `{harness}` and `{event}` replaced and `{{` / `}}`
@@ -488,21 +517,21 @@ mod tests {
     fn hook_commands_fill_placeholders_anywhere() {
         let h = Hook::new(Event::Stop, "mytool hook {harness} {event}");
         assert_eq!(h.command("codex"), "mytool hook codex stop");
-        assert_eq!(h.prefix(), "mytool hook ");
+        assert_eq!(h.prefixes()[0], "mytool hook ");
         let h = Hook::new(Event::PreTool, "guard --event={event} --agent={harness}");
         assert_eq!(h.command("cursor"), "guard --event=pre-tool --agent=cursor");
-        assert_eq!(h.prefix(), "guard --event=");
+        assert_eq!(h.prefixes()[0], "guard --event=");
         let h = Hook::new(Event::Stop, "mytool-stop");
         assert_eq!(h.command("pi"), "mytool-stop");
-        assert_eq!(h.prefix(), "mytool-stop");
+        assert_eq!(h.prefixes()[0], "mytool-stop");
         let h = Hook::new(Event::Stop, "sh -c 'x {{a}} {y}' {event}");
         assert_eq!(h.command("claude"), "sh -c 'x {a} {y}' stop");
-        assert_eq!(h.prefix(), "sh -c 'x {a} {y}' ");
+        assert_eq!(h.prefixes()[0], "sh -c 'x {a} {y}' ");
         let h = Hook::new(Event::Stop, "{harness}-hook")
             .tools(ToolKind::Shell)
             .timeout(Duration::from_secs(5))
             .owned(EntryMatch::Contains("-hook".into()));
-        assert_eq!(h.prefix(), "");
+        assert_eq!(h.prefixes()[0], "");
         assert_eq!(h.command("gemini"), "gemini-hook");
         assert_eq!(h.template(), "{harness}-hook");
         assert_eq!(h.tool_kind(), Some(ToolKind::Shell));

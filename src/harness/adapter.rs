@@ -39,6 +39,12 @@ pub trait Harness: Debug + Send + Sync {
     /// load.
     fn reads(&self, item: Item, cx: &Context) -> Result<Reads>;
 
+    /// The hook events it runs commands for: every [`Event`] unless it says
+    /// otherwise.
+    fn hook_events(&self) -> &[Event] {
+        &Event::ALL
+    }
+
     /// `text`, the input it sent a hook for `event`, as a [`HookInput`].
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput>;
 
