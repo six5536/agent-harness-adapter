@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Build the Node addon for the host and copy it where tests (and a local
-// `AHK_NODE_ADDON`) find it: target/<profile>/agent_harness_kit_node.node.
+// `AHA_NODE_ADDON`) find it: target/<profile>/agent_harness_adapter_node.node.
 //
 // Usage: node scripts/build-node.mjs [--release] [--target <triple>] [--out <file>]
 
@@ -13,7 +13,7 @@ const release = args.includes("--release");
 const target = args.includes("--target") ? args[args.indexOf("--target") + 1] : null;
 const out = args.includes("--out") ? args[args.indexOf("--out") + 1] : null;
 
-const cargo = ["build", "--locked", "-p", "agent-harness-kit-node"];
+const cargo = ["build", "--locked", "-p", "agent-harness-adapter-node"];
 if (release) cargo.push("--release");
 if (target) cargo.push("--target", target);
 execFileSync("cargo", cargo, { stdio: "inherit" });
@@ -21,10 +21,10 @@ execFileSync("cargo", cargo, { stdio: "inherit" });
 const dir = join("target", ...(target ? [target] : []), release ? "release" : "debug");
 const platform = target ?? process.platform;
 const lib = /windows|win32/.test(platform)
-  ? "agent_harness_kit_node.dll"
+  ? "agent_harness_adapter_node.dll"
   : /apple|darwin/.test(platform)
-    ? "libagent_harness_kit_node.dylib"
-    : "libagent_harness_kit_node.so";
-const dest = out ?? join(dir, "agent_harness_kit_node.node");
+    ? "libagent_harness_adapter_node.dylib"
+    : "libagent_harness_adapter_node.so";
+const dest = out ?? join(dir, "agent_harness_adapter_node.node");
 copyFileSync(join(dir, lib), dest);
 console.log(dest);

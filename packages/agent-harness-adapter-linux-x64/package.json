@@ -1,0 +1,32 @@
+{
+  "name": "@six5536/agent-harness-adapter-linux-x64",
+  "version": "0.1.0",
+  "description": "Prebuilt agent-harness-adapter binary for linux-x64.",
+  "homepage": "https://github.com/six5536/agent-harness-adapter#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/six5536/agent-harness-adapter.git",
+    "directory": "packages/agent-harness-adapter-linux-x64"
+  },
+  "bugs": {
+    "url": "https://github.com/six5536/agent-harness-adapter/issues"
+  },
+  "author": "six5536 <10079653+six5536@users.noreply.github.com>",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "cli",
+    "command-line"
+  ],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/"
+  ],
+  "license": "MIT"
+}

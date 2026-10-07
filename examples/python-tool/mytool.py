@@ -1,7 +1,7 @@
-"""mytool: an example tool in Python, plugged into agent harnesses by `ahk`.
+"""mytool: an example tool in Python, plugged into agent harnesses by `agent-harness-adapter`.
 
 `python3 mytool.py hook` reads one hook input (the hook contract, version 1)
-on stdin and writes one answer on stdout. `ahk hook` translates both for
+on stdin and writes one answer on stdout. `agent-harness-adapter hook` translates both for
 whichever harness ran it.
 """
 

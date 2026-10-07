@@ -14,7 +14,7 @@ import { dirname, join } from "node:path";
 
 const expected = process.argv[2]?.replace(/^v/, "");
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SCOPE = "@six5536/agent-harness-kit-";
+const SCOPE = "@six5536/agent-harness-adapter-";
 
 const found = [];
 const problems = [];

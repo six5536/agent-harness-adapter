@@ -1,0 +1,30 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "six5536-agent-harness-adapter"
+description = "Plug a tool into LLM agent harnesses (Claude Code, Codex, Gemini CLI, Copilot, Cursor, Factory, Pi, AGENTS.md) from a manifest, and speak every harness's hook protocol."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "six5536" }]
+keywords = ["llm", "agent", "claude-code", "hooks"]
+classifiers = [
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "License :: OSI Approved :: MIT License",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/six5536/agent-harness-adapter"
+Repository = "https://github.com/six5536/agent-harness-adapter"
+
+# @zen-impl: BND-4_AC-1 (abi3-py39 wheels and an sdist; release.yml builds them per platform)
+[tool.maturin]
+python-source = "python"
+module-name = "agent_harness_adapter._native"
+features = ["extension-module"]

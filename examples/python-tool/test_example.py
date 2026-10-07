@@ -1,7 +1,7 @@
-"""End to end: install mytool with `ahk`, then run each installed hook
+"""End to end: install mytool with `agent-harness-adapter`, then run each installed hook
 command as the harness would, with that harness's own input.
 
-    python3 examples/python-tool/test_example.py <path to ahk>
+    python3 examples/python-tool/test_example.py <path to agent-harness-adapter>
 """
 
 import json
@@ -41,13 +41,13 @@ def run(command, cwd, stdin):
 
 
 def main():
-    ahk = os.path.abspath(sys.argv[1])
-    env_path = os.path.dirname(ahk) + os.pathsep + os.environ.get("PATH", "")
+    adapter = os.path.abspath(sys.argv[1])
+    env_path = os.path.dirname(adapter) + os.pathsep + os.environ.get("PATH", "")
     os.environ["PATH"] = env_path
     with tempfile.TemporaryDirectory() as proj:
         shutil.copy(os.path.join(HERE, "mytool.py"), proj)
         manifest = os.path.join(HERE, "mytool.harness.toml")
-        subprocess.run([ahk, "install", "--manifest", manifest, "--harness",
+        subprocess.run([adapter, "install", "--manifest", manifest, "--harness",
                         ",".join(HARNESSES), "--root", proj], check=True)
         for harness, (file, start, pre_tool, call) in HARNESSES.items():
             with open(os.path.join(proj, file), encoding="utf-8") as f:

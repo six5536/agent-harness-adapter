@@ -9,7 +9,7 @@
 all-features = true
 
 [licenses]
-# agent-harness-kit is MIT. Permissive licences only; anything copyleft needs a decision,
+# agent-harness-adapter is MIT. Permissive licences only; anything copyleft needs a decision,
 # not a default.
 version = 2
 allow = [

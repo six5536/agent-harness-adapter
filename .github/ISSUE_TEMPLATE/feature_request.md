@@ -1,12 +1,12 @@
 ---
 name: Feature request
-about: Suggest an idea for agent-harness-kit
+about: Suggest an idea for agent-harness-adapter
 title: ''
 labels: enhancement
 ---
 
 **Problem**
-<!-- What are you trying to do that agent-harness-kit makes hard today? -->
+<!-- What are you trying to do that agent-harness-adapter makes hard today? -->
 
 
 **Proposed solution**

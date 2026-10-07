@@ -1,2 +1,2 @@
-# The checked-in schemas must equal what `ahk schema` prints on every OS.
+# The checked-in schemas must equal what `agent-harness-adapter schema` prints on every OS.
 schema/*.json text eol=lf

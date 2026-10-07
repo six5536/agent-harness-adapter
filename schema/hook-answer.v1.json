@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "AHK hook answer",
-  "description": "What a hook decides. Each harness renders it in its own form\n(`Harness::answer`).\n\nAs JSON (the hook contract's answer, AHK-2): `{\"answer\": \"allow\",\n\"stderr\"?}`, `{\"answer\": \"deny\", \"reason\"}`, `{\"answer\": \"continue\",\n\"reason\"}` or `{\"answer\": \"context\", \"text\"}`.",
+  "title": "AHA hook answer",
+  "description": "What a hook decides. Each harness renders it in its own form\n(`Harness::answer`).\n\nAs JSON (the hook contract's answer, AHA-2): `{\"answer\": \"allow\",\n\"stderr\"?}`, `{\"answer\": \"deny\", \"reason\"}`, `{\"answer\": \"continue\",\n\"reason\"}` or `{\"answer\": \"context\", \"text\"}`.",
   "oneOf": [
     {
       "description": "Nothing to say; at stop, the agent may stop. `stderr` carries text\nfor the user, e.g. a report the hook already blocked on.",

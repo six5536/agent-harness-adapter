@@ -21,7 +21,7 @@ flowchart LR
 ### Module Organization
 
 ```
-crates/lib/agent-harness-kit-core/src/
+crates/lib/agent-harness-adapter-core/src/
 ├── common/            crate-private
 │   ├── mod.rs
 │   ├── protocol.rs    Claude-family input fields and answers
@@ -43,7 +43,7 @@ crates/lib/agent-harness-kit-core/src/
 - CLAUDE-FAMILY PROTOCOL SHARED: Claude, Codex and Factory parse the same input fields and give the same answers through `common::protocol`; Gemini reuses the parser with its own field and answer differences
 - CURSOR DETECTION IN CLAUDE: Claude's parser hands a payload with `cursor_version` to Cursor's (HAR-6_AC-4), because the Cursor CLI runs Claude's hooks; Cursor accepts Claude-format answers, so answers need no hand-off. Alternatives: detection in the core (the core would know harnesses)
 - MATCHERS ONLY WHERE CONFIRMED: a hook's tool kind becomes a matcher only where the harness's tool names are confirmed (Claude, Factory, Gemini; Codex `Bash`); elsewhere no matcher, and the hook filters on `HookInput.tool.kind`
-- PI EXTENSION OWNS TRANSLATION: Pi has no command hooks; the kit writes one TypeScript extension per tool that maps Pi events to the tool's command (JSON on stdin through `node:child_process`, async with the hook's timeout) and maps the kit's neutral answer JSON back. Failures and bad output allow, so a broken tool never blocks Pi
+- PI EXTENSION OWNS TRANSLATION: Pi has no command hooks; the library writes one TypeScript extension per tool that maps Pi events to the tool's command (JSON on stdin through `node:child_process`, async with the hook's timeout) and maps the library's neutral answer JSON back. Failures and bad output allow, so a broken tool never blocks Pi
 - UNCONFIRMED FACTS ARE UNSUPPORTED: an item or answer resting on an unconfirmed fact (REQ-HAR notes) is not rendered, or is `Error::Unsupported`, until confirmed (PLAN-010 D10-11)
 
 ## Components and Interfaces
@@ -131,7 +131,7 @@ IMPLEMENTS: HAR-8_AC-1, HAR-8_AC-2, HAR-8_AC-3
 
 ### Core Types
 
-- PI ANSWER: `{"answer":"allow"|"deny"|"continue"|"context","reason"?:string,"text"?:string}` — the kit's own wire format between a Pi extension and the tool
+- PI ANSWER: `{"answer":"allow"|"deny"|"continue"|"context","reason"?:string,"text"?:string}` — the library's own wire format between a Pi extension and the tool
 
 ## Correctness Properties
 
@@ -171,7 +171,7 @@ Per module: rendered parts of a full integration on an empty tree, per scope (`i
 
 ### Integration Testing
 
-`crates/lib/agent-harness-kit-core/tests/` installs a full integration into each harness and into the sets {claude, codex}, {claude, cursor}, {codex, gemini, pi, agents}, {claude, codex, copilot}, checking shared parts and warnings. The Pi extension is type-checked against `@earendil-works/pi-coding-agent` once by hand (PLAN-010 P6), and each harness is smoke-tested by hand (PLAN-010 N4).
+`crates/lib/agent-harness-adapter-core/tests/` installs a full integration into each harness and into the sets {claude, codex}, {claude, cursor}, {codex, gemini, pi, agents}, {claude, codex, copilot}, checking shared parts and warnings. The Pi extension is type-checked against `@earendil-works/pi-coding-agent` once by hand (PLAN-010 P6), and each harness is smoke-tested by hand (PLAN-010 N4).
 - SCENARIOS: each harness alone; sets sharing `AGENTS.md`, `.agents/skills` and `.mcp.json`; Cursor's cross-reads warn; Copilot double-loads `AGENTS.md` and `CLAUDE.md` warn
 
 ## Requirements Traceability

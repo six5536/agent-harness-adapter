@@ -3,7 +3,7 @@
 All notable changes to this project are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
-agent-harness-kit uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+agent-harness-adapter uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 While it is pre-1.0, minor versions may contain breaking changes.
 
 Every released tag needs its own section here. The release workflow refuses to
@@ -14,20 +14,21 @@ GitHub release notes.
 
 ## [0.1.0]
 
-First release: the library `agent-harness-kit-core` and the `ahk` command
-(crate `agent-harness-kit`, npm `@six5536/agent-harness-kit`).
+First release: the library `agent-harness-adapter-core` and the
+`agent-harness-adapter` command (crate `agent-harness-adapter`, npm
+`@six5536/agent-harness-adapter`).
 
 ### Added
 
-- `ahk`: `install` and `status` from a manifest file, `hook` (runs a
-  harness's hook through a command that speaks the hook contract), `schema`
-  (the contracts' JSON Schemas, also in `schema/`). Prebuilt binaries for
-  Linux and macOS (x64, arm64) and Windows (x64) through npm and the GitHub
-  release.
-- Python binding `six5536-agent-harness-kit` (module `agent_harness_kit`):
-  `install`, `status`, `parse_hook`, `answer_hook`, `run_hook`, `schema`;
-  abi3 wheels for CPython 3.9+.
-- Node binding `@six5536/agent-harness-kit-node`: `install`, `status`,
+- `agent-harness-adapter` command: `install` and `status` from a manifest
+  file, `hook` (runs a harness's hook through a command that speaks the hook
+  contract), `schema` (the contracts' JSON Schemas, also in `schema/`).
+  Prebuilt binaries for Linux and macOS (x64, arm64) and Windows (x64)
+  through npm and the GitHub release.
+- Python binding `six5536-agent-harness-adapter` (module
+  `agent_harness_adapter`): `install`, `status`, `parse_hook`,
+  `answer_hook`, `run_hook`, `schema`; abi3 wheels for CPython 3.9+.
+- Node binding `@six5536/agent-harness-adapter-node`: `install`, `status`,
   `parseHook`, `answerHook`, `runHook`, `schema`, with TypeScript types;
   prebuilt addons for Linux (glibc), macOS and Windows.
 - `fs::home_dir`, `harness::expand` (`all`).
@@ -69,5 +70,5 @@ First release: the library `agent-harness-kit-core` and the `ahk` command
   schemas of the result, the manifest and the hook contract.
 - MSRV 1.85.
 
-[Unreleased]: https://github.com/six5536/agent-harness-kit/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/six5536/agent-harness-kit/releases/tag/v0.1.0
+[Unreleased]: https://github.com/six5536/agent-harness-adapter/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/six5536/agent-harness-adapter/releases/tag/v0.1.0

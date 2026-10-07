@@ -9,8 +9,8 @@
 /node_modules/
 /packages/*/node_modules/
 # Release binaries staged into the platform packages (release.yml).
-/packages/agent-harness-kit-*/bin/ahk
-/packages/agent-harness-kit-*/bin/ahk.exe
+/packages/agent-harness-adapter-*/bin/agent-harness-adapter
+/packages/agent-harness-adapter-*/bin/agent-harness-adapter.exe
 
 # Local checkouts of the private consumers (scripts/validate-consumers.sh).
 /consumers/

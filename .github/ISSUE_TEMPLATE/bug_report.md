@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with agent-harness-kit
+about: Report a problem with agent-harness-adapter
 title: ''
 labels: bug
 ---
@@ -15,7 +15,7 @@ labels: bug
 1.
 
 **Environment**
-- agent-harness-kit version:
+- agent-harness-adapter version:
 - Rust version (`rustc --version`):
 - OS / arch:
 

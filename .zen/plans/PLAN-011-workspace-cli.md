@@ -6,6 +6,8 @@
 | Workflow direction | top-down (layout → architecture → requirements → design → code → docs → release) |
 | Traces to          | ARCHITECTURE, REQ-KIT, REQ-HAR, REQ-AHK, REQ-BND, DESIGN-KIT, DESIGN-HAR, DESIGN-AHK, DESIGN-BND, PLAN-009 (D9-4, D9-5, F8, F9), PLAN-010 P9 |
 
+> Renamed by PLAN-012: `agent-harness-kit` → `agent-harness-adapter`, CLI `ahk` → `agent-harness-adapter`, spec code `AHK` → `AHA`. The names below are those of the time; P9 releases under the new ones.
+
 ## 1. Goal
 
 Make the kit usable from tools in any language:

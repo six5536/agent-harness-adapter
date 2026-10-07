@@ -17,7 +17,7 @@ if (!version || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
 }
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SCOPE = "@six5536/agent-harness-kit-";
+const SCOPE = "@six5536/agent-harness-adapter-";
 
 // Cargo.toml: the workspace version and every internal crate's pin.
 const cargoPath = join(root, "Cargo.toml");

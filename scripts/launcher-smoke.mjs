@@ -17,7 +17,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const require_ = createRequire(import.meta.url);
-const { selectPackage, binaryName } = require_("../packages/agent-harness-kit/lib/binary.js");
+const { selectPackage, binaryName } = require_("../packages/agent-harness-adapter/lib/binary.js");
 
 function fail(message) {
   console.error(`launcher-smoke: ${message}`);
@@ -35,7 +35,7 @@ function run(cmd, args, opts = {}) {
   return r;
 }
 
-const launcherName = JSON.parse(readFileSync(join("packages", "agent-harness-kit", "package.json"), "utf8")).name;
+const launcherName = JSON.parse(readFileSync(join("packages", "agent-harness-adapter", "package.json"), "utf8")).name;
 const pkgName = selectPackage(process.platform, process.arch);
 if (!pkgName) {
   fail(`unsupported host ${process.platform}-${process.arch}`);
@@ -49,10 +49,10 @@ if (!existsSync(join(pkgDir, "bin", binName))) {
   );
 }
 
-const base = mkdtempSync(join(tmpdir(), "ahk-launcher-smoke-"));
+const base = mkdtempSync(join(tmpdir(), "aha-launcher-smoke-"));
 try {
   // Pack both packages: what npm would publish, `files` manifests applied.
-  const pack = run("npm", ["pack", "./packages/agent-harness-kit", `./${pkgDir}`, "--pack-destination", base]);
+  const pack = run("npm", ["pack", "./packages/agent-harness-adapter", `./${pkgDir}`, "--pack-destination", base]);
   if (pack.status !== 0) {
     console.error(pack.stdout);
     console.error(pack.stderr);
@@ -81,9 +81,9 @@ try {
     fail(`${pkgName}'s tarball does not contain bin/${binName} — check its "files" manifest`);
   }
 
-  const launcher = join(nm, launcherName, "bin", "ahk.js");
+  const launcher = join(nm, launcherName, "bin", "agent-harness-adapter.js");
   const version = run(process.execPath, [launcher, "--version"]);
-  if (version.status !== 0 || !/^ahk \d+\.\d+\.\d+/.test(version.stdout.trim())) {
+  if (version.status !== 0 || !/^agent-harness-adapter \d+\.\d+\.\d+/.test(version.stdout.trim())) {
     console.error(version.stdout);
     console.error(version.stderr);
     fail(`launcher --version failed (exit ${version.status})`);

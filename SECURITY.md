@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-agent-harness-kit is pre-1.0. Security fixes target the **latest release** and
+agent-harness-adapter is pre-1.0. Security fixes target the **latest release** and
 the `main` branch only. Older versions are not patched, so upgrade to the
 latest release to pick up a fix.
 
@@ -11,7 +11,7 @@ latest release to pick up a fix.
 Please report security issues **privately** through GitHub's private
 vulnerability reporting:
 
-1. Open the [Security tab](https://github.com/six5536/agent-harness-kit/security)
+1. Open the [Security tab](https://github.com/six5536/agent-harness-adapter/security)
    of the repository.
 2. Click **Report a vulnerability** to start a private advisory.
 
@@ -20,7 +20,7 @@ acknowledge the report and coordinate a fix and a disclosure date with you.
 
 ## Scope
 
-The kit writes files a harness reads (instructions files, settings JSON, a
+The adapter writes files a harness reads (instructions files, settings JSON, a
 record file) on behalf of the tool that uses it. In scope:
 
 - A write outside the root directory the tool names, or through a path the

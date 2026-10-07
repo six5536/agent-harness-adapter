@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "AHK hook input",
-  "description": "What a harness sends a hook command, parsed by that harness into one\nshape. Every field is optional; the raw JSON keeps the rest.\n\nAs JSON (the hook contract's input, AHK-2), an absent value is left out:\n`continuing` when false and `raw` when null too.",
+  "title": "AHA hook input",
+  "description": "What a harness sends a hook command, parsed by that harness into one\nshape. Every field is optional; the raw JSON keeps the rest.\n\nAs JSON (the hook contract's input, AHA-2), an absent value is left out:\n`continuing` when false and `raw` when null too.",
   "type": "object",
   "properties": {
     "harness": {

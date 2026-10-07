@@ -1,0 +1,22 @@
+[package]
+name = "agent-harness-adapter-py"
+description = "Python binding of agent-harness-adapter (PyPI six5536-agent-harness-adapter)."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "_native"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+agent-harness-adapter-bind = { path = "../agent-harness-adapter-bind" }
+pyo3 = { workspace = true }
+
+[features]
+# maturin turns it on for wheels; plain cargo builds link libpython.
+extension-module = ["pyo3/extension-module"]

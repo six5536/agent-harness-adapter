@@ -1,4 +1,4 @@
-# Contributing to agent-harness-kit
+# Contributing to agent-harness-adapter
 
 How to get set up, what to run before you push, and how a release is cut.
 
@@ -57,12 +57,12 @@ Tests run under `cargo-nextest`.
 
 - **Unit and property tests** sit beside the code they cover, in `#[cfg(test)] mod tests`,
   including the `proptest` properties of the internals.
-- **Integration tests** (`crates/lib/agent-harness-kit-core/tests/`) drive `install` / `status` through the public API with a
+- **Integration tests** (`crates/lib/agent-harness-adapter-core/tests/`) drive `install` / `status` through the public API with a
   test `Tool` over a temporary directory.
 
 ## Consumers
 
-`scripts/validate-consumers.sh` builds and tests the tools that use the kit
+`scripts/validate-consumers.sh` builds and tests the tools that use the library
 against this checkout before a release. Their repositories are private: set
 `SMLLM_REPO` and `SOKF_REPO` to their clone URLs. The checkouts land in
 `consumers/`, which is not committed.

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Behavioural smoke test for a compiled ahk binary: run the real thing and
+// Behavioural smoke test for a compiled agent-harness-adapter binary: run the real thing and
 // assert what a user sees. Release CI runs it against each built artifact its
 // runner can execute; locally run `npm run smoke` after
-// `cargo build --release -p agent-harness-kit`.
+// `cargo build --release -p agent-harness-adapter`.
 //
-// It mirrors crates/app/agent-harness-kit/tests: those tests prove the code is
+// It mirrors crates/app/agent-harness-adapter/tests: those tests prove the code is
 // right, this proves the shipped artifact is. Extend both together.
 
 import { spawnSync } from "node:child_process";
@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const bin = resolve(
-  process.argv[2] ?? join("target", "release", process.platform === "win32" ? "ahk.exe" : "ahk"),
+  process.argv[2] ?? join("target", "release", process.platform === "win32" ? "agent-harness-adapter.exe" : "agent-harness-adapter"),
 );
 
 function fail(message) {
@@ -22,7 +22,7 @@ function fail(message) {
 }
 
 if (!existsSync(bin)) {
-  fail(`no binary at ${bin}: build first: cargo build --release -p agent-harness-kit`);
+  fail(`no binary at ${bin}: build first: cargo build --release -p agent-harness-adapter`);
 }
 
 /** Run the binary, asserting the exit status; returns the spawn result. */
@@ -34,18 +34,18 @@ function run(args, expectStatus, opts = {}) {
   if (r.status !== expectStatus) {
     console.error(r.stdout);
     console.error(r.stderr);
-    fail(`\`ahk ${args.join(" ")}\` exited ${r.status}, expected ${expectStatus}`);
+    fail(`\`agent-harness-adapter ${args.join(" ")}\` exited ${r.status}, expected ${expectStatus}`);
   }
   return r;
 }
 
 const version = run(["--version"], 0).stdout.trim();
-if (!/^ahk \d+\.\d+\.\d+/.test(version)) {
+if (!/^agent-harness-adapter \d+\.\d+\.\d+/.test(version)) {
   fail(`unexpected --version output: ${version}`);
 }
 run(["--definitely-not-a-flag"], 2);
 
-const dir = mkdtempSync(join(tmpdir(), "ahk-release-smoke-"));
+const dir = mkdtempSync(join(tmpdir(), "aha-release-smoke-"));
 try {
   // install / status from a manifest.
   const manifest = join(dir, "smoke.harness.toml");
@@ -60,7 +60,7 @@ try {
   if (!installed.stdout.includes("created CLAUDE.md (instructions)")) {
     fail(`install did not report CLAUDE.md:\n${installed.stdout}`);
   }
-  if (!readFileSync(join(proj, ".claude", "settings.json"), "utf8").includes("ahk hook --tool smoke claude stop")) {
+  if (!readFileSync(join(proj, ".claude", "settings.json"), "utf8").includes("agent-harness-adapter hook --tool smoke claude stop")) {
     fail("install did not write the bridged hook");
   }
   const status = JSON.parse(run(["status", "--manifest", manifest, "--root", proj, "--json"], 0, { env }).stdout);

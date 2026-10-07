@@ -2,7 +2,7 @@
 
 ## Our pledge
 
-We want agent-harness-kit to be a project anyone can take part in. Everyone involved —
+We want agent-harness-adapter to be a project anyone can take part in. Everyone involved —
 contributors, maintainers, and people opening issues — is expected to help keep
 it that way.
 
@@ -29,7 +29,7 @@ commit messages — and whenever someone is representing the project elsewhere.
 
 Report a problem privately to the maintainer via the email on the
 [GitHub profile](https://github.com/six5536), or by opening a
-[private security advisory](https://github.com/six5536/agent-harness-kit/security) if you
+[private security advisory](https://github.com/six5536/agent-harness-adapter/security) if you
 would rather not use email.
 
 Reports are handled confidentially. The maintainer will respond as quickly as

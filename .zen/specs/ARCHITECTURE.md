@@ -2,7 +2,7 @@
 
 ## Project Purpose
 
-agent-harness-kit is a Rust workspace: the library `agent-harness-kit-core` for command-line tools that plug into LLM agent harnesses (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi, and any agent that reads `AGENTS.md`). A tool declares its integration once (instructions, skills, hooks, MCP servers, allowed commands, agents, commands); each harness adapter renders it into that agent's files, the kit installs them with shared content written once, reports their state without ever overwriting what the user changed, and translates hook input and answers for every harness. It also supplies findings reports, CLI exit and output conventions, and atomic file writes. It embeds no content of its own and depends on no tool.
+agent-harness-adapter is a Rust workspace: the library `agent-harness-adapter-core` for command-line tools that plug into LLM agent harnesses (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi, and any agent that reads `AGENTS.md`). A tool declares its integration once (instructions, skills, hooks, MCP servers, allowed commands, agents, commands); each harness adapter renders it into that agent's files, the library installs them with shared content written once, reports their state without ever overwriting what the user changed, and translates hook input and answers for every harness. It also supplies findings reports, CLI exit and output conventions, and atomic file writes. It embeds no content of its own and depends on no tool.
 
 ## System Overview
 
@@ -14,18 +14,18 @@ agent-harness-kit is a Rust workspace: the library `agent-harness-kit-core` for 
 - Report (`report`): findings and their text and JSON forms
 - CLI conventions (`cli`): exit codes, stdout, broken pipes, the `error:` runner
 - File IO (`fs`): whole-file reads and atomic writes
-- `ahk` CLI (crate `agent-harness-kit`): a tool's integration from a manifest file, for tools in any language
-- Bindings: Python (`six5536-agent-harness-kit`, PyO3) and Node (`@six5536/agent-harness-kit-node`, napi) over one shared JSON glue crate
-- Distribution: crates.io crates `agent-harness-kit-core` (the library) and `agent-harness-kit` (`ahk`); npm `@six5536/agent-harness-kit` (launcher) and `@six5536/agent-harness-kit-node` (binding), each with one prebuilt package per platform; PyPI `six5536-agent-harness-kit`; GitHub release archives. Source at `github.com/six5536/agent-harness-kit`
+- `agent-harness-adapter` CLI (crate `agent-harness-adapter`): a tool's integration from a manifest file, for tools in any language
+- Bindings: Python (`six5536-agent-harness-adapter`, PyO3) and Node (`@six5536/agent-harness-adapter-node`, napi) over one shared JSON glue crate
+- Distribution: crates.io crates `agent-harness-adapter-core` (the library) and `agent-harness-adapter` (`agent-harness-adapter`); npm `@six5536/agent-harness-adapter` (launcher) and `@six5536/agent-harness-adapter-node` (binding), each with one prebuilt package per platform; PyPI `six5536-agent-harness-adapter`; GitHub release archives. Source at `github.com/six5536/agent-harness-adapter`
 
 ## Technology Stack
 
 - `Rust 1 (edition 2024)` — the library; MSRV 1.85
 - `serde 1` / `serde_json 1` — hook JSON, results, manifests, and JSON merges (`preserve_order` keeps the user's key order)
 - `toml_edit 0` — the record, the declined parts and TOML merges (Codex `config.toml`), edited in place; manifests through its `serde` feature
-- `schemars 1` — optional feature: JSON Schema of the result, manifest and hook contract (on in `ahk`)
+- `schemars 1` — optional feature: JSON Schema of the result, manifest and hook contract (on in `agent-harness-adapter`)
 - `proptest 1`, `insta 1` — property and snapshot tests
-- `clap 4` — the `ahk` command line
+- `clap 4` — the `agent-harness-adapter` command line
 - `assert_cmd 2` — tests that run the binary
 - `pyo3 0.29` (abi3-py39) + maturin — the Python binding; `napi 3` — the Node binding
 - Node (launcher, version and smoke scripts), `cargo-zigbuild` + zig (static musl release binaries)
@@ -40,7 +40,7 @@ flowchart LR
         HookCmd[hook command]
         Cmds[other commands]
     end
-    subgraph Kit[agent-harness-kit-core]
+    subgraph Core[agent-harness-adapter-core]
         Integration[integration]
         Harness[harness: Harness contract, shared locations, install / status]
         Adapters[claude, codex, factory, gemini, copilot, cursor, pi, agents_md]
@@ -68,7 +68,7 @@ flowchart LR
 
 ```
 Cargo.toml                                # workspace: shared package fields and dependency versions
-crates/lib/agent-harness-kit-core/        # the library crate (crates.io `agent-harness-kit-core`)
+crates/lib/agent-harness-adapter-core/        # the library crate (crates.io `agent-harness-adapter-core`)
   src/                                    # lib.rs, error, fs, cli
   src/integration/                        # the neutral declaration: Integration and its items
   src/harness/                            # Harness contract, install / status, shared locations, parts, states, merge (JSON, TOML), region, record, declined
@@ -78,18 +78,18 @@ crates/lib/agent-harness-kit-core/        # the library crate (crates.io `agent-
   src/<harness>/                          # one adapter per harness: claude, codex, factory, gemini, copilot, cursor, pi, agents_md
   src/report/                             # findings, report, text form
   tests/                                  # integration tests through the public API (a test Tool over a temp dir)
-crates/app/agent-harness-kit/             # the `ahk` CLI crate (crates.io `agent-harness-kit`)
+crates/app/agent-harness-adapter/             # the `agent-harness-adapter` CLI crate (crates.io `agent-harness-adapter`)
   src/                                    # main.rs (clap), schema.rs
   tests/                                  # the binary run as a user runs it
-crates/bind/agent-harness-kit-bind/       # the bindings' shared JSON glue (not published)
-crates/bind/agent-harness-kit-py/         # the Python binding (PyO3 + maturin): src/ (_native), python/agent_harness_kit, tests/
-crates/bind/agent-harness-kit-node/       # the Node addon (napi)
-schema/                                   # the contracts' JSON Schemas, as `ahk schema` prints them
-examples/python-tool/                     # a Python tool driven by ahk, end to end (CI)
-packages/agent-harness-kit/               # npm launcher `@six5536/agent-harness-kit` (bin `ahk`)
-packages/agent-harness-kit-<platform>/    # one prebuilt-binary package per platform
-packages/agent-harness-kit-node/          # the Node binding `@six5536/agent-harness-kit-node`: loader, wrapper, types, tests
-packages/agent-harness-kit-node-<platform>/  # one prebuilt-addon package per platform
+crates/bind/agent-harness-adapter-bind/       # the bindings' shared JSON glue (not published)
+crates/bind/agent-harness-adapter-py/         # the Python binding (PyO3 + maturin): src/ (_native), python/agent_harness_adapter, tests/
+crates/bind/agent-harness-adapter-node/       # the Node addon (napi)
+schema/                                   # the contracts' JSON Schemas, as `agent-harness-adapter schema` prints them
+examples/python-tool/                     # a Python tool driven by agent-harness-adapter, end to end (CI)
+packages/agent-harness-adapter/               # npm launcher `@six5536/agent-harness-adapter` (bin `agent-harness-adapter`)
+packages/agent-harness-adapter-<platform>/    # one prebuilt-binary package per platform
+packages/agent-harness-adapter-node/          # the Node binding `@six5536/agent-harness-adapter-node`: loader, wrapper, types, tests
+packages/agent-harness-adapter-node-<platform>/  # one prebuilt-addon package per platform
 scripts/                                  # validate-consumers.sh; set / verify version, release, release and launcher smoke tests
 .zen/                                     # specs, plans, rules
 .github/workflows/                        # ci (checks), release, audit
@@ -145,11 +145,11 @@ RESPONSIBILITIES
 
 - Events, `HookInput`, `Answer`, `emit` through a harness
 - `LoopGuard`: block a stop hook once per text per key
-- The hook contract (`hook::wire`): the input and answer as versioned JSON, for `ahk hook` and the bindings
+- The hook contract (`hook::wire`): the input and answer as versioned JSON, for `agent-harness-adapter hook` and the bindings
 
 ### Manifest
 
-A tool's integration declared in a TOML or JSON file (REQ-AHK), for tools not written in Rust.
+A tool's integration declared in a TOML or JSON file (REQ-AHA), for tools not written in Rust.
 
 RESPONSIBILITIES
 
@@ -160,9 +160,9 @@ CONSTRAINTS
 
 - A manifest that loads never fails later because of its content
 
-### ahk CLI
+### agent-harness-adapter CLI
 
-The `ahk` command (crate `agent-harness-kit`): `install`, `status`, `hook` (the bridge), `schema`. Thin over the library; also shipped through npm.
+The `agent-harness-adapter` command (crate `agent-harness-adapter`): `install`, `status`, `hook` (the bridge), `schema`. Thin over the library; also shipped through npm.
 
 ### Bindings
 
@@ -194,32 +194,32 @@ RESPONSIBILITIES
 
 ## Component Interactions
 
-A tool implements `Tool`: its integration per scope and the harnesses it supports. Its `install` / `status` commands call the kit's functions for the harnesses the user names and print the result as text or JSON. Its hook command, installed per harness with the harness id and event in its arguments, looks the harness up, parses `HookInput` through it, decides an `Answer` (with `LoopGuard` where it blocks), and calls `emit` through the same harness.
+A tool implements `Tool`: its integration per scope and the harnesses it supports. Its `install` / `status` commands call the library's functions for the harnesses the user names and print the result as text or JSON. Its hook command, installed per harness with the harness id and event in its arguments, looks the harness up, parses `HookInput` through it, decides an `Answer` (with `LoopGuard` where it blocks), and calls `emit` through the same harness.
 
 ### Install
 
 ```mermaid
 sequenceDiagram
     participant Cli as tool harness install
-    participant Kit as harness::install
+    participant Core as harness::install
     participant Store as DeclinedStore
     participant FS as files under the root
-    Cli->>Kit: install(tool, options)
-    Kit->>FS: read record (adds recorded harnesses to the set)
-    Kit->>Store: declined parts per harness (unless --without given)
-    Kit->>Kit: each harness renders its profile and reads per item
-    Note over Kit: choose shared locations per item
-    Kit->>FS: observe each part not declined or shared
-    Note over Kit: states, then plan every write (refusals here write nothing)
-    Kit->>FS: external parts, then files, then the record (only on change)
-    Kit->>Store: set declined parts (when --without given)
-    Kit-->>Cli: InstallResult (per harness: state + action per part, notes; warnings)
+    Cli->>Core: install(tool, options)
+    Core->>FS: read record (adds recorded harnesses to the set)
+    Core->>Store: declined parts per harness (unless --without given)
+    Core->>Core: each harness renders its profile and reads per item
+    Note over Core: choose shared locations per item
+    Core->>FS: observe each part not declined or shared
+    Note over Core: states, then plan every write (refusals here write nothing)
+    Core->>FS: external parts, then files, then the record (only on change)
+    Core->>Store: set declined parts (when --without given)
+    Core-->>Cli: InstallResult (per harness: state + action per part, notes; warnings)
 ```
 
 ## Architectural Rules
 
-- No tool content and no dependency on any tool; consumers (smllm, sokf) depend on the kit, never the reverse
-- `harness`, `integration` and `hook` are harness-neutral; each harness's formats live in its own module; a harness from outside the kit needs no kit change
+- No tool content and no dependency on any tool; consumers (smllm, sokf) depend on the library, never the reverse
+- `harness`, `integration` and `hook` are harness-neutral; each harness's formats live in its own module; a harness from outside the library needs no library change
 - The public API never exposes a type from another crate's 0.x release
 - Public types that may grow are `#[non_exhaustive]`; new trait methods have defaults; adding a harness is a new module
 - Every file write is atomic and happens only on change; a refusal writes nothing; external parts are written before files
@@ -246,9 +246,9 @@ Unreleased; 0.1.0 (every crate and package) is published by PLAN-011 P9. The API
 - `cargo +nightly llvm-cov nextest --fail-under-lines 90` — coverage gate
 - `cargo publish --dry-run --workspace` — package check
 - `npm run test:launcher` — npm launcher tests
-- `maturin develop -m crates/bind/agent-harness-kit-py/Cargo.toml` then `python -m unittest discover -s crates/bind/agent-harness-kit-py/tests` — the Python binding (in a virtualenv)
-- `python3 examples/python-tool/test_example.py target/debug/ahk` — the example tool, end to end
-- `npm run build:node` then `AHK_NODE_ADDON=$PWD/target/debug/agent_harness_kit_node.node npm run test:node` — the Node binding
+- `maturin develop -m crates/bind/agent-harness-adapter-py/Cargo.toml` then `python -m unittest discover -s crates/bind/agent-harness-adapter-py/tests` — the Python binding (in a virtualenv)
+- `python3 examples/python-tool/test_example.py target/debug/agent-harness-adapter` — the example tool, end to end
+- `npm run build:node` then `AHA_NODE_ADDON=$PWD/target/debug/agent_harness_adapter_node.node npm run test:node` — the Node binding
 - `npm run verify-version` / `npm run set-version <v>` — one version across Cargo, packages and lockfiles
 - `npm run smoke` / `npm run smoke:launcher` — the release binary and the packed launcher
 - `npm run release <v>` — release commit and tag (never pushes)
@@ -256,5 +256,5 @@ Unreleased; 0.1.0 (every crate and package) is published by PLAN-011 P9. The API
 
 ## Change Log
 
-- 0.1.0 (2026-10-07): a Rust workspace; the library is `agent-harness-kit-core` (PLAN-011)
+- 0.1.0 (2026-10-07): a Rust workspace; the library is `agent-harness-adapter-core` (PLAN-011)
 - 0.1.0 (2026-10-06): Initial architecture, extracted from smllm (PLAN-009); multi-harness: integration, harness adapters, shared locations, neutral hooks (PLAN-010)

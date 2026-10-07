@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and test the tools that use the kit against this checkout, before a
+# Build and test the tools that use the library against this checkout, before a
 # release (PLAN-009 D9-18). Their repositories are private, so their URLs are
 # not committed: set SMLLM_REPO and SOKF_REPO to the clone URLs. Checkouts
 # land in consumers/ (gitignored) and are tested as they are; BRANCH checks
@@ -13,8 +13,8 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 dir="$root/consumers"
 mkdir -p "$dir"
 
-# The kit for every consumer: this checkout, without editing their manifests.
-patch="patch.crates-io.agent-harness-kit-core.path=\"$root/crates/lib/agent-harness-kit-core\""
+# The library for every consumer: this checkout, without editing their manifests.
+patch="patch.crates-io.agent-harness-adapter-core.path=\"$root/crates/lib/agent-harness-adapter-core\""
 
 validate() {
   local name="$1" url="$2"

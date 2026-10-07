@@ -3,26 +3,26 @@
 version = 4
 
 [[package]]
-name = "agent-harness-kit"
+name = "agent-harness-adapter"
 version = "0.1.0"
 dependencies = [
- "agent-harness-kit-core",
+ "agent-harness-adapter-core",
  "assert_cmd",
  "clap",
  "serde_json",
 ]
 
 [[package]]
-name = "agent-harness-kit-bind"
+name = "agent-harness-adapter-bind"
 version = "0.1.0"
 dependencies = [
- "agent-harness-kit-core",
+ "agent-harness-adapter-core",
  "serde",
  "serde_json",
 ]
 
 [[package]]
-name = "agent-harness-kit-core"
+name = "agent-harness-adapter-core"
 version = "0.1.0"
 dependencies = [
  "insta",
@@ -34,20 +34,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "agent-harness-kit-node"
+name = "agent-harness-adapter-node"
 version = "0.1.0"
 dependencies = [
- "agent-harness-kit-bind",
+ "agent-harness-adapter-bind",
  "napi",
  "napi-build",
  "napi-derive",
 ]
 
 [[package]]
-name = "agent-harness-kit-py"
+name = "agent-harness-adapter-py"
 version = "0.1.0"
 dependencies = [
- "agent-harness-kit-bind",
+ "agent-harness-adapter-bind",
  "pyo3",
 ]
 

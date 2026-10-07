@@ -1,11 +1,11 @@
 [workspace]
 resolver = "3"
 members = [
-  "crates/lib/agent-harness-kit-core",
-  "crates/app/agent-harness-kit",
-  "crates/bind/agent-harness-kit-bind",
-  "crates/bind/agent-harness-kit-py",
-  "crates/bind/agent-harness-kit-node",
+  "crates/lib/agent-harness-adapter-core",
+  "crates/app/agent-harness-adapter",
+  "crates/bind/agent-harness-adapter-bind",
+  "crates/bind/agent-harness-adapter-py",
+  "crates/bind/agent-harness-adapter-node",
 ]
 
 [workspace.package]
@@ -14,11 +14,11 @@ authors = ["six5536 <10079653+six5536@users.noreply.github.com>"]
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
-repository = "https://github.com/six5536/agent-harness-kit"
-homepage = "https://github.com/six5536/agent-harness-kit"
+repository = "https://github.com/six5536/agent-harness-adapter"
+homepage = "https://github.com/six5536/agent-harness-adapter"
 
 [workspace.dependencies]
-agent-harness-kit-core = { version = "0.1.0", path = "crates/lib/agent-harness-kit-core" }
+agent-harness-adapter-core = { version = "0.1.0", path = "crates/lib/agent-harness-adapter-core" }
 clap = { version = "4.6", features = ["derive"] }
 serde = { version = "1", features = ["derive", "std"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }

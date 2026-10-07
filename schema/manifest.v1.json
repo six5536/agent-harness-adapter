@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "AHK manifest",
+  "title": "AHA manifest",
   "description": "A manifest file (version 1).",
   "type": "object",
   "properties": {
@@ -25,8 +25,8 @@
         }
       ]
     },
-    "ahk": {
-      "description": "The command bridged hooks run: `ahk` by default.",
+    "adapter": {
+      "description": "The command bridged hooks run: `agent-harness-adapter` by default.",
       "type": [
         "string",
         "null"
@@ -302,7 +302,7 @@
       }
     },
     "HookFile": {
-      "description": "A hook: `command` (a template the harness runs) or `run` (a command\n`ahk hook` runs with the hook contract), not both.",
+      "description": "A hook: `command` (a template the harness runs) or `run` (a command\n`agent-harness-adapter hook` runs with the hook contract), not both.",
       "type": "object",
       "properties": {
         "event": {
@@ -318,7 +318,7 @@
           "default": null
         },
         "run": {
-          "description": "A command bridged through `ahk hook`: it reads the hook input on\nstdin and writes an answer on stdout.",
+          "description": "A command bridged through `agent-harness-adapter hook`: it reads the hook input on\nstdin and writes an answer on stdout.",
           "type": [
             "string",
             "null"

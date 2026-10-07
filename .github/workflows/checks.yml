@@ -106,7 +106,7 @@ jobs:
           tool: cargo-llvm-cov,cargo-nextest
 
       # One gate per crate (PLAN-011 N1): the library's lines must not carry
-      # the CLI's or the bindings', nor the reverse. Tests that run the `ahk` binary count:
+      # the CLI's or the bindings', nor the reverse. Tests that run the `agent-harness-adapter` binary count:
       # cargo-llvm-cov instruments it too.
       - name: Coverage gate (line >= 90%, per crate)
         run: |
@@ -115,7 +115,7 @@ jobs:
           cargo +nightly llvm-cov report --summary-only --ignore-filename-regex 'crates/(lib|bind)/' --fail-under-lines 90
           # The bindings' shared glue; the PyO3 and napi layers are tested
           # from Python and Node.
-          cargo +nightly llvm-cov report --summary-only --ignore-filename-regex 'crates/(lib|app)/|crates/bind/agent-harness-kit-(py|node)/' --fail-under-lines 90
+          cargo +nightly llvm-cov report --summary-only --ignore-filename-regex 'crates/(lib|app)/|crates/bind/agent-harness-adapter-(py|node)/' --fail-under-lines 90
 
   node:
     # The npm launcher's unit tests (on every OS: it resolves Windows' .exe)
@@ -138,7 +138,7 @@ jobs:
         run: npm run verify-version
 
   example:
-    # A tool in another language, end to end through the ahk binary.
+    # A tool in another language, end to end through the agent-harness-adapter binary.
     name: example (python tool)
     runs-on: ubuntu-latest
     steps:
@@ -146,15 +146,15 @@ jobs:
       - name: Install the pinned toolchain
         run: rustup toolchain install --profile minimal
       - uses: Swatinem/rust-cache@v2
-      - name: Build ahk
-        run: cargo build --locked -p agent-harness-kit
+      - name: Build agent-harness-adapter
+        run: cargo build --locked -p agent-harness-adapter
       - name: Run the example
-        run: python3 examples/python-tool/test_example.py target/debug/ahk
+        run: python3 examples/python-tool/test_example.py target/debug/agent-harness-adapter
 
   # @zen-test: BND-4_AC-1
   python:
     # The Python binding, built as a wheel and tested on every OS, against
-    # the ahk binary's own results (BND_P-1).
+    # the agent-harness-adapter binary's own results (BND_P-1).
     name: python binding (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -169,22 +169,22 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: Build ahk and the wheel
+      - name: Build agent-harness-adapter and the wheel
         shell: bash
         run: |
-          cargo build --locked -p agent-harness-kit
+          cargo build --locked -p agent-harness-adapter
           python -m pip install "maturin>=1.9,<2"
-          maturin build --locked --manifest-path crates/bind/agent-harness-kit-py/Cargo.toml -o dist
-          python -m pip install --no-index --find-links dist six5536-agent-harness-kit
+          maturin build --locked --manifest-path crates/bind/agent-harness-adapter-py/Cargo.toml -o dist
+          python -m pip install --no-index --find-links dist six5536-agent-harness-adapter
       - name: Test
         shell: bash
         # `pwd -W` gives Git Bash's directory as a Windows path, which Python
         # can run; elsewhere it fails and `pwd` is used.
-        run: AHK="$(pwd -W 2>/dev/null || pwd)/target/debug/ahk" python -m unittest discover -s crates/bind/agent-harness-kit-py/tests -v
+        run: AHA="$(pwd -W 2>/dev/null || pwd)/target/debug/agent-harness-adapter" python -m unittest discover -s crates/bind/agent-harness-adapter-py/tests -v
 
   node-binding:
     # The Node binding, built for the host and tested on every OS, against
-    # the ahk binary's own results (BND_P-1).
+    # the agent-harness-adapter binary's own results (BND_P-1).
     name: node binding (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -199,15 +199,15 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 26
-      - name: Build ahk and the addon
+      - name: Build agent-harness-adapter and the addon
         run: |
-          cargo build --locked -p agent-harness-kit
+          cargo build --locked -p agent-harness-adapter
           node scripts/build-node.mjs
       - name: Test
         shell: bash
         run: |
           root="$(pwd -W 2>/dev/null || pwd)"
-          AHK="$root/target/debug/ahk" AHK_NODE_ADDON="$root/target/debug/agent_harness_kit_node.node" \
+          AHA="$root/target/debug/agent-harness-adapter" AHA_NODE_ADDON="$root/target/debug/agent_harness_adapter_node.node" \
             npm run test:node
 
   deny:

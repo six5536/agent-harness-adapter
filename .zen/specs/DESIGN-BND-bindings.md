@@ -2,7 +2,7 @@
 
 ## Overview
 
-REQ-BND as three crates. `agent-harness-kit-bind` holds the JSON glue once: manifest sources, options, results as JSON, hook parsing and rendering, schemas. The PyO3 and napi crates only move strings across the boundary; a small Python package and a small JS module turn them into native objects and errors. Nothing here is published to crates.io.
+REQ-BND as three crates. `agent-harness-adapter-bind` holds the JSON glue once: manifest sources, options, results as JSON, hook parsing and rendering, schemas. The PyO3 and napi crates only move strings across the boundary; a small Python package and a small JS module turn them into native objects and errors. Nothing here is published to crates.io.
 
 ## Architecture
 
@@ -12,36 +12,36 @@ AFFECTED LAYERS: bindings (new), library (unchanged)
 
 ```mermaid
 flowchart LR
-    Py[agent_harness_kit (Python)] -->|JSON strings| PyExt[_native: PyO3]
-    Js[@six5536/agent-harness-kit-node] -->|JSON strings| Node[index.node: napi]
-    PyExt --> Bind[agent-harness-kit-bind]
+    Py[agent_harness_adapter (Python)] -->|JSON strings| PyExt[_native: PyO3]
+    Js[@six5536/agent-harness-adapter-node] -->|JSON strings| Node[index.node: napi]
+    PyExt --> Bind[agent-harness-adapter-bind]
     Node --> Bind
-    Bind --> Core[agent-harness-kit-core: manifest, install / status, hook::wire, schemas]
+    Bind --> Core[agent-harness-adapter-core: manifest, install / status, hook::wire, schemas]
 ```
 
 ### Module Organization
 
 ```
 crates/bind/
-├── agent-harness-kit-bind/     the shared glue (publish = false)
+├── agent-harness-adapter-bind/     the shared glue (publish = false)
 │   └── src/lib.rs              Source, Options, install, status, parse_hook, answer_hook, schema
-├── agent-harness-kit-py/       PyPI six5536-agent-harness-kit
+├── agent-harness-adapter-py/       PyPI six5536-agent-harness-adapter
 │   ├── Cargo.toml, pyproject.toml (maturin, abi3-py39)
-│   ├── src/lib.rs              module agent_harness_kit._native
-│   ├── python/agent_harness_kit/__init__.py, py.typed
+│   ├── src/lib.rs              module agent_harness_adapter._native
+│   ├── python/agent_harness_adapter/__init__.py, py.typed
 │   └── tests/test_binding.py
-└── agent-harness-kit-node/     npm @six5536/agent-harness-kit-node
+└── agent-harness-adapter-node/     npm @six5536/agent-harness-adapter-node
     ├── Cargo.toml, build.rs (napi-build)
     └── src/lib.rs              the addon
-packages/agent-harness-kit-node/            index.js (loader, JSON), index.d.ts, test/
-packages/agent-harness-kit-node-<platform>/ index.node
+packages/agent-harness-adapter-node/            index.js (loader, JSON), index.d.ts, test/
+packages/agent-harness-adapter-node-<platform>/ index.node
 ```
 
 ### Architectural Decisions
 
 - JSON STRINGS ACROSS THE BOUNDARY: one conversion, written once in the glue crate and once per wrapper with the language's own JSON. Alternatives: `pythonize` / napi object conversion (new dependencies, a converter per language)
 - OUR OWN NODE LOADER: platform packages and a loader like the CLI launcher's, so the npm layout and release steps are one pattern. Alternatives: `@napi-rs/cli`'s generated loader and its release flow
-- ANSWER WITHOUT `emit`: `answer_hook` renders through `Harness::answer` and raises on an answer the harness cannot express, where `ahk hook` (a process) prints `error:` and exits 1
+- ANSWER WITHOUT `emit`: `answer_hook` renders through `Harness::answer` and raises on an answer the harness cannot express, where `agent-harness-adapter hook` (a process) prints `error:` and exits 1
 
 ## Components and Interfaces
 
@@ -64,7 +64,7 @@ pub const MANIFEST_VERSION: u64; pub const HOOK_VERSION: u64;
 
 ### BND-Python
 
-`_native` exposes the glue with `str` in and out and `ValueError` for errors; `agent_harness_kit/__init__.py` takes `str | os.PathLike | dict` manifests and keyword options, and returns `dict`s.
+`_native` exposes the glue with `str` in and out and `ValueError` for errors; `agent_harness_adapter/__init__.py` takes `str | os.PathLike | dict` manifests and keyword options, and returns `dict`s.
 
 IMPLEMENTS: BND-1_AC-3, BND-2_AC-4, BND-4_AC-1
 
@@ -103,14 +103,14 @@ version: string; MANIFEST_VERSION: number; HOOK_VERSION: number
 
 ## Correctness Properties
 
-- BND_P-1 [Same as ahk]: for the same manifest and options, a binding's result equals `ahk --json`'s
+- BND_P-1 [Same as agent-harness-adapter]: for the same manifest and options, a binding's result equals `agent-harness-adapter --json`'s
   VALIDATES: BND-1_AC-1, BND-1_AC-2
 
 ## Error Handling
 
 ### Glue errors
 
-A `String`: the kit's error message (`Error`'s display), or what is wrong with the options.
+A `String`: the library's error message (`Error`'s display), or what is wrong with the options.
 
 ### Strategy
 
