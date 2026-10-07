@@ -151,6 +151,7 @@ jobs:
       - name: Run the example
         run: python3 examples/python-tool/test_example.py target/debug/ahk
 
+  # @zen-test: BND-4_AC-1
   python:
     # The Python binding, built as a wheel and tested on every OS, against
     # the ahk binary's own results (BND_P-1).

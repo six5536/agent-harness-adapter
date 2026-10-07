@@ -4,6 +4,7 @@
 // as an optional dependency, or AHK_NODE_ADDON (a local build). Logic is
 // dependency-injected so it is testable without the platform packages.
 
+// @zen-impl: BND-4_AC-2
 const PACKAGES = {
   "linux x64": "@six5536/agent-harness-kit-node-linux-x64-gnu",
   "linux arm64": "@six5536/agent-harness-kit-node-linux-arm64-gnu",

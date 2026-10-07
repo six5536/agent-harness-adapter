@@ -29,8 +29,10 @@ impl Contract {
     }
 }
 
-/// Print the schema of `contract`, pretty, with a final newline.
+/// Print the schema of `contract`, pretty, with a final newline: the text
+/// kept in `schema/<contract>.v1.json`.
 // @zen-impl: AHK-5_AC-1
+// @zen-impl: AHK-5_AC-2
 pub fn run(contract: Contract) -> std::io::Result<u8> {
     let mut text = serde_json::to_string_pretty(&contract.schema()).expect("a schema serialises");
     text.push('\n');

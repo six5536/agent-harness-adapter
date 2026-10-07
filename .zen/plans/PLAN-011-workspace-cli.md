@@ -2,9 +2,9 @@
 
 | Field              | Value |
 | ------------------ | ----- |
-| Status             | in-progress: P1–P8 done (2026-10-07) |
+| Status             | in-progress: P1–P8 done (2026-10-07); P9 (release) waits for the secrets and a go-ahead (§9) |
 | Workflow direction | top-down (layout → architecture → requirements → design → code → docs → release) |
-| Traces to          | ARCHITECTURE, REQ-KIT, REQ-HAR, DESIGN-KIT, DESIGN-HAR, PLAN-009 (D9-4, D9-5, F8, F9), PLAN-010 P9 |
+| Traces to          | ARCHITECTURE, REQ-KIT, REQ-HAR, REQ-AHK, REQ-BND, DESIGN-KIT, DESIGN-HAR, DESIGN-AHK, DESIGN-BND, PLAN-009 (D9-4, D9-5, F8, F9), PLAN-010 P9 |
 
 ## 1. Goal
 
@@ -102,3 +102,24 @@ Registry check (2026-10-07): crates.io `agent-harness-kit` and `agent-harness-ki
 - D11-13: Bindings' names: npm `@six5536/agent-harness-kit-node`; PyPI `six5536-agent-harness-kit` (import `agent_harness_kit`).
 - D11-14: 0.1.0 ships everything: P9 follows P8.
 - D11-15: Dependencies approved: `clap` (P2), `pyo3` (P7), `napi` / `napi-derive` / `napi-build` (P8).
+
+## 8. Implementation notes (P1–P8, 2026-10-07)
+
+Where the build differs from §2–§6, and why:
+
+- The manifest (`manifest`) and the hook contract (`hook::wire`) live in the library, not the CLI (§6 P3), so the CLI and both bindings share them (DESIGN-AHK).
+- Roots are not in the manifest (D11-6): the project directory is `--root` (default: the working directory) and the home directory comes from the environment; a manifest describes the tool, not where it is installed.
+- Bridged hooks are `<ahk> hook --tool <name> {harness} {event} -- <run>` (D11-7 had no `--tool`): the tool's name in the template keeps two bridged tools from owning each other's hook entries. A manifest hook gives `run` (bridged) or `command` (its own template).
+- `ahk hook` has no timeout (D11-7): the harness's hook timeout applies (REQ-AHK out of scope).
+- Manifest parsing uses `toml_edit`'s `serde` feature, which adds its sibling crate `serde_spanned`; nothing else new beyond D11-15. `@napi-rs/cli` (N3) is not used: the Node loader follows the CLI launcher's pattern.
+- Library additions (D11-5): serde on `HookInput`, `ToolCall`, `Event`, `ToolKind`, `Answer`; `InstallResult::schema`; `harness::installed` (KIT-5_AC-2: `status` with no harness named), `harness::expand` (KIT-1_AC-3: `all`), `fs::home_dir` (KIT-15_AC-3).
+- Bindings: one JSON glue crate (`agent-harness-kit-bind`, not published) under thin PyO3 / napi layers and small Python / JS wrappers (DESIGN-BND), plus `run_hook` / `runHook` (BND-2_AC-4) so a tool can be a hook command without `ahk`. Node addons are built for glibc Linux (2.17); musl hosts get a clear error and can use `ahk`.
+- The MSRV check covers the whole workspace: pyo3 0.29 and napi 3 build on 1.85.
+- `cargo test` builds examples; the bridge's tests use `examples/fake_tool.rs`, found by walking up from the test binary (cargo's build-dir layout differs between toolchains).
+- Not verified here: macOS and Windows (CI covers them on first push), the release workflow (runs only on a tag), the real agents (PLAN-010 N4).
+
+## 9. Before P9
+
+- Secrets / settings: `CARGO_REGISTRY_TOKEN`; `NPM_TOKEN` with publish rights on the `@six5536` scope; a PyPI trusted publisher for `six5536-agent-harness-kit` naming this repository, `release.yml` and the environment `pypi` (and that environment in the repository).
+- Push `main`, let CI pass on three OSes, then `npm run release 0.1.0` (commit and tag; never pushes) and push the tag only on explicit confirmation.
+- Consumers then switch from the path dependency to `agent-harness-kit-core = "0.1"`.

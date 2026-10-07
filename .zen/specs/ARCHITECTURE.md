@@ -232,7 +232,7 @@ sequenceDiagram
 
 STATUS: Alpha
 
-Unreleased; 0.1.0 is published once PLAN-010 is done. The API may change in minor versions before 1.0.
+Unreleased; 0.1.0 (every crate and package) is published by PLAN-011 P9. The API may change in minor versions before 1.0.
 
 ## Developer Commands
 

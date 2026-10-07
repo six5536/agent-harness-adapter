@@ -69,6 +69,7 @@ test("refusals throw the kit's message", { skip }, () =>
   }),
 );
 
+// @zen-test: BND_P-1
 test("the same results as ahk", { skip: skip || (process.env.AHK ? false : "AHK is not set") }, () =>
   tree((t) => {
     const file = join(t.dir, "t.harness.json");

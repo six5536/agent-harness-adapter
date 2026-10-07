@@ -162,6 +162,7 @@ impl Harness for Pi {
         Ok(input)
     }
 
+    // @zen-impl: AHK-2_AC-3
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
         Ok(match (answer, event) {
             (Answer::Allow { stderr }, _) => {

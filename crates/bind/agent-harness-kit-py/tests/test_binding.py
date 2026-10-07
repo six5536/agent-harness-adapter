@@ -67,7 +67,8 @@ class InstallStatus(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "no scope named `global`"):
                 ahk.status(MANIFEST, scope="global", root=t.proj, home=t.home)
 
-    # BND_P-1: the same result as `ahk --json`.
+    # @zen-test: BND_P-1
+    # The same result as `ahk --json`.
     @unittest.skipUnless(os.environ.get("AHK"), "AHK is not set")
     def test_the_same_as_ahk(self):
         with Tree() as t:

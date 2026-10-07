@@ -23,6 +23,7 @@ dynamic = ["version"]
 Homepage = "https://github.com/six5536/agent-harness-kit"
 Repository = "https://github.com/six5536/agent-harness-kit"
 
+# @zen-impl: BND-4_AC-1 (abi3-py39 wheels and an sdist; release.yml builds them per platform)
 [tool.maturin]
 python-source = "python"
 module-name = "agent_harness_kit._native"
