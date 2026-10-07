@@ -112,7 +112,7 @@
           "type": "string"
         },
         "by": {
-          "description": "The harness that writes a shared part. Left out of the JSON when\n`None`.",
+          "description": "The harness that writes a shared part, or (uninstall, `kept`) the\nharnesses that still use it. Left out of the JSON when `None`.",
           "type": "string"
         }
       },

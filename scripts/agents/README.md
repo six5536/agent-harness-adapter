@@ -40,7 +40,7 @@ Notes:
   cannot start (e.g. containers without user namespaces).
 - Claude Code runs with `-p` (no trust dialog) and `--dangerously-skip-permissions`; the checks remove any `CLAUDE*` variables of a surrounding Claude Code session, so the test agent uses only the checks' `HOME`.
 - Gemini CLI runs with `--approval-mode yolo` and `GEMINI_CLI_TRUST_WORKSPACE=true`.
-- Copilot CLI runs with `--allow-all --no-ask-user`.
+- Copilot CLI runs with `--allow-all --no-ask-user`; Copilot loads a repository's hooks only from a trusted folder, so the checks add the project to `trustedFolders` in its `config.json` (`copilot config` cannot set that key). Copilot takes no context from hooks, so A4 and A7b show `n/a`.
 - Pi trusts the project through `--approve`. `pi -p` prints only its last
   message, so the checks read Pi's session file for the whole reply.
 - To add an agent: an entry in `AGENTS` in `run.mjs` (package, version, how

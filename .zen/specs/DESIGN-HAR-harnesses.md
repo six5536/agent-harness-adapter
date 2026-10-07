@@ -107,7 +107,7 @@ IMPLEMENTS: HAR-4_AC-1, HAR-4_AC-2, HAR-4_AC-3, HAR-4_AC-4, HAR-4_AC-5, HAR-4_AC
 
 Scopes project, user, local. Instructions `AGENTS.md` / `.copilot/copilot-instructions.md`; `reads` always `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`. Hooks: `Part::files("hooks", ".github/hooks" | ".copilot/hooks", [("<tool>.json", doc)])`, `doc = {"version":1,"hooks":{event:[{"type":"command","bash":cmd,"powershell":cmd,"timeoutSec":n}]}}`; at local scope `owned_entry(["hooks", event], "bash", owner, entry)` in `.github/copilot/settings.local.json`; `reads(Hooks)` maybe `.claude/settings.json`. Input: camelCase fields, `toolArgs` parsed when it is a string. Answers: allow `{}`; deny before a tool `{"permissionDecision":"deny","permissionDecisionReason":…}`; continue at `agentStop` `{"decision":"block","reason":…}`; others `Unsupported`. Skills `.agents/skills` (`reads` always also `.claude/skills`, `.github/skills`); agents `.github/agents/<name>.agent.md` (`reads` maybe `.claude/agents`); MCP `.mcp.json` / `.copilot/mcp-config.json`.
 
-IMPLEMENTS: HAR-5_AC-1, HAR-5_AC-2, HAR-5_AC-3, HAR-5_AC-4, HAR-5_AC-5, HAR-5_AC-6, HAR-5_AC-7, HAR-5_AC-8, HAR-5_AC-9
+IMPLEMENTS: HAR-5_AC-1, HAR-5_AC-2, HAR-5_AC-3, HAR-5_AC-4, HAR-5_AC-5, HAR-5_AC-6, HAR-5_AC-7, HAR-5_AC-8, HAR-5_AC-9, HAR-5_AC-10
 
 ### HAR-Cursor
 
@@ -182,7 +182,7 @@ SOURCE: .zen/specs/REQ-HAR-harnesses.md
 - HAR-2_AC-1..AC-7 → HAR-Codex
 - HAR-3_AC-1..AC-6 → HAR-Factory
 - HAR-4_AC-1..AC-9 → HAR-Gemini (HAR_P-1 for AC-5)
-- HAR-5_AC-1..AC-9 → HAR-Copilot (HAR_P-1 for AC-5)
+- HAR-5_AC-1..AC-10 → HAR-Copilot (HAR_P-1 for AC-5)
 - HAR-6_AC-1..AC-8 → HAR-Cursor (HAR_P-1 for AC-5)
 - HAR-7_AC-1..AC-7 → HAR-Pi (HAR_P-1 for AC-4)
 - HAR-8_AC-1..AC-3 → HAR-AgentsMd

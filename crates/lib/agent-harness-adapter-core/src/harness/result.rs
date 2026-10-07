@@ -63,15 +63,14 @@ pub struct PartResult {
     /// The part's path relative to the root, `/`-separated; an external
     /// part's location; a shared part's covering location.
     pub path: String,
-    /// The harness that writes a shared part. Left out of the JSON when
-    /// `None`.
+    /// The harness that writes a shared part, or (uninstall, `kept`) the
+    /// harnesses that still use it. Left out of the JSON when `None`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     pub by: Option<String>,
 }
 
 impl PartResult {
-    /// The report word: the action, else the state.
     /// Whether this run wrote the part (created, rewrote or updated it).
     pub fn wrote(&self) -> bool {
         matches!(
@@ -85,6 +84,7 @@ impl PartResult {
         self.wrote() || self.action == Some(Action::Removed)
     }
 
+    /// The report word: the action, else the state.
     pub fn verb(&self) -> &'static str {
         self.action
             .map_or_else(|| self.state.as_str(), Action::as_str)

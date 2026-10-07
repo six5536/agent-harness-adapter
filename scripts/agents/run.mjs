@@ -89,7 +89,23 @@ const AGENTS = {
       "json",
       ...(a.opts.copilotModel ? ["--model", a.opts.copilotModel] : []),
     ],
-    prepare: () => {},
+    /**
+     * Trust the project, as answering Copilot's trust prompt does: Copilot
+     * loads a repository's hooks only from a trusted folder. The list lives
+     * in its managed config.json (`copilot config` will not set it).
+     */
+    prepare: (a, proj) => {
+      const file = join(a.home, ".copilot", "config.json");
+      mkdirSync(dirname(file), { recursive: true });
+      const text = existsSync(file) ? readFileSync(file, "utf8") : "{}";
+      const lines = text.split("\n");
+      const head = lines.filter((l) => l.trimStart().startsWith("//"));
+      const body = JSON.parse(lines.filter((l) => !l.trimStart().startsWith("//")).join("\n") || "{}");
+      body.trustedFolders = [...new Set([...(body.trustedFolders ?? []), proj])];
+      writeFileSync(file, `${[...head, JSON.stringify(body, null, 2)].join("\n")}\n`);
+    },
+    // Copilot takes no context from a hook (HAR-5_AC-5).
+    unsupported: ["A4 session-start context", "A7b post-tool context"],
   },
   codex: {
     pkg: "@openai/codex",
@@ -283,7 +299,10 @@ const MAIN = `Do these steps in order and keep your answer short:
 /** Run every check for one agent; returns rows of [check, ok, detail, soft]. */
 function checks(a, base) {
   const rows = [];
-  const check = (name, ok, detail = "", soft = false) => rows.push([name, ok, detail, soft]);
+  const check = (name, ok, detail = "", soft = false) => {
+    if (a.def.unsupported?.includes(name)) rows.push([name, null, "unsupported by this agent", true]);
+    else rows.push([name, ok, detail, soft]);
+  };
   const dir = join(base, a.id);
   const proj = join(dir, "proj");
   mkdirSync(proj, { recursive: true });
@@ -375,7 +394,8 @@ function runChecks(opts) {
     console.log(`== ${id} (${version})`);
     results[id] = checks(a, base);
     for (const [name, ok, detail, soft] of results[id]) {
-      console.log(`  ${ok ? "pass" : soft ? "warn" : "FAIL"}  ${name}${detail && !ok ? `  (${detail.trim()})` : ""}`);
+      const word = ok === null ? "n/a " : ok ? "pass" : soft ? "warn" : "FAIL";
+      console.log(`  ${word}  ${name}${detail && !ok ? `  (${detail.trim()})` : ""}`);
     }
   }
   writeFileSync(join(base, "results.json"), JSON.stringify(results, null, 2));

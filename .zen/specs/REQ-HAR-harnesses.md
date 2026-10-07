@@ -95,6 +95,7 @@ ACCEPTANCE CRITERIA
 - [ ] HAR-5_AC-7 [ubiquitous]: MCP servers SHALL be MCP JSON in `.mcp.json` (`.copilot/mcp-config.json` at user scope)
 - [ ] HAR-5_AC-8 [ubiquitous]: Allowed commands SHALL be unsupported (no file holds them)
 - [ ] HAR-5_AC-9 [ubiquitous]: Copilot in VS Code MAY load Claude Code's hooks (`chat.useClaudeHooks`) and agents (`.claude/agents`)
+- [ ] HAR-5_AC-10 [ubiquitous]: After an install that wrote the hooks at project or local scope, notes SHALL say that Copilot runs the repository's hooks only in a trusted folder (confirmed with Copilot CLI 1.0.92, PLAN-013)
 
 ### HAR-6: Cursor (`cursor`) [MUST]
 

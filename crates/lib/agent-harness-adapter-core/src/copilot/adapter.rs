@@ -16,7 +16,7 @@ use serde_json::{Map, Value, json, ser::PrettyFormatter};
 use crate::{
     Result,
     common::{parts, protocol},
-    harness::{Context, Harness, MergeOp, Part, Reads, Scope},
+    harness::{Context, Harness, MergeOp, Part, PartResult, Reads, Scope},
     hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind},
     integration::{Hook, Integration, Item},
 };
@@ -217,6 +217,16 @@ impl Harness for Copilot {
     }
 
     // @zen-impl: HAR-5_AC-5
+    // @zen-impl: HAR-5_AC-10
+    fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
+        let hooks = parts.iter().any(|p| p.part == "hooks" && p.wrote());
+        if hooks && cx.scope != Scope::User {
+            vec!["Copilot runs the repository's hooks only in a trusted folder".into()]
+        } else {
+            Vec::new()
+        }
+    }
+
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
         Ok(match (answer, event) {
             (Answer::Allow { stderr }, _) => Output::json(json!({})).stderr(stderr.clone()),
@@ -387,6 +397,34 @@ mod tests {
     }
 
     // @zen-test: HAR-5_AC-5
+    // @zen-test: HAR-5_AC-10
+    #[test]
+    fn notes_say_hooks_need_a_trusted_folder() {
+        let part = |action| PartResult {
+            part: "hooks".into(),
+            state: crate::harness::State::Absent,
+            action,
+            path: String::new(),
+            by: None,
+        };
+        let cx = Context::new("t", Scope::Project, "/nowhere", None);
+        assert_eq!(
+            Copilot.notes(&cx, &[part(Some(crate::harness::Action::Created))]),
+            ["Copilot runs the repository's hooks only in a trusted folder"]
+        );
+        assert!(
+            Copilot
+                .notes(&cx, &[part(Some(crate::harness::Action::Removed))])
+                .is_empty()
+        );
+        let user = Context::new("t", Scope::User, "/nowhere", None);
+        assert!(
+            Copilot
+                .notes(&user, &[part(Some(crate::harness::Action::Created))])
+                .is_empty()
+        );
+    }
+
     #[test]
     fn answers() {
         let out = |e, a: Answer| Copilot.answer(e, &a).map(|o| o.stdout);
