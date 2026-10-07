@@ -3,7 +3,9 @@
 use std::{io::Write, path::PathBuf};
 
 use agent_harness_kit_core::{
-    InstallOptions, InstallResult, Scope, State, cli, install, installed,
+    InstallOptions, InstallResult, Scope, State, cli, fs,
+    harness::expand,
+    install, installed,
     manifest::{Manifest, ManifestTool},
     status,
 };
@@ -63,39 +65,16 @@ fn tool(common: &Common) -> Result<ManifestTool> {
         Some(r) => r.clone(),
         None => std::env::current_dir()?,
     };
-    Ok(ManifestTool::new(manifest, project, home()?))
-}
-
-/// The home directory: `HOME`, else `USERPROFILE` (Windows).
-fn home() -> Result<PathBuf> {
-    ["HOME", "USERPROFILE"]
-        .iter()
-        .filter_map(std::env::var_os)
-        .find(|v| !v.is_empty())
-        .map(PathBuf::from)
-        .ok_or_else(|| Error::Usage("no home directory: set HOME".into()))
-}
-
-/// The harness ids `names` stands for: `all` is every harness of the
-/// manifest with files at `scope`.
-fn ids(tool: &ManifestTool, names: &[String], scope: Scope) -> Vec<String> {
-    use agent_harness_kit_core::Tool;
-    if names.iter().any(|n| n == "all") {
-        return tool
-            .harnesses()
-            .iter()
-            .filter(|h| h.scopes().contains(&scope))
-            .map(|h| h.id().to_string())
-            .collect();
-    }
-    names.to_vec()
+    let home = fs::home_dir().ok_or_else(|| Error::Usage("no home directory: set HOME".into()))?;
+    Ok(ManifestTool::new(manifest, project, home))
 }
 
 // @zen-impl: AHK-3_AC-1
 pub fn run_install(args: &InstallArgs) -> Result<u8> {
     let tool = tool(&args.common)?;
     let scope = args.common.scope;
-    let mut opts = InstallOptions::new(ids(&tool, &args.harness, scope), scope).force(args.force);
+    let mut opts =
+        InstallOptions::new(expand(&tool, &args.harness, scope), scope).force(args.force);
     if !args.without.is_empty() {
         opts = opts.without(args.without.iter().cloned());
     }
@@ -110,7 +89,7 @@ pub fn run_status(args: &StatusArgs) -> Result<u8> {
     let ids = if args.harness.is_empty() {
         installed(&tool, scope)?
     } else {
-        ids(&tool, &args.harness, scope)
+        expand(&tool, &args.harness, scope)
     };
     let result = status(&tool, ids, scope)?;
     print(&args.common, &result, false, &mut std::io::stderr())

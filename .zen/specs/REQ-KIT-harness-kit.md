@@ -37,6 +37,7 @@ ACCEPTANCE CRITERIA
 
 - [ ] KIT-1_AC-1 [ubiquitous]: The system SHALL take from the tool its name, the harnesses it supports, an integration per scope, the root, the record path and the declined parts store of each scope, and SHALL embed no content of its own
 - [ ] KIT-1_AC-2 [conditional]: IF a harness named to `install` or `status` is not one the tool supports THEN the system SHALL refuse with an unknown-harness error; IF the harness has no files at the scope THEN it SHALL refuse with an unsupported-scope error
+- [ ] KIT-1_AC-3 [ubiquitous]: The name `all` among harness names SHALL stand for every harness the tool supports that has files at the scope, in the tool's order
 
 ### KIT-2: Part kinds [MUST]
 
@@ -188,6 +189,7 @@ ACCEPTANCE CRITERIA
 
 - [ ] KIT-15_AC-1 [ubiquitous]: Reading a file SHALL give its text, or nothing when it is absent; other failures SHALL be errors naming the path
 - [ ] KIT-15_AC-2 [ubiquitous]: An atomic write SHALL create parent directories, write a temp file beside the target (unique per write) with the target's permissions, and rename it over the target; it SHALL replace the file a symlink points to, not the link; on failure it SHALL remove the temp file
+- [ ] KIT-15_AC-3 [ubiquitous]: The user's home directory SHALL be `HOME`, else `USERPROFILE`, when set and not empty
 
 ### KIT-16: Errors [MUST]
 

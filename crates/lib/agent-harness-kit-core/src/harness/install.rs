@@ -512,6 +512,22 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
     Ok(run.result(parts))
 }
 
+/// The harness ids `names` stands for at `scope`: `all` is every harness
+/// of the tool with files at the scope, in the tool's order; other names
+/// are kept as given.
+// @zen-impl: KIT-1_AC-3
+pub fn expand<T: Tool + ?Sized, S: AsRef<str>>(tool: &T, names: &[S], scope: Scope) -> Vec<String> {
+    if names.iter().any(|n| n.as_ref() == "all") {
+        return tool
+            .harnesses()
+            .iter()
+            .filter(|h| h.scopes().contains(&scope))
+            .map(|h| h.id().to_string())
+            .collect();
+    }
+    names.iter().map(|n| n.as_ref().to_string()).collect()
+}
+
 /// The ids of the harnesses installed at `scope` (those in the record), in
 /// the tool's order; nothing is written.
 // @zen-impl: KIT-5_AC-2

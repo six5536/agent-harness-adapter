@@ -26,6 +26,21 @@ pub fn read_text(path: &Path) -> Result<Option<String>> {
     }
 }
 
+/// The user's home directory: `HOME`, else `USERPROFILE` (Windows); `None`
+/// when neither is set.
+// @zen-impl: KIT-15_AC-3
+pub fn home_dir() -> Option<PathBuf> {
+    home_from(|k| std::env::var_os(k))
+}
+
+fn home_from(var: impl Fn(&str) -> Option<std::ffi::OsString>) -> Option<PathBuf> {
+    ["HOME", "USERPROFILE"]
+        .into_iter()
+        .filter_map(var)
+        .find(|v| !v.is_empty())
+        .map(PathBuf::from)
+}
+
 /// Write `contents` to `path` through a temp file and a rename, so a reader
 /// never sees half a file, creating the parent directories. When `path` is a
 /// symlink the file it points to is replaced, not the link; an existing
@@ -81,6 +96,29 @@ fn resolve(path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // @zen-test: KIT-15_AC-3
+    #[test]
+    fn home_is_home_else_userprofile() {
+        let env = |pairs: &'static [(&'static str, &'static str)]| {
+            move |k: &str| {
+                pairs
+                    .iter()
+                    .find(|(n, _)| *n == k)
+                    .map(|(_, v)| std::ffi::OsString::from(v))
+            }
+        };
+        assert_eq!(
+            home_from(env(&[("HOME", "/h"), ("USERPROFILE", "C:\\u")])),
+            Some(PathBuf::from("/h"))
+        );
+        assert_eq!(
+            home_from(env(&[("HOME", ""), ("USERPROFILE", "C:\\u")])),
+            Some(PathBuf::from("C:\\u"))
+        );
+        assert_eq!(home_from(env(&[])), None);
+        let _ = home_dir();
+    }
     use crate::test_support::temp_dir;
 
     // @zen-test: KIT-15_AC-1

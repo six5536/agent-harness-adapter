@@ -203,7 +203,7 @@ pub fn find(id: &str) -> Option<Arc<dyn Harness>>;
 
 `install` resolves the set: the named ids (each must be in `tool.harnesses()`, else `UnknownHarness`; each must list the scope, else `UnsupportedScope`), plus the supported harnesses with a table in the record, ordered by `tool.harnesses()`; only named members are written and reported. Per harness it builds a `Context`, calls `render`, appends `integration.parts_for(id)` (a name clash with a rendered part or another raw part is `Internal`; a raw part named like an item the harness did not render stands for it), reads its declined list (`--without` names checked against the union of the named harnesses' part names, else `UnknownPart`), and asks `reads` for every item it rendered. KIT-Shared then marks parts shared. Every remaining part not declined is examined as in 0.1 (target, observe, state against the expected content and the recorded hash of KIT-19_AC-7); `install` decides, plans one `Plan` keyed by path across all harnesses (a second part in the same file renders on the planned text), updates each harness's record table, and applies: external parts, then files, then the record. Declined lists are stored after the writes when `--without` was given. `status` stops after examining. Notes come from `Harness::notes` with the harness's part results.
 
-IMPLEMENTS: KIT-1_AC-1, KIT-1_AC-2, KIT-2_AC-1, KIT-2_AC-2, KIT-2_AC-4, KIT-3_AC-1, KIT-3_AC-2, KIT-4_AC-1, KIT-4_AC-2, KIT-5_AC-1, KIT-5_AC-2, KIT-6_AC-1, KIT-6_AC-2, KIT-7_AC-1, KIT-7_AC-2, KIT-8_AC-1, KIT-8_AC-2, KIT-17_AC-3, KIT-17_AC-4, KIT-19_AC-1, KIT-20_AC-1
+IMPLEMENTS: KIT-1_AC-1, KIT-1_AC-2, KIT-1_AC-3, KIT-2_AC-1, KIT-2_AC-2, KIT-2_AC-4, KIT-3_AC-1, KIT-3_AC-2, KIT-4_AC-1, KIT-4_AC-2, KIT-5_AC-1, KIT-5_AC-2, KIT-6_AC-1, KIT-6_AC-2, KIT-7_AC-1, KIT-7_AC-2, KIT-8_AC-1, KIT-8_AC-2, KIT-17_AC-3, KIT-17_AC-4, KIT-19_AC-1, KIT-20_AC-1
 
 ```rust
 #[non_exhaustive]
@@ -249,6 +249,7 @@ impl InstallOptions {
 pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<InstallResult>;
 pub fn status<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(tool: &T, harnesses: I, scope: Scope) -> Result<InstallResult>;
 pub fn installed<T: Tool + ?Sized>(tool: &T, scope: Scope) -> Result<Vec<String>>;
+pub fn expand<T: Tool + ?Sized, S: AsRef<str>>(tool: &T, names: &[S], scope: Scope) -> Vec<String>;
 ```
 
 ### KIT-Shared
@@ -428,7 +429,7 @@ pub fn finish<E: StdError + 'static>(result: Result<u8, E>) -> ExitCode;
 
 Unchanged from 0.1.
 
-IMPLEMENTS: KIT-15_AC-1, KIT-15_AC-2
+IMPLEMENTS: KIT-15_AC-1, KIT-15_AC-2, KIT-15_AC-3
 
 ```rust
 pub fn read_text(path: &Path) -> Result<Option<String>>;
@@ -550,6 +551,7 @@ SOURCE: .zen/specs/REQ-KIT-harness-kit.md
 - KIT-4_AC-3, KIT-4_AC-4 → KIT-Results
 - KIT-5_AC-1 → KIT-Harness
 - KIT-5_AC-2 → KIT-Harness
+- KIT-1_AC-3 → KIT-Harness
 - KIT-6_AC-1 → KIT-Harness (KIT_P-6)
 - KIT-6_AC-2 → KIT-Harness
 - KIT-7_AC-1 → KIT-Harness (KIT_P-5)
@@ -568,7 +570,7 @@ SOURCE: .zen/specs/REQ-KIT-harness-kit.md
 - KIT-13_AC-1, KIT-13_AC-3, KIT-13_AC-4 → KIT-Report
 - KIT-13_AC-2 → KIT-Report (KIT_P-8)
 - KIT-14_AC-1..AC-3 → KIT-Cli
-- KIT-15_AC-1, KIT-15_AC-2 → KIT-Fs
+- KIT-15_AC-1, KIT-15_AC-2, KIT-15_AC-3 → KIT-Fs
 - KIT-16_AC-1 → KIT-Error
 - KIT-17_AC-1, KIT-17_AC-2 → KIT-Integration
 - KIT-17_AC-3, KIT-17_AC-4 → KIT-Harness

@@ -5,7 +5,8 @@
 mod common;
 
 use agent_harness_kit_core::{
-    InstallOptions, InstallResult, Scope, State, harness, install, installed, status,
+    InstallOptions, InstallResult, Scope, State, harness, harness::expand, install, installed,
+    status,
 };
 use common::{TempTree, parts, verbs};
 
@@ -285,4 +286,23 @@ fn installed_lists_the_recorded_harnesses_in_the_tools_order() {
     assert_eq!(installed(&tool, Scope::Project).unwrap(), ["codex", "pi"]);
     assert_eq!(tree.files(), before);
     assert!(installed(&tool, Scope::User).unwrap().is_empty());
+}
+
+// @zen-test: KIT-1_AC-3
+#[test]
+fn all_is_every_harness_of_the_tool_with_the_scope() {
+    let tree = TempTree::empty("expand");
+    let tool = tree.tool().with(harness::builtin());
+    assert_eq!(
+        expand(&tool, &["all"], Scope::Project),
+        [
+            "claude", "codex", "factory", "gemini", "copilot", "cursor", "pi", "agents"
+        ]
+    );
+    assert_eq!(
+        expand(&tool, &["codex", "all"], Scope::Local),
+        ["claude", "copilot"]
+    );
+    assert_eq!(expand(&tool, &["pi", "vim"], Scope::User), ["pi", "vim"]);
+    assert!(expand::<_, &str>(&tool, &[], Scope::User).is_empty());
 }
