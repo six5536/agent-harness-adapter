@@ -90,7 +90,7 @@ crates/lib/agent-harness-adapter-core/src/
 
 Plain data with builders and accessors. Each item's standard rendering lives on the item, so harnesses that share a location produce equal parts (HAR-9_AC-1).
 
-IMPLEMENTS: KIT-17_AC-1, KIT-17_AC-2, KIT-11_AC-7, KIT-11_AC-8
+IMPLEMENTS: KIT-17_AC-1, KIT-17_AC-2, KIT-17_AC-5, KIT-17_AC-6, KIT-11_AC-7, KIT-11_AC-8
 
 ```rust
 #[derive(Debug, Clone, Default)]
@@ -127,11 +127,12 @@ impl Integration {
 #[non_exhaustive]
 pub enum Item { Instructions, Skills, Hooks, Mcp, Permissions, Agents, Commands } // as_str, FromStr, Ord
 
-pub struct Skill { /* name, description, body, files */ }
+pub struct Skill { /* name, description, body, files, the SKILL.md read from a directory */ }
 impl Skill {
     pub fn new(name, description, body) -> Self;
+    pub fn from_dir(dir: &Path) -> Result<Self>;              // KIT-17_AC-5, KIT-17_AC-6
     pub fn file(self, path: impl Into<String>, text: impl Into<String>) -> Self;
-    pub fn dir_files(&self) -> Vec<(String, String)>;          // `<name>/SKILL.md` + `<name>/<path>`
+    pub fn dir_files(&self) -> Vec<(String, String)>;          // `<name>/SKILL.md` (as read, or rendered) + `<name>/<path>`
 }
 pub struct Hook { /* event, template, kind, timeout */ }
 impl Hook {

@@ -309,6 +309,48 @@ fn defaults_scopes_and_the_tool() {
     fs::remove_dir_all(&dir).unwrap();
 }
 
+// @zen-test: AHA-1_AC-10
+#[test]
+fn a_skill_directory_is_read_beside_the_manifest() {
+    let dir = temp_dir("manifest-skill-dir");
+    fs::create_dir_all(dir.join("skills/review")).unwrap();
+    fs::write(
+        dir.join("skills/review/SKILL.md"),
+        "---\nname: review\ndescription: Reviews.\nlicense: MIT\n---\n\n# Review\n",
+    )
+    .unwrap();
+    fs::write(dir.join("skills/review/checklist.md"), "- [ ] x\n").unwrap();
+    let m = load(
+        &dir,
+        "m.toml",
+        "version = 1\nname = \"t\"\n[[skills]]\ndir = \"skills/review\"\n",
+    )
+    .unwrap();
+    assert_eq!(
+        m.integration(Scope::Project).skills(),
+        [Skill::from_dir(dir.join("skills/review")).unwrap()]
+    );
+    let both = err(
+        &dir,
+        "version = 1\nname = \"t\"\n[[skills]]\ndir = \"skills/review\"\nname = \"x\"\n",
+    );
+    assert!(both.contains("`skills[0]`: give `dir`"), "{both}");
+    let missing = err(
+        &dir,
+        "version = 1\nname = \"t\"\n[[skills]]\ndir = \"nope\"\n",
+    );
+    assert!(
+        missing.contains("`skills[0]`") && missing.contains("SKILL.md: no such file"),
+        "{missing}"
+    );
+    let half = err(
+        &dir,
+        "version = 1\nname = \"t\"\n[[skills]]\nname = \"x\"\n",
+    );
+    assert!(half.contains("`skills[0]`: give `dir`"), "{half}");
+    fs::remove_dir_all(&dir).unwrap();
+}
+
 // @zen-test: AHA-1_AC-7
 #[test]
 fn mistakes_are_refused_with_their_place() {

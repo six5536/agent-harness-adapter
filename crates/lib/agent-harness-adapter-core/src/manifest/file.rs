@@ -136,17 +136,25 @@ pub(crate) enum Match {
     Any(Vec<Match>),
 }
 
-/// An agent skill.
+/// An agent skill: `dir`, or `name`, `description`, `body` and `files`.
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SkillFile {
+    /// A skill directory, relative to the manifest's directory: its
+    /// `SKILL.md`, written as it is, and every other file in it but hidden
+    /// ones. Not with the other fields.
+    #[serde(default)]
+    pub dir: Option<String>,
     /// The skill's name: lowercase, digits and `-`.
-    pub name: String,
+    #[serde(default)]
+    pub name: Option<String>,
     /// When the agent should use it.
-    pub description: String,
+    #[serde(default)]
+    pub description: Option<String>,
     /// The body after the frontmatter.
-    pub body: Text,
+    #[serde(default)]
+    pub body: Option<Text>,
     /// Extra files beside `SKILL.md`: path → text.
     #[serde(default)]
     pub files: Option<Ordered<Text>>,

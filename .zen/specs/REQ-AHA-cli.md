@@ -34,6 +34,7 @@ ACCEPTANCE CRITERIA
 - [ ] AHA-1_AC-7 [conditional]: IF the manifest has an unknown key, a value of the wrong type, an unknown harness, event or tool kind, or a TEXT file that cannot be read THEN the system SHALL refuse it with an error naming the manifest and the place (line and column, or the key)
 - [ ] AHA-1_AC-8 [ubiquitous]: A hook SHALL give either `command` (a hook command template, KIT-11_AC-2) or `run` (a BRIDGED HOOK: the template `<adapter> hook --tool <name> [--tools <kind>] {harness} {event} -- <run>`, with `--tools` when the hook gives `tools`, where `<adapter>` is the manifest's `adapter` key, default `agent-harness-adapter`), not both
 - [ ] AHA-1_AC-9 [ubiquitous]: A loaded manifest SHALL be a tool (KIT-1) whose root is the given project directory at project and local scope and the home directory at user scope
+- [ ] AHA-1_AC-10 [ubiquitous]: A skill SHALL give either `dir` (a skill directory relative to the MANIFEST DIR, read when the manifest is loaded, KIT-17_AC-5) or `name`, `description`, `body` and optional `files`, not both
 
 ### AHA-2: Hook contract [MUST]
 

@@ -56,7 +56,7 @@ schema/                 manifest.v1.json, hook-input.v1.json, hook-answer.v1.jso
 
 Deserialises the file into the shapes of `file.rs` (TOML by `toml_edit::de`, JSON by `serde_json`), checks the version, then builds the integration of each scope: the top-level items, each replaced by the scope table's item when it has one. TEXT files are read relative to the manifest's directory. Harness ids are checked against `harness::builtin()`. A bridged hook becomes `Hook::new(event, "<adapter> hook --tool <name> {harness} {event} -- <run>")`.
 
-IMPLEMENTS: AHA-1_AC-1, AHA-1_AC-2, AHA-1_AC-3, AHA-1_AC-4, AHA-1_AC-5, AHA-1_AC-6, AHA-1_AC-7, AHA-1_AC-8, AHA-1_AC-9
+IMPLEMENTS: AHA-1_AC-1, AHA-1_AC-2, AHA-1_AC-3, AHA-1_AC-4, AHA-1_AC-5, AHA-1_AC-6, AHA-1_AC-7, AHA-1_AC-8, AHA-1_AC-9, AHA-1_AC-10
 
 ```rust
 pub struct Manifest { /* name, harnesses, per scope: Integration, record, declined */ }
@@ -137,6 +137,9 @@ name = "mytool"
 description = "Use mytool."
 body = { file = "skills/mytool.md" }
 files = { "ref.md" = { file = "skills/ref.md" } }
+
+[[skills]]
+dir = "skills/review"                    # a skill directory: SKILL.md and its files (AHA-1_AC-10)
 
 [[hooks]]
 event = "pre-tool"                       # REQ-KIT event names

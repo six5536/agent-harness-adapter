@@ -10,81 +10,9 @@ use crate::{
     hook::{Event, ToolKind},
 };
 
-/// An agent skill: `<name>/SKILL.md` with frontmatter `name` and
-/// `description`, plus extra files beside it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Skill {
-    name: String,
-    description: String,
-    body: String,
-    files: Vec<(String, String)>,
-}
-
-impl Skill {
-    /// A skill named `name` (lowercase, digits and `-`), described by
-    /// `description`, with `body` after the frontmatter.
-    pub fn new(
-        name: impl Into<String>,
-        description: impl Into<String>,
-        body: impl Into<String>,
-    ) -> Self {
-        Skill {
-            name: name.into(),
-            description: description.into(),
-            body: body.into(),
-            files: Vec::new(),
-        }
-    }
-
-    /// With an extra file at `path` (relative to the skill's directory).
-    #[must_use]
-    pub fn file(mut self, path: impl Into<String>, text: impl Into<String>) -> Self {
-        self.files.push((path.into(), text.into()));
-        self
-    }
-
-    /// The skill's name.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// The skill's description.
-    pub fn description(&self) -> &str {
-        &self.description
-    }
-
-    /// The skill's body.
-    pub fn body(&self) -> &str {
-        &self.body
-    }
-
-    /// The extra files: (path relative to the skill's directory, text).
-    pub fn files(&self) -> &[(String, String)] {
-        &self.files
-    }
-
-    /// The skill's files under a skills directory: `<name>/SKILL.md`, then
-    /// `<name>/<path>` for each extra file.
-    pub fn dir_files(&self) -> Vec<(String, String)> {
-        let skill_md = format!(
-            "---\nname: {}\ndescription: {}\n---\n\n{}",
-            self.name,
-            yaml_scalar(&self.description),
-            self.body
-        );
-        let mut out = vec![(format!("{}/SKILL.md", self.name), skill_md)];
-        out.extend(
-            self.files
-                .iter()
-                .map(|(p, t)| (format!("{}/{p}", self.name), t.clone())),
-        );
-        out
-    }
-}
-
 /// A frontmatter value: as is when plain YAML reads it back unchanged, else
 /// double-quoted (as JSON, which YAML reads).
-fn yaml_scalar(text: &str) -> String {
+pub(super) fn yaml_scalar(text: &str) -> String {
     let plain = !text.is_empty()
         && !text.starts_with(|c: char| "-?:,[]{}#&*!|>'\"%@` ".contains(c))
         && !text.ends_with(' ')
@@ -483,26 +411,6 @@ impl Command {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn a_skill_renders_its_directory() {
-        let s = Skill::new("tool", "Use the tool: always.", "# Tool\n").file("ref.md", "r\n");
-        assert_eq!(
-            s.dir_files(),
-            vec![
-                (
-                    "tool/SKILL.md".to_string(),
-                    "---\nname: tool\ndescription: \"Use the tool: always.\"\n---\n\n# Tool\n"
-                        .to_string()
-                ),
-                ("tool/ref.md".to_string(), "r\n".to_string()),
-            ]
-        );
-        assert_eq!(
-            (s.name(), s.description(), s.body(), s.files().len()),
-            ("tool", "Use the tool: always.", "# Tool\n", 1)
-        );
-    }
 
     #[test]
     fn yaml_scalars_are_plain_when_safe() {

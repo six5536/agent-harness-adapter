@@ -261,20 +261,43 @@
       ]
     },
     "SkillFile": {
-      "description": "An agent skill.",
+      "description": "An agent skill: `dir`, or `name`, `description`, `body` and `files`.",
       "type": "object",
       "properties": {
+        "dir": {
+          "description": "A skill directory, relative to the manifest's directory: its\n`SKILL.md`, written as it is, and every other file in it but hidden\nones. Not with the other fields.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "name": {
           "description": "The skill's name: lowercase, digits and `-`.",
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         },
         "description": {
           "description": "When the agent should use it.",
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         },
         "body": {
           "description": "The body after the frontmatter.",
-          "$ref": "#/$defs/Text"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Text"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "files": {
           "description": "Extra files beside `SKILL.md`: path → text.",
@@ -288,12 +311,7 @@
           ]
         }
       },
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "description",
-        "body"
-      ]
+      "additionalProperties": false
     },
     "Ordered_Text": {
       "type": "object",

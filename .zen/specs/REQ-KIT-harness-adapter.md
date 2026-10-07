@@ -209,6 +209,8 @@ ACCEPTANCE CRITERIA
 - [ ] KIT-17_AC-2 [ubiquitous]: Each item SHALL become at most one part per harness, named by the item; a raw part SHALL keep the tool's name
 - [ ] KIT-17_AC-3 [conditional]: IF a raw part's name equals that of a part the harness rendered or another raw part's THEN the system SHALL refuse with an internal error; a raw part named like an item the harness does not render SHALL stand for that item
 - [ ] KIT-17_AC-4 [ubiquitous]: An item a harness cannot take at a scope SHALL be left out of its profile and listed as unsupported, never an error
+- [ ] KIT-17_AC-5 [event-driven]: WHEN a skill is read from a skill directory, THE system SHALL write its `SKILL.md` unchanged, take its name and description from the frontmatter, and take every other file under the directory as an extra file at its relative path, hidden files and directories (names starting with `.`) aside
+- [ ] KIT-17_AC-6 [conditional]: IF a skill directory has no `SKILL.md`, its frontmatter has no `name` of lowercase letters, digits and `-`, or a file under it is not UTF-8 text THEN the system SHALL refuse it, naming the file
 
 ### KIT-18: Harnesses [MUST]
 

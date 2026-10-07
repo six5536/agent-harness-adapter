@@ -7,7 +7,7 @@ use crate::{
     fs::read_text,
     harness::{EntryMatch, MergeOp, Part},
     integration::{Agent, Command, Hook, Integration, McpServer, Skill},
-    manifest::file::{HookFile, Items, Match, McpFile, OpFile, PartFile, Text},
+    manifest::file::{HookFile, Items, Match, McpFile, OpFile, PartFile, SkillFile, Text},
 };
 
 /// What items are read with: where TEXT files are, how errors name the
@@ -67,16 +67,7 @@ impl Ctx<'_> {
             i = i.hook_match(entry_match(m));
         }
         for (n, s) in items.skills.into_iter().flatten().enumerate() {
-            let key = format!("skills[{n}]");
-            let mut skill = Skill::new(
-                &s.name,
-                &s.description,
-                self.text(&format!("{key}.body"), &s.body)?,
-            );
-            for (path, t) in s.files.iter().flat_map(|f| &f.0) {
-                skill = skill.file(path, self.text(&format!("{key}.files.{path}"), t)?);
-            }
-            i = i.skill(skill);
+            i = i.skill(self.skill(&format!("skills[{n}]"), s)?);
         }
         for (n, h) in items.hooks.into_iter().flatten().enumerate() {
             i = i.hook(self.hook(&format!("hooks[{n}]"), h)?);
@@ -103,6 +94,27 @@ impl Ctx<'_> {
             i = i.part(harness, part);
         }
         Ok(i)
+    }
+
+    // @zen-impl: AHA-1_AC-10
+    fn skill(&self, key: &str, s: &SkillFile) -> Result<Skill> {
+        match (&s.dir, &s.name, &s.description, &s.body) {
+            (Some(dir), None, None, None) if s.files.is_none() => {
+                Skill::from_dir(self.dir.join(dir)).map_err(|e| self.err(key, e))
+            }
+            (None, Some(name), Some(description), Some(body)) => {
+                let mut skill =
+                    Skill::new(name, description, self.text(&format!("{key}.body"), body)?);
+                for (path, t) in s.files.iter().flat_map(|f| &f.0) {
+                    skill = skill.file(path, self.text(&format!("{key}.files.{path}"), t)?);
+                }
+                Ok(skill)
+            }
+            _ => Err(self.err(
+                key,
+                "give `dir`, or `name`, `description` and `body` (and `files`), not both",
+            )),
+        }
     }
 
     // @zen-impl: AHA-1_AC-8

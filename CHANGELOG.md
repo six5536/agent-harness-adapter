@@ -33,7 +33,8 @@ First release: the library `agent-harness-adapter-core` and the
   prebuilt addons for Linux (glibc), macOS and Windows.
 - `fs::home_dir`, `harness::expand` (`all`).
 - `manifest`: `Manifest` (TOML or JSON, version 1; text inline or from
-  files; per-scope tables; mistakes reported with their place) and
+  files; skills declared or read from a skill directory (`dir`); per-scope
+  tables; mistakes reported with their place) and
   `ManifestTool`, a `Tool` over it.
 - `hook::wire`: the hook contract (version 1): `input_json`, `parse_answer`,
   `answer_json`; `HookInput`, `ToolCall`, `Event`, `ToolKind` and `Answer`
@@ -44,7 +45,8 @@ First release: the library `agent-harness-adapter-core` and the
   harness still reads; `Action::Removed` / `Action::Kept`;
   `ExternalPart::removable` / `remove`. In the command and both bindings too.
 - `integration`: `Integration`, declared once per scope without naming a
-  harness: an instructions block, skills (`Skill`), hooks (`Hook`), MCP
+  harness: an instructions block, skills (`Skill`, or `Skill::from_dir` for an
+  existing skill directory, its `SKILL.md` kept as it is), hooks (`Hook`), MCP
   servers (`McpServer`), allowed commands and MCP tools (`allow_command`,
   `allow_mcp_tool`), subagents (`Agent`), slash commands (`Command`), and raw
   parts for one harness (a raw part may stand for an item the harness does

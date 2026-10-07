@@ -38,6 +38,9 @@ name = "mytool"
 description = "Use mytool to check the project."
 body = { file = "agent/skill.md" }
 
+[[skills]]
+dir = "agent/skills/review"   # an existing skill directory, copied as it is
+
 [[hooks]]
 event = "pre-tool"
 tools = "shell"
@@ -89,7 +92,7 @@ prints its JSON Schema.
 | `adapter` | the command bridged hooks run (default `agent-harness-adapter`), e.g. an absolute path |
 | `record`, `declined` | paths under the scope's root (defaults `.<name>/harness.toml`, `.<name>/harness.local.toml` at local scope, `.<name>/config.toml`) |
 | `instructions` | text placed between the tool's markers in each harness's instructions file |
-| `skills` | `name`, `description`, `body`, `files` (path → text) |
+| `skills` | `dir` (a skill directory: its `SKILL.md` as it is and every other file in it, hidden ones aside), or `name`, `description`, `body`, `files` (path → text) |
 | `hooks` | `event`, then `run` (bridged) or `command` (a template), `tools`, `timeout` (seconds), `commands` (harness → template), `owned` |
 | `hook_match` | which hook entries are the tool's: `{ prefix }`, `{ contains }` or `{ any = [..] }` |
 | `mcp_servers` | `name`, then `command`, `args`, `env`, or `url`, `headers` |

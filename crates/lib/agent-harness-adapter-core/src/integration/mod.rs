@@ -5,6 +5,8 @@
 
 mod declaration;
 mod items;
+mod skill;
 
 pub use declaration::{Integration, Item};
-pub use items::{Agent, Command, Hook, McpServer, Skill, Transport};
+pub use items::{Agent, Command, Hook, McpServer, Transport};
+pub use skill::Skill;
