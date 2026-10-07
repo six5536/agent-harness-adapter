@@ -91,7 +91,7 @@ After the fixes (`ff4d029`) and uninstall (`5671768`): Codex 0.160.1 and Pi 1.0.
 
 - Gemini CLI: passes A1–A10, A7b included.
 - Copilot CLI: with quota, passes A1–A3, A5–A7, A9, A10; A4 and A7b are n/a (Copilot takes no context from hooks, HAR-5_AC-5). It first ran no hook at all: its debug log says it loads repository hooks only when the folder is trusted or opted in. Finding 5: our Copilot harness gave no note about that; it now says so (HAR-5_AC-10). The checks trust the folder through `trustedFolders` in Copilot's `config.json`.
-- Claude Code: waits for a login in the checks' own `HOME` (the user's real login is not used, so user-scope checks never touch the real `~/.claude`).
+- Claude Code 2.1.292: passes A1–A10, A7b included, logged in to the checks' own `HOME` (the user's real login is not used, so user-scope checks never touch the real `~/.claude`).
 - Finding 4 (all, small): after uninstall, Codex still said "new hooks run only once approved in Codex's /hooks" (and Pi and Gemini their trust notes). Notes now separate what was written (trust, approval) from any change (restart, reload): `PartResult::wrote` / `changed`; HAR-2_AC-7, HAR-4_AC-9, HAR-7_AC-7.
 
 ### Findings
