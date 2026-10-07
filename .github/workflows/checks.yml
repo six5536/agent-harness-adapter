@@ -134,6 +134,20 @@ jobs:
         if: runner.os == 'Linux'
         run: npm run verify-version
 
+  example:
+    # A tool in another language, end to end through the ahk binary.
+    name: example (python tool)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned toolchain
+        run: rustup toolchain install --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - name: Build ahk
+        run: cargo build --locked -p agent-harness-kit
+      - name: Run the example
+        run: python3 examples/python-tool/test_example.py target/debug/ahk
+
   deny:
     # Deterministic supply-chain checks only: these fail when *we* change
     # dependencies. Advisories are handled by audit.yml on a schedule so a new

@@ -80,6 +80,7 @@ crates/app/agent-harness-kit/             # the `ahk` CLI crate (crates.io `agen
   src/                                    # main.rs (clap), schema.rs
   tests/                                  # the binary run as a user runs it
 schema/                                   # the contracts' JSON Schemas, as `ahk schema` prints them
+examples/python-tool/                     # a Python tool driven by ahk, end to end (CI)
 packages/agent-harness-kit/               # npm launcher `@six5536/agent-harness-kit` (bin `ahk`)
 packages/agent-harness-kit-<platform>/    # one prebuilt-binary package per platform
 scripts/                                  # validate-consumers.sh; set / verify version, release, release and launcher smoke tests
@@ -234,6 +235,7 @@ Unreleased; 0.1.0 is published once PLAN-010 is done. The API may change in mino
 - `cargo +nightly llvm-cov nextest --fail-under-lines 90` — coverage gate
 - `cargo publish --dry-run --workspace` — package check
 - `npm run test:launcher` — npm launcher tests
+- `python3 examples/python-tool/test_example.py target/debug/ahk` — the example tool, end to end
 - `npm run verify-version` / `npm run set-version <v>` — one version across Cargo, packages and lockfiles
 - `npm run smoke` / `npm run smoke:launcher` — the release binary and the packed launcher
 - `npm run release <v>` — release commit and tag (never pushes)

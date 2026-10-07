@@ -13,6 +13,10 @@ what the user changed, and speaks every harness's hook protocol.
 | [`agent-harness-kit-core`](crates/lib/agent-harness-kit-core) | The Rust library. |
 | [`agent-harness-kit`](crates/app/agent-harness-kit) | The `ahk` command, for tools in any language; also on npm as [`@six5536/agent-harness-kit`](packages/agent-harness-kit). |
 
+## Examples
+
+- [A Python tool](examples/python-tool), plugged into Claude Code, Codex and Gemini CLI through `ahk`.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).

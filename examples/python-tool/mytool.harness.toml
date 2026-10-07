@@ -1,0 +1,19 @@
+# A tool written in Python, plugged into agent harnesses by `ahk`.
+version = 1
+name = "mytool"
+instructions = { file = "agent/instructions.md" }
+
+[[skills]]
+name = "mytool"
+description = "Check a shell command with mytool before running it."
+body = { file = "agent/skill.md" }
+
+# Bridged hooks: `ahk hook` gives mytool.py the hook contract's JSON.
+[[hooks]]
+event = "session-start"
+run = "python3 mytool.py hook"
+
+[[hooks]]
+event = "pre-tool"
+tools = "shell"
+run = "python3 mytool.py hook"
