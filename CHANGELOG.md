@@ -12,7 +12,7 @@ GitHub release notes.
 
 ## [Unreleased]
 
-## [0.1.0]
+## [0.1.0] - 2026-10-07
 
 First release: the library `agent-harness-adapter-core` and the
 `agent-harness-adapter` command (crate `agent-harness-adapter`, npm
