@@ -44,7 +44,7 @@ src/
 │   ├── adapter.rs      Harness, Context, Reads, builtin, find
 │   ├── tool.rs         Tool, Scope
 │   ├── part.rs         Part, Profile, ExternalPart, private Kind
-│   ├── merge/          op.rs (MergeOp, EntryMatch), json.rs, toml.rs (internal merges), mod.rs (dispatch by extension)
+│   ├── merge/          op.rs (MergeOp, EntryMatch), json.rs (+ json/tests.rs), toml.rs (internal merges), mod.rs (dispatch by extension)
 │   ├── region.rs       Markers
 │   ├── shared.rs       the shared-location choice (internal)
 │   ├── state.rs        State, internal Found / Observed / hash
