@@ -2,6 +2,8 @@
 //! manifest file, and bridge their hooks to a command in any language.
 // @zen-component: AHK-Cli
 
+mod error;
+mod install;
 mod schema;
 
 use std::process::ExitCode;
@@ -20,6 +22,10 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Cmd {
+    /// Install a manifest's integration into harnesses.
+    Install(install::InstallArgs),
+    /// Report the state of a manifest's integration in harnesses.
+    Status(install::StatusArgs),
     /// Print the JSON Schema of a contract.
     Schema {
         /// The contract.
@@ -30,6 +36,8 @@ enum Cmd {
 fn main() -> ExitCode {
     let args = Cli::parse();
     cli::finish(match args.command {
-        Cmd::Schema { contract } => schema::run(contract),
+        Cmd::Install(a) => install::run_install(&a),
+        Cmd::Status(a) => install::run_status(&a),
+        Cmd::Schema { contract } => schema::run(contract).map_err(error::Error::from),
     })
 }

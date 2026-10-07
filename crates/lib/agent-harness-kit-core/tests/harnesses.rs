@@ -5,7 +5,7 @@
 mod common;
 
 use agent_harness_kit_core::{
-    InstallOptions, InstallResult, Scope, State, harness, install, status,
+    InstallOptions, InstallResult, Scope, State, harness, install, installed, status,
 };
 use common::{TempTree, parts, verbs};
 
@@ -272,4 +272,17 @@ fn every_harness_at_once_installs_and_settles() {
     // Every harness has a user scope.
     let user = install(&tool, &InstallOptions::new(ids, Scope::User));
     assert!(user.is_ok(), "{user:?}");
+}
+
+// @zen-test: KIT-5_AC-2
+#[test]
+fn installed_lists_the_recorded_harnesses_in_the_tools_order() {
+    let tree = TempTree::empty("installed");
+    let tool = tree.tool().with(harness::builtin());
+    assert!(installed(&tool, Scope::Project).unwrap().is_empty());
+    install_all(&tree, &["pi", "codex"]);
+    let before = tree.files();
+    assert_eq!(installed(&tool, Scope::Project).unwrap(), ["codex", "pi"]);
+    assert_eq!(tree.files(), before);
+    assert!(installed(&tool, Scope::User).unwrap().is_empty());
 }

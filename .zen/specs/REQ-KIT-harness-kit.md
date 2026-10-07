@@ -79,6 +79,7 @@ AS AN agent user, I WANT the state of every part without changes, SO THAT I can 
 ACCEPTANCE CRITERIA
 
 - [ ] KIT-5_AC-1 [event]: WHEN `status` runs THEN the system SHALL report each part's state as `install` would find it and SHALL write nothing
+- [ ] KIT-5_AC-2 [ubiquitous]: The system SHALL list the harnesses installed at a scope (those in its record), in the tool's order, writing nothing
 
 ### KIT-6: Refusals write nothing [MUST]
 

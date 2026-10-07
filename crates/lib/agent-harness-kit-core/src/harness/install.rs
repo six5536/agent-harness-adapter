@@ -512,6 +512,21 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
     Ok(run.result(parts))
 }
 
+/// The ids of the harnesses installed at `scope` (those in the record), in
+/// the tool's order; nothing is written.
+// @zen-impl: KIT-5_AC-2
+pub fn installed<T: Tool + ?Sized>(tool: &T, scope: Scope) -> Result<Vec<String>> {
+    let root = tool.root(scope)?;
+    let path = tool.record_path(scope)?;
+    let record = read_record(&path, &display(&root, &path))?;
+    Ok(tool
+        .harnesses()
+        .iter()
+        .map(|h| h.id().to_string())
+        .filter(|id| record.harnesses.contains_key(id))
+        .collect())
+}
+
 /// The state of every part of `harnesses` at `scope`; nothing is written.
 // @zen-impl: KIT-5_AC-1
 pub fn status<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
