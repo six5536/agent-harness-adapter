@@ -176,12 +176,12 @@
           "const": "updated"
         },
         {
-          "description": "Taken out by uninstall (KIT-22).",
+          "description": "Taken out by uninstall.",
           "type": "string",
           "const": "removed"
         },
         {
-          "description": "Left by uninstall because other installed harnesses, named in `by`,\nstill read it (KIT-22_AC-4).",
+          "description": "Left by uninstall because other installed harnesses, named in `by`,\nstill read it.",
           "type": "string",
           "const": "kept"
         }

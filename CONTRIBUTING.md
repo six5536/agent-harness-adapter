@@ -62,7 +62,7 @@ Tests run under `cargo-nextest`.
 
 ## Consumers
 
-`scripts/validate-consumers.sh` builds and tests the tools that use the library
+`tests/consumers/validate-consumers.sh` builds and tests the tools that use the library
 against this checkout before a release. Their repositories are private: set
 `SMLLM_REPO` and `SOKF_REPO` to their clone URLs. The checkouts land in
 `consumers/`, which is not committed.
@@ -94,7 +94,7 @@ version lives only in `Cargo.toml`.
 1. Set `version` in `Cargo.toml` and add a `## [X.Y.Z]` section to `CHANGELOG.md`.
    The release workflow refuses a version without one, and that section becomes the
    GitHub release notes.
-2. Run `scripts/validate-consumers.sh`.
+2. Run `tests/consumers/validate-consumers.sh`.
 3. Commit, tag `vX.Y.Z`, review with `git show vX.Y.Z`, then `git push --follow-tags`.
    Pushing the tag triggers the publish, which cannot be undone (only yanked).
 4. The workflow checks that the tag matches `Cargo.toml` and has a changelog

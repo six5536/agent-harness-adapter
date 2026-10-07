@@ -17,7 +17,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const require_ = createRequire(import.meta.url);
-const { selectPackage, binaryName } = require_("../packages/agent-harness-adapter/lib/binary.js");
+const { selectPackage, binaryName } = require_("../../packages/agent-harness-adapter/lib/binary.js");
 
 function fail(message) {
   console.error(`launcher-smoke: ${message}`);

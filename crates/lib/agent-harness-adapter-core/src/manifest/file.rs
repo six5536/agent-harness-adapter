@@ -269,7 +269,7 @@ pub(crate) enum PartFile {
     },
 }
 
-/// One merge operation (REQ-KIT KIT-2_AC-3).
+/// One merge operation on the file's JSON or TOML.
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]

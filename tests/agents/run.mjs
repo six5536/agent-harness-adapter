@@ -8,9 +8,9 @@
 // Each agent runs under its own HOME in the work folder, so your own
 // agent setup is never touched; log in there once with `login`.
 //
-//   node scripts/agents/run.mjs setup [--agents claude,codex,gemini,copilot,pi]
-//   node scripts/agents/run.mjs login <agent>
-//   node scripts/agents/run.mjs run [--agents ...] [options]
+//   node tests/agents/run.mjs setup [--agents claude,codex,gemini,copilot,pi]
+//   node tests/agents/run.mjs login <agent>
+//   node tests/agents/run.mjs run [--agents ...] [options]
 //
 // Options:
 //   --work <dir>        work folder (default target/agent-checks)
@@ -19,7 +19,7 @@
 //   --codex-full-access run Codex without its sandbox (needed where it cannot
 //                       start, e.g. dev containers without user namespaces)
 //
-// Exit 0 when every hard check passes. See scripts/agents/README.md.
+// Exit 0 when every hard check passes. See tests/agents/README.md.
 
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -389,7 +389,7 @@ function runChecks(opts) {
   const results = {};
   for (const id of opts.agents) {
     const a = agent(id, opts);
-    if (!existsSync(a.binPath)) fail(`${id} is not set up: node scripts/agents/run.mjs setup --agents ${id}`);
+    if (!existsSync(a.binPath)) fail(`${id} is not set up: node tests/agents/run.mjs setup --agents ${id}`);
     const version = run(a.binPath, ["--version"], { env: a.env }).stdout.trim().split("\n").pop();
     console.log(`== ${id} (${version})`);
     results[id] = checks(a, base);
@@ -413,7 +413,7 @@ switch (opts.command) {
     const id = opts.positional[0] ?? fail("login which agent? codex or pi");
     if (!AGENTS[id]) fail(`no agent ${id}`);
     const a = agent(id, opts);
-    if (!existsSync(a.binPath)) fail(`${id} is not set up: node scripts/agents/run.mjs setup --agents ${id}`);
+    if (!existsSync(a.binPath)) fail(`${id} is not set up: node tests/agents/run.mjs setup --agents ${id}`);
     AGENTS[id].login(a);
     break;
   }
@@ -421,5 +421,5 @@ switch (opts.command) {
     runChecks(opts);
     break;
   default:
-    fail("usage: run.mjs setup|login <agent>|run [--agents codex,pi] (see scripts/agents/README.md)");
+    fail("usage: run.mjs setup|login <agent>|run [--agents codex,pi] (see tests/agents/README.md)");
 }

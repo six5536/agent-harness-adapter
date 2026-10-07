@@ -53,7 +53,7 @@ Each check is recorded pass / fail with the agent's version in §6.
 | P3 Agent setup | Install Codex and Pi in the scratch area; the user logs in; scratch project with the example tool (D13-4) | Both agents answer a prompt |
 | P4 Codex | §3 checks | Results in §6; fixes landed |
 | P5 Pi | §3 checks | Results in §6; fixes landed |
-| P5b Agent checks in the repo | The scratch checks (§3) as a script under `scripts/agents/`, run on demand against installed, logged-in agents with an isolated `HOME`; Codex and Pi first, written so other agents can be added | `scripts/agents` runs §3 for Codex and Pi and prints a pass / fail table |
+| P5b Agent checks in the repo | The scratch checks (§3) as a script under `tests/agents/`, run on demand against installed, logged-in agents with an isolated `HOME`; Codex and Pi first, written so other agents can be added | `tests/agents` runs §3 for Codex and Pi and prints a pass / fail table |
 | P5c Retest | Run P5b after the findings' fixes (`ff4d029`) and PLAN-014 | All of §3, A10 included, pass or are written down as known limits |
 | P6 Close | README harness table notes; PLAN-011 P9 unblocked | Committed and pushed |
 
@@ -81,13 +81,13 @@ Agents: Codex CLI 0.160.1, Pi 1.0.4 (npm, in the session's scratch area), isolat
 
 Test conditions: Codex's own sandbox cannot start in the dev container (`bwrap`), so Codex ran with `--sandbox danger-full-access`; Codex also refuses `rm -rf` itself, before any hook, so the deny test used `echo git push --force`.
 
-### Retest (P5c, 2026-10-07, `scripts/agents/run.mjs`)
+### Retest (P5c, 2026-10-07, `tests/agents/run.mjs`)
 
 After the fixes (`ff4d029`) and uninstall (`5671768`): Codex 0.160.1 and Pi 1.0.4 pass A1–A10, A7b included (Codex with `--codex-full-access` in the dev container; Pi with `--pi-model openai-codex/gpt-6-luna`, as the ChatGPT account lacks Pi's default model). The first Pi run failed A2–A4 and A9 in the checker only: `pi -p` prints just the last message, so the checks now read Pi's session file.
 
 ### More agents (2026-10-07)
 
-`scripts/agents` gained Claude Code 2.1.292, Gemini CLI 0.63.0 and Copilot CLI 1.0.92.
+`tests/agents` gained Claude Code 2.1.292, Gemini CLI 0.63.0 and Copilot CLI 1.0.92.
 
 - Gemini CLI: passes A1–A10, A7b included.
 - Copilot CLI: with quota, passes A1–A3, A5–A7, A9, A10; A4 and A7b are n/a (Copilot takes no context from hooks, HAR-5_AC-5). It first ran no hook at all: its debug log says it loads repository hooks only when the folder is trusted or opted in. Finding 5: our Copilot harness gave no note about that; it now says so (HAR-5_AC-10). The checks trust the folder through `trustedFolders` in Copilot's `config.json`.

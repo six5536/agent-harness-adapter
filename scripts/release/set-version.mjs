@@ -3,7 +3,7 @@
 // version and its internal crate pins, every package.json under packages/
 // with the launcher's pinned optionalDependencies, and both lockfiles.
 //
-// Usage: node scripts/set-version.mjs <version>
+// Usage: node scripts/release/set-version.mjs <version>
 
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -12,11 +12,11 @@ import { dirname, join } from "node:path";
 
 const version = process.argv[2]?.replace(/^v/, "");
 if (!version || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
-  console.error("usage: node scripts/set-version.mjs <semver>");
+  console.error("usage: node scripts/release/set-version.mjs <semver>");
   process.exit(1);
 }
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const SCOPE = "@six5536/agent-harness-adapter-";
 
 // Cargo.toml: the workspace version and every internal crate's pin.

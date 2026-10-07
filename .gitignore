@@ -12,7 +12,7 @@
 /packages/agent-harness-adapter-*/bin/agent-harness-adapter
 /packages/agent-harness-adapter-*/bin/agent-harness-adapter.exe
 
-# Local checkouts of the private consumers (scripts/validate-consumers.sh).
+# Local checkouts of the private consumers (tests/consumers/validate-consumers.sh).
 /consumers/
 
 /.cache/

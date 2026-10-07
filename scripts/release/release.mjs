@@ -2,7 +2,7 @@
 // Cut a release commit and tag. Deliberately stops before pushing: the push is
 // what triggers an irreversible publish, so it stays a human action.
 //
-// Usage: node scripts/release.mjs <version>
+// Usage: node scripts/release/release.mjs <version>
 //
 //   1. refuse a dirty working tree
 //   2. refuse a version with no CHANGELOG section
@@ -19,10 +19,10 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const version = process.argv[2]?.replace(/^v/, "");
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 if (!version || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
-  console.error("usage: node scripts/release.mjs <semver>");
+  console.error("usage: node scripts/release/release.mjs <semver>");
   process.exit(1);
 }
 
@@ -60,11 +60,11 @@ if (!new RegExp(`^## \\[${version.replace(/[.\\+]/g, "\\$&")}\\]`, "m").test(cha
 
 // --- 4. Set the version everywhere ------------------------------------------
 step(`setting version to ${version}`);
-run("node", [join(root, "scripts/set-version.mjs"), version], { stdio: "inherit" });
+run("node", [join(root, "scripts/release/set-version.mjs"), version], { stdio: "inherit" });
 
 // --- 5. Verify it landed consistently ---------------------------------------
 step("verifying version consistency");
-run("node", [join(root, "scripts/verify-version.mjs"), version], { stdio: "inherit" });
+run("node", [join(root, "scripts/release/verify-version.mjs"), version], { stdio: "inherit" });
 
 // --- 6. Commit and tag ------------------------------------------------------
 step("committing and tagging");

@@ -15,7 +15,7 @@ use crate::{
 /// What a hook decides. Each harness renders it in its own form
 /// (`Harness::answer`).
 ///
-/// As JSON (the hook contract's answer, AHA-2): `{"answer": "allow",
+/// As JSON (the hook contract's answer): `{"answer": "allow",
 /// "stderr"?}`, `{"answer": "deny", "reason"}`, `{"answer": "continue",
 /// "reason"}` or `{"answer": "context", "text"}`.
 // @zen-impl: KIT-11_AC-4

@@ -48,7 +48,7 @@ jobs:
           echo "Releasing $version"
 
       - name: Tag matches every version in the tree
-        run: node scripts/verify-version.mjs "${{ steps.v.outputs.version }}"
+        run: node scripts/release/verify-version.mjs "${{ steps.v.outputs.version }}"
 
       - name: CHANGELOG has a section for this version
         run: |
@@ -156,14 +156,14 @@ jobs:
         run: |
           bin="packages/agent-harness-adapter-${{ matrix.pkg }}/bin/agent-harness-adapter"
           case "${{ matrix.target }}" in *windows*) bin="$bin.exe" ;; esac
-          node scripts/release-smoke.mjs "$bin"
+          node tests/smoke/release-smoke.mjs "$bin"
 
       # The launcher selects by the host's platform, so this runs only where
       # the built package matches the runner.
       - name: Smoke-test the npm launcher with the packed binary
         if: matrix.pkg == 'linux-x64' || matrix.pkg == 'darwin-arm64' || matrix.pkg == 'win32-x64'
         shell: bash
-        run: node scripts/launcher-smoke.mjs
+        run: node tests/smoke/launcher-smoke.mjs
 
       - uses: actions/upload-artifact@v7
         with:
@@ -269,7 +269,7 @@ jobs:
       - name: Build (cargo)
         if: matrix.builder == 'cargo'
         shell: bash
-        run: node scripts/build-node.mjs --release --target ${{ matrix.target }} --out packages/agent-harness-adapter-node-${{ matrix.pkg }}/index.node
+        run: node scripts/build/build-node.mjs --release --target ${{ matrix.target }} --out packages/agent-harness-adapter-node-${{ matrix.pkg }}/index.node
       # Run the binding's tests on the addon itself, where the runner can
       # load it.
       - name: Test the addon

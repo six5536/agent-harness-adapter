@@ -11,7 +11,7 @@ use crate::{
 /// What a harness sends a hook command, parsed by that harness into one
 /// shape. Every field is optional; the raw JSON keeps the rest.
 ///
-/// As JSON (the hook contract's input, AHA-2), an absent value is left out:
+/// As JSON (the hook contract's input), an absent value is left out:
 /// `continuing` when false and `raw` when null too.
 // @zen-impl: KIT-11_AC-3
 // @zen-impl: AHA-2_AC-1

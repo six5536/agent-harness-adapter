@@ -6,10 +6,10 @@
 # out that branch in each first.
 #
 #   SMLLM_REPO=git@github.com:owner/smllm.git SOKF_REPO=git@github.com:owner/sokf.git \
-#     scripts/validate-consumers.sh [name...]
+#     tests/consumers/validate-consumers.sh [name...]
 set -euo pipefail
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$(cd "$(dirname "$0")/../.." && pwd)"
 dir="$root/consumers"
 mkdir -p "$dir"
 

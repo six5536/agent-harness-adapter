@@ -7,19 +7,20 @@
     "packages/agent-harness-adapter-node"
   ],
   "scripts": {
-    "build:linux-x64": "rustup target add x86_64-unknown-linux-musl && mise exec -- cargo zigbuild --release --target x86_64-unknown-linux-musl -p agent-harness-adapter && install -m 0755 target/x86_64-unknown-linux-musl/release/agent-harness-adapter packages/agent-harness-adapter-linux-x64/bin/agent-harness-adapter",
-    "build:linux-arm64": "rustup target add aarch64-unknown-linux-musl && mise exec -- cargo zigbuild --release --target aarch64-unknown-linux-musl -p agent-harness-adapter && install -m 0755 target/aarch64-unknown-linux-musl/release/agent-harness-adapter packages/agent-harness-adapter-linux-arm64/bin/agent-harness-adapter",
-    "build:darwin-x64": "rustup target add x86_64-apple-darwin && mise exec -- cargo zigbuild --release --target x86_64-apple-darwin -p agent-harness-adapter && install -m 0755 target/x86_64-apple-darwin/release/agent-harness-adapter packages/agent-harness-adapter-darwin-x64/bin/agent-harness-adapter",
+    "agents": "node tests/agents/run.mjs",
     "build:darwin-arm64": "rustup target add aarch64-apple-darwin && mise exec -- cargo zigbuild --release --target aarch64-apple-darwin -p agent-harness-adapter && install -m 0755 target/aarch64-apple-darwin/release/agent-harness-adapter packages/agent-harness-adapter-darwin-arm64/bin/agent-harness-adapter",
+    "build:darwin-x64": "rustup target add x86_64-apple-darwin && mise exec -- cargo zigbuild --release --target x86_64-apple-darwin -p agent-harness-adapter && install -m 0755 target/x86_64-apple-darwin/release/agent-harness-adapter packages/agent-harness-adapter-darwin-x64/bin/agent-harness-adapter",
+    "build:linux-arm64": "rustup target add aarch64-unknown-linux-musl && mise exec -- cargo zigbuild --release --target aarch64-unknown-linux-musl -p agent-harness-adapter && install -m 0755 target/aarch64-unknown-linux-musl/release/agent-harness-adapter packages/agent-harness-adapter-linux-arm64/bin/agent-harness-adapter",
+    "build:linux-x64": "rustup target add x86_64-unknown-linux-musl && mise exec -- cargo zigbuild --release --target x86_64-unknown-linux-musl -p agent-harness-adapter && install -m 0755 target/x86_64-unknown-linux-musl/release/agent-harness-adapter packages/agent-harness-adapter-linux-x64/bin/agent-harness-adapter",
+    "build:node": "node scripts/build/build-node.mjs",
+    "consumers": "bash tests/consumers/validate-consumers.sh",
+    "smoke": "node tests/smoke/release-smoke.mjs",
+    "smoke:launcher": "node tests/smoke/launcher-smoke.mjs",
     "test:launcher": "node --test packages/agent-harness-adapter/test/*.test.js",
-    "smoke": "node scripts/release-smoke.mjs",
-    "smoke:launcher": "node scripts/launcher-smoke.mjs",
-    "set-version": "node scripts/set-version.mjs",
-    "verify-version": "node scripts/verify-version.mjs",
-    "release": "node scripts/release.mjs",
     "test:node": "node --test packages/agent-harness-adapter-node/test/",
-    "build:node": "node scripts/build-node.mjs",
     "test:pi": "node --test crates/lib/agent-harness-adapter-core/tests/pi/",
-    "agents": "node scripts/agents/run.mjs"
+    "release": "node scripts/release/release.mjs",
+    "set-version": "node scripts/release/set-version.mjs",
+    "verify-version": "node scripts/release/verify-version.mjs"
   }
 }

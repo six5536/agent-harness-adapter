@@ -3,7 +3,7 @@
 // internal crate pins, every package.json under packages/, the launcher's
 // optionalDependencies, and both lockfiles.
 //
-// Usage: node scripts/verify-version.mjs [expected-version]
+// Usage: node scripts/release/verify-version.mjs [expected-version]
 //
 // With no argument it checks only that they agree. With one, it also checks
 // they match it: the release workflow verifies a tag against the tree so.
@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const expected = process.argv[2]?.replace(/^v/, "");
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const SCOPE = "@six5536/agent-harness-adapter-";
 
 const found = [];

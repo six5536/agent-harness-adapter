@@ -7,9 +7,9 @@ CI.
 
 ```sh
 cargo build -p agent-harness-adapter
-node scripts/agents/run.mjs setup              # pinned agents, into target/agent-checks
-node scripts/agents/run.mjs login <agent>      # once per agent (see below)
-node scripts/agents/run.mjs run [--agents claude,codex,gemini,copilot,pi] [--codex-full-access] [--<agent>-model <m>]
+node tests/agents/run.mjs setup              # pinned agents, into target/agent-checks
+node tests/agents/run.mjs login <agent>      # once per agent (see below)
+node tests/agents/run.mjs run [--agents claude,codex,gemini,copilot,pi] [--codex-full-access] [--<agent>-model <m>]
 ```
 
 Every agent runs with `HOME` set to `target/agent-checks/home`, so your own

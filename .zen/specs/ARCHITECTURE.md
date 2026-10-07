@@ -90,7 +90,12 @@ packages/agent-harness-adapter/               # npm launcher `@six5536/agent-har
 packages/agent-harness-adapter-<platform>/    # one prebuilt-binary package per platform
 packages/agent-harness-adapter-node/          # the Node binding `@six5536/agent-harness-adapter-node`: loader, wrapper, types, tests
 packages/agent-harness-adapter-node-<platform>/  # one prebuilt-addon package per platform
-scripts/                                  # validate-consumers.sh; set / verify version, release, release and launcher smoke tests
+scripts/release/                          # release.mjs (commit and tag), set-version / verify-version
+scripts/build/                            # build-node.mjs: the Node addon for the host
+tests/                                    # checks of the shipped product outside cargo's tests (tests/README.md)
+  smoke/                                  # the release binary, the packed npm launcher
+  agents/                                 # real-agent checks, on demand (needs logins)
+  consumers/                              # smllm and sokf against this checkout
 .zen/                                     # specs, plans, rules
 .github/workflows/                        # ci (checks), release, audit
 ```
@@ -227,7 +232,7 @@ sequenceDiagram
 - Files ≤ 800 lines; module rules in `.zen/rules/rust-rules.md`
 - No new dependency without user approval; dependencies support the MSRV
 - Tests: unit and property tests beside the code, integration tests through the public API; CI line coverage ≥ 90%
-- Consumers are validated against the checkout before each release (`scripts/validate-consumers.sh`)
+- Consumers are validated against the checkout before each release (`tests/consumers/validate-consumers.sh`)
 
 ## Release Status
 
@@ -253,7 +258,9 @@ Unreleased; 0.1.0 (every crate and package) is published by PLAN-011 P9. The API
 - `npm run verify-version` / `npm run set-version <v>` — one version across Cargo, packages and lockfiles
 - `npm run smoke` / `npm run smoke:launcher` — the release binary and the packed launcher
 - `npm run release <v>` — release commit and tag (never pushes)
-- `scripts/validate-consumers.sh` — build and test smllm and sokf against this checkout (needs `SMLLM_REPO`, `SOKF_REPO`)
+- `tests/consumers/validate-consumers.sh` — build and test smllm and sokf against this checkout (needs `SMLLM_REPO`, `SOKF_REPO`)
+- `npm run agents -- run` — the real-agent checks (`tests/agents/README.md`)
+- `tests/README.md` — every test outside cargo's, and when it runs
 
 ## Change Log
 

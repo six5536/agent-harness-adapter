@@ -23,10 +23,10 @@ pub enum Action {
     /// A region or merge part written into the existing file, or an
     /// external part written again.
     Updated,
-    /// Taken out by uninstall (KIT-22).
+    /// Taken out by uninstall.
     Removed,
     /// Left by uninstall because other installed harnesses, named in `by`,
-    /// still read it (KIT-22_AC-4).
+    /// still read it.
     Kept,
 }
 

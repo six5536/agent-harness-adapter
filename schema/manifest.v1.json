@@ -668,7 +668,7 @@
       ]
     },
     "OpFile": {
-      "description": "One merge operation (REQ-KIT KIT-2_AC-3).",
+      "description": "One merge operation on the file's JSON or TOML.",
       "oneOf": [
         {
           "description": "`value` once in the array at `path`.",

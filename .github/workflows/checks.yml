@@ -202,7 +202,7 @@ jobs:
       - name: Build agent-harness-adapter and the addon
         run: |
           cargo build --locked -p agent-harness-adapter
-          node scripts/build-node.mjs
+          node scripts/build/build-node.mjs
       - name: Test
         shell: bash
         run: |

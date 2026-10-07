@@ -2,7 +2,7 @@
 // Build the Node addon for the host and copy it where tests (and a local
 // `AHA_NODE_ADDON`) find it: target/<profile>/agent_harness_adapter_node.node.
 //
-// Usage: node scripts/build-node.mjs [--release] [--target <triple>] [--out <file>]
+// Usage: node scripts/build/build-node.mjs [--release] [--target <triple>] [--out <file>]
 
 import { execFileSync } from "node:child_process";
 import { copyFileSync } from "node:fs";
