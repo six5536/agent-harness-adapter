@@ -18,13 +18,30 @@ First release as a crate of its own.
 
 ### Added
 
-- `harness`: `Tool`, `Profile`, `Part` (`files`, `region`, `region_chosen`, `merge`,
-  `external`), `MergeOp` (`array_entry`, `object_member`, `group_entry` with `EntryMatch`), `install` /
-  `status` with `InstallOptions`, `HarnessResult`, `PartResult` (`State` and
-  `Option<Action>`), `DeclinedStore` / `TomlDeclined`, `Markers`.
-- `claude`: `HookInput`, `Answer`, `emit`, `instructions_file`, `instructions`,
-  `hook_command`.
-- `LoopGuard`, `report` (`Finding`, `Report`, `Severity`), `cli`, `fs`.
+- `integration`: `Integration`, declared once per scope without naming a
+  harness: an instructions block, skills (`Skill`), hooks (`Hook`), MCP
+  servers (`McpServer`), allowed commands, subagents (`Agent`), slash
+  commands (`Command`), and raw parts for one harness. `Item` names each kind.
+- `harness`: the `Harness` contract (render, reads, hook parsing and answers,
+  notes), `builtin()` and `find()`; `install` / `status` over a set of
+  harnesses with `InstallOptions`, `InstallResult`, `HarnessResult`,
+  `PartResult` (`State`, `Option<Action>`, `by`); `Part` (`files`, `region`,
+  `merge`, `external`); `MergeOp` (`array_entry`, `object_member`,
+  `owned_entries`, `group_entries`) with `EntryMatch` (`Prefix`, `Contains`,
+  `Any`); JSON and TOML merges that keep the file's style; `DeclinedStore` /
+  `TomlDeclined`; `Markers`; scopes `project`, `user` and `local`.
+- Shared locations: per item, the fewest locations every harness in the set
+  loads; the others report the part as `shared`, and a warning names any
+  agent that may load something twice.
+- Harnesses: `claude` (Claude Code), `codex` (OpenAI Codex CLI), `factory`
+  (Factory Droid), `gemini` (Gemini CLI), `copilot` (GitHub Copilot),
+  `cursor` (Cursor), `pi` (Pi, through a generated TypeScript extension) and
+  `agents` (any agent that reads `AGENTS.md`).
+- `hook`: `Event`, `HookInput`, `ToolCall` / `ToolKind`, `Answer` (`Allow`,
+  `Deny`, `Continue`, `Context`), `Output`, `emit` through a harness, and
+  `LoopGuard`. Hook commands are any command line, with optional `{harness}`
+  and `{event}` placeholders.
+- `report` (`Finding`, `Report`, `Severity`), `cli`, `fs`.
 - `Error` with one variant per kind of refusal.
 - Optional feature `schemars`: `JsonSchema` on the result types.
 - MSRV 1.85.

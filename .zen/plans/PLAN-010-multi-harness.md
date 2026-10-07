@@ -2,7 +2,7 @@
 
 | Meta               | Value |
 | ------------------ | ----- |
-| Status             | in progress: P1–P6 done (2026-10-07): specs; core; neutral hooks; all eight harnesses |
+| Status             | in progress: P1–P7 done (2026-10-07); P7's smoke checks inside each agent (N4) and P8 (consumers) remain |
 | Workflow direction | top-down (architecture → requirements → design → code → docs → consumers → release) |
 | Traces to          | ARCHITECTURE (harness core, harness modules), KIT-1, KIT-2, KIT-3, KIT-4, KIT-10, KIT-11, KIT-12; PLAN-009 D9-17 |
 
@@ -135,6 +135,7 @@ The per-harness locations, formats and sources are in §10.
 - P5: Copilot's parser reads both casings (the VS Code agent sends Claude-style fields, the CLI camelCase), and falls back to Claude's tool names. Cursor's tool names are classified by what they contain (unconfirmed). Claude's parser hands a payload with `cursor_version` to Cursor's (HAR-9_AC-2).
 - P6, D10-11 for Pi settled from `@earendil-works/pi-coding-agent` 1.0.4 (`dist/core/extensions/types.d.ts`, `docs/extensions.md`, `docs/session-format.md`): `agent_before_settle` gives `context.canContinue` and takes `{ continue, entries }`; a `custom_message` entry takes part in the model's context. The extension also maps context answers (`before_agent_start` message, `tool_result` content) and `session_before_compact`.
 - P6 check: a generated extension type-checks (`tsc --strict`, TypeScript 5) against the 1.0.4 package and `@types/node`, and a deliberate type error fails. Run under Node 26 with a stand-in `pi` and real shell commands as hooks: a tool call is blocked with the hook's reason and the hook gets the event JSON on stdin; a stop continues once with the reason as a `custom_message`, then allows when the hook sees `continuing: true`; nothing is asked when the context cannot continue; a hook that times out or exits non-zero allows. A run inside Pi itself is part of the smoke checks (N4).
+- P7: README (harness table, multi-harness example) and CHANGELOG 0.1.0 rewritten; `cargo publish --dry-run` passes; line coverage 98.5%. D10-11 left open, so these stay unsupported: Codex allowed commands (rule-file syntax), Factory allowed commands (`permissionRules` shape) and local scope (hooks in `settings.local.json`), Copilot prompt deny and context answers. Gemini CLI's hooks merge across scopes or not: no effect on what the kit writes (one file per scope). The smoke checks inside each real agent (N4) need the agents installed and signed in.
 
 ## 9. Resolved questions
 

@@ -1,6 +1,6 @@
 [package]
 name = "agent-harness-kit"
-description = "Shared plumbing for CLIs that plug into LLM agent harnesses: install/status of harness parts, marker regions, JSON settings merges, hook answers, findings and CLI output conventions."
+description = "Plug a CLI into LLM agent harnesses (Claude Code, Codex, Gemini CLI, Copilot, Cursor, Factory, Pi, AGENTS.md): declare the integration once, install it everywhere with shared files written once, and speak every harness's hook protocol."
 version = "0.1.0"
 authors = ["six5536 <10079653+six5536@users.noreply.github.com>"]
 edition = "2024"

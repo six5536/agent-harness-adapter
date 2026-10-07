@@ -33,6 +33,28 @@ embeds no content of its own.
 - `LoopGuard` so a stop hook blocks only once on the same text
 - Findings reports, CLI exit codes, broken-pipe handling, atomic writes
 
+## Harnesses
+
+| Harness | Id | Instructions | Hooks | Skills | MCP | Allowed commands | Agents | Commands |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Claude Code | `claude` | `CLAUDE.md` or `AGENTS.md` | `.claude/settings.json` | `.claude/skills` | `.mcp.json` | yes | yes | yes |
+| OpenAI Codex | `codex` | `AGENTS.md` | `.codex/hooks.json` | `.agents/skills` | `.codex/config.toml` | – | yes | – |
+| Factory Droid | `factory` | `AGENTS.md` | `.factory/hooks.json` | `.agents/skills` | `.factory/mcp.json` | – | yes | yes |
+| Gemini CLI | `gemini` | `GEMINI.md`, or `AGENTS.md` when configured | `.gemini/settings.json` | `.agents/skills` | `.gemini/settings.json` | yes | yes | yes |
+| GitHub Copilot | `copilot` | `AGENTS.md` | `.github/hooks/<tool>.json` | `.agents/skills` | `.mcp.json` | – | yes | – |
+| Cursor | `cursor` | `AGENTS.md` | `.cursor/hooks.json` | `.agents/skills` | `.cursor/mcp.json` | yes | yes | yes |
+| Pi | `pi` | `AGENTS.md` (first of `AGENTS.override.md`, `AGENTS.md`, `CLAUDE.md`) | a generated extension, `.pi/extensions/<tool>.ts` | `.agents/skills` | `.pi/mcp.json` | – | – | yes |
+| Any `AGENTS.md` agent | `agents` | `AGENTS.md` | – | `.agents/skills` | – | – | – | – |
+
+Paths are for project scope; user scope uses each harness's directory under
+the home directory, and `local` scope (Claude Code, Copilot) its git-ignored
+settings file. A dash means the harness has no file for the item, or its
+format is not yet confirmed; the item is then listed as `unsupported`. When
+several harnesses read one location (`AGENTS.md`, `.agents/skills`,
+`.mcp.json`, Claude Code's skills and agents that Cursor and Copilot also
+read), the content is written there once and the others report it as
+`shared`.
+
 ## Installation
 
 ### Prerequisites
@@ -53,8 +75,8 @@ Implement `Tool` for your CLI and call `install` / `status`:
 use std::{path::PathBuf, sync::Arc};
 
 use agent_harness_kit::{
-    DeclinedStore, Harness, InstallOptions, Integration, Result, Scope, TomlDeclined, Tool,
-    claude::Claude,
+    DeclinedStore, Harness, InstallOptions, Integration, Result, Scope, State, TomlDeclined, Tool,
+    harness,
     hook::Event,
     install,
     integration::{Hook, McpServer, Skill},
@@ -71,7 +93,7 @@ impl Tool for MyTool {
     }
 
     fn harnesses(&self) -> Vec<Arc<dyn Harness>> {
-        vec![Arc::new(Claude)]
+        harness::builtin()
     }
 
     fn integration(&self, _scope: Scope) -> Integration {
@@ -103,16 +125,30 @@ impl Tool for MyTool {
 # let project = std::env::temp_dir().join(format!("ahk-readme-{}", std::process::id()));
 # let _ = std::fs::remove_dir_all(&project);
 let tool = MyTool { project };
-let result = install(&tool, &InstallOptions::new(["claude"], Scope::Project))?;
+let result = install(&tool, &InstallOptions::new(["claude", "codex", "pi"], Scope::Project))?;
 print!("{}", result.to_text());
 // claude:
 //   created CLAUDE.md (instructions)
 //   created .claude/skills (skills)
 //   created .claude/settings.json (hooks)
-//   created .mcp.json (mcp)
-//   created .claude/settings.json (permissions)
-let again = status(&tool, ["claude"], Scope::Project)?;
-assert!(again.harnesses[0].parts.iter().all(|p| p.verb() == "current"));
+//   ...
+// codex:
+//   created AGENTS.md (instructions)
+//   created .agents/skills (skills)
+//   created .codex/hooks.json (hooks)
+//   created .codex/config.toml (mcp)
+//   unsupported: permissions
+//   note: new hooks run only once approved in Codex's /hooks
+//   ...
+// pi:
+//   shared  AGENTS.md (instructions, by codex)
+//   shared  .agents/skills (skills, by codex)
+//   created .pi/extensions (hooks)
+//   ...
+let again = status(&tool, ["claude", "codex", "pi"], Scope::Project)?;
+for h in &again.harnesses {
+    assert!(h.parts.iter().all(|p| matches!(p.state, State::Current | State::Shared)));
+}
 # std::fs::remove_dir_all(&tool.project).unwrap();
 # Ok(())
 # }
@@ -151,7 +187,7 @@ fn main() {
 - `integration`: `Integration` and its items (`Skill`, `Hook`, `McpServer`, `Agent`, `Command`)
 - `harness`: the `Harness` contract, the parts, their states, `install` / `status`, the same for every harness
 - `hook`: events, `HookInput`, `Answer`, `emit`, `LoopGuard`
-- `claude`: Claude Code
+- `claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`, `pi`, `agents_md`: one harness each
 - `report`: `Finding`, `Report`, text and JSON forms
 - `cli`: exit codes (0 ok, 1 errors found, 2 usage or internal error), stdout, broken pipes, `finish`
 - `fs`: `read_text` and `write_atomic`
