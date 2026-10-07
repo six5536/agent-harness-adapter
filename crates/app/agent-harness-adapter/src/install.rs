@@ -1,13 +1,13 @@
-//! `agent-harness-adapter install` and `agent-harness-adapter status`.
+//! `agent-harness-adapter install`, `uninstall` and `status`.
 
 use std::{io::Write, path::PathBuf};
 
 use agent_harness_adapter_core::{
-    InstallOptions, InstallResult, Scope, State, cli, fs,
+    InstallOptions, InstallResult, Scope, State, UninstallOptions, cli, fs,
     harness::expand,
     install, installed,
     manifest::{Manifest, ManifestTool},
-    status,
+    status, uninstall,
 };
 use clap::Args;
 
@@ -47,6 +47,20 @@ pub struct InstallArgs {
     pub force: bool,
 }
 
+/// `agent-harness-adapter uninstall`.
+#[derive(Debug, Args)]
+pub struct UninstallArgs {
+    #[command(flatten)]
+    pub common: Common,
+    /// The harnesses, comma-separated or repeated: ids, or `all` (the
+    /// installed ones).
+    #[arg(long, value_name = "IDS", value_delimiter = ',', required = true)]
+    pub harness: Vec<String>,
+    /// Also remove parts edited by hand.
+    #[arg(long)]
+    pub force: bool,
+}
+
 /// `agent-harness-adapter status`.
 #[derive(Debug, Args)]
 pub struct StatusArgs {
@@ -79,8 +93,32 @@ pub fn run_install(args: &InstallArgs) -> Result<u8> {
         opts = opts.without(args.without.iter().cloned());
     }
     let result = install(&tool, &opts)?;
-    print(&args.common, &result, args.force, &mut std::io::stderr())
+    print(
+        &args.common,
+        &result,
+        args.force,
+        INSTALL_NOTE,
+        &mut std::io::stderr(),
+    )
 }
+
+// @zen-impl: AHA-3_AC-5
+pub fn run_uninstall(args: &UninstallArgs) -> Result<u8> {
+    let tool = tool(&args.common)?;
+    let opts =
+        UninstallOptions::new(args.harness.iter().cloned(), args.common.scope).force(args.force);
+    let result = uninstall(&tool, &opts)?;
+    print(
+        &args.common,
+        &result,
+        args.force,
+        UNINSTALL_NOTE,
+        &mut std::io::stderr(),
+    )
+}
+
+const INSTALL_NOTE: &str = "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter install --force` overwrites them";
+const UNINSTALL_NOTE: &str = "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter uninstall --force` removes them";
 
 // @zen-impl: AHA-3_AC-2
 pub fn run_status(args: &StatusArgs) -> Result<u8> {
@@ -92,7 +130,13 @@ pub fn run_status(args: &StatusArgs) -> Result<u8> {
         expand(&tool, &args.harness, scope)
     };
     let result = status(&tool, ids, scope)?;
-    print(&args.common, &result, false, &mut std::io::stderr())
+    print(
+        &args.common,
+        &result,
+        false,
+        INSTALL_NOTE,
+        &mut std::io::stderr(),
+    )
 }
 
 /// The result as text or JSON on stdout, and with text the note about
@@ -103,6 +147,7 @@ fn print(
     common: &Common,
     result: &InstallResult,
     force: bool,
+    note: &str,
     stderr: &mut impl Write,
 ) -> Result<u8> {
     if common.json {
@@ -118,10 +163,7 @@ fn print(
         .flat_map(|h| &h.parts)
         .any(|p| p.state == State::Edited && p.action.is_none());
     if edited && !force {
-        writeln!(
-            stderr,
-            "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter install --force` overwrites them"
-        )?;
+        writeln!(stderr, "{note}")?;
     }
     Ok(cli::EXIT_OK)
 }

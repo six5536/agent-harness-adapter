@@ -7,7 +7,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const { spawnSync } = require("node:child_process");
-const { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } = require("node:fs");
+const { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 const { Readable, Writable } = require("node:stream");
@@ -55,6 +55,19 @@ test("install then status", { skip }, () =>
       local.harnesses.map((h) => h.harness),
       ["claude", "copilot"],
     );
+  }),
+);
+
+// @zen-test: BND-1_AC-4
+test("uninstall", { skip }, () =>
+  tree((t) => {
+    aha.install(MANIFEST, ["claude", "codex"], { root: t.root, home: t.home });
+    const out = aha.uninstall(MANIFEST, ["all"], { root: t.root, home: t.home });
+    assert.deepStrictEqual(
+      out.harnesses.map((h) => h.harness),
+      ["claude", "codex"],
+    );
+    assert.deepStrictEqual(readdirSync(t.root), []);
   }),
 );
 

@@ -20,15 +20,15 @@ First release: the library `agent-harness-adapter-core` and the
 
 ### Added
 
-- `agent-harness-adapter` command: `install` and `status` from a manifest
-  file, `hook` (runs a harness's hook through a command that speaks the hook
+- `agent-harness-adapter` command: `install`, `uninstall` and `status` from a
+  manifest file, `hook` (runs a harness's hook through a command that speaks the hook
   contract), `schema` (the contracts' JSON Schemas, also in `schema/`).
   Prebuilt binaries for Linux and macOS (x64, arm64) and Windows (x64)
   through npm and the GitHub release.
 - Python binding `six5536-agent-harness-adapter` (module
-  `agent_harness_adapter`): `install`, `status`, `parse_hook`,
+  `agent_harness_adapter`): `install`, `uninstall`, `status`, `parse_hook`,
   `answer_hook`, `run_hook`, `schema`; abi3 wheels for CPython 3.9+.
-- Node binding `@six5536/agent-harness-adapter-node`: `install`, `status`,
+- Node binding `@six5536/agent-harness-adapter-node`: `install`, `uninstall`, `status`,
   `parseHook`, `answerHook`, `runHook`, `schema`, with TypeScript types;
   prebuilt addons for Linux (glibc), macOS and Windows.
 - `fs::home_dir`, `harness::expand` (`all`).
@@ -39,6 +39,10 @@ First release: the library `agent-harness-adapter-core` and the
   `answer_json`; `HookInput`, `ToolCall`, `Event`, `ToolKind` and `Answer`
   are serde types.
 - `harness::installed`: the harnesses recorded at a scope.
+- `harness::uninstall` (`UninstallOptions`): takes a tool's integration back
+  out, keeping the user's content and edits and whatever another installed
+  harness still reads; `Action::Removed` / `Action::Kept`;
+  `ExternalPart::removable` / `remove`. In the command and both bindings too.
 - `integration`: `Integration`, declared once per scope without naming a
   harness: an instructions block, skills (`Skill`), hooks (`Hook`), MCP
   servers (`McpServer`), allowed commands and MCP tools (`allow_command`,

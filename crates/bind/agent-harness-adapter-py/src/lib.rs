@@ -33,6 +33,16 @@ fn install(path: Option<String>, json: Option<String>, options: &str) -> PyResul
         .map_err(err)
 }
 
+/// Uninstall: `options` is JSON; returns the result as JSON.
+#[pyfunction]
+#[pyo3(signature = (path, json, options))]
+fn uninstall(path: Option<String>, json: Option<String>, options: &str) -> PyResult<String> {
+    let o = Options::parse(options).map_err(err)?;
+    bind::uninstall(source(path, json)?, &o)
+        .map(|v| v.to_string())
+        .map_err(err)
+}
+
 /// Status: `options` is JSON; returns the result as JSON.
 #[pyfunction]
 #[pyo3(signature = (path, json, options))]
@@ -69,6 +79,7 @@ fn schema(contract: &str) -> PyResult<String> {
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(install, m)?)?;
     m.add_function(wrap_pyfunction!(status, m)?)?;
+    m.add_function(wrap_pyfunction!(uninstall, m)?)?;
     m.add_function(wrap_pyfunction!(parse_hook, m)?)?;
     m.add_function(wrap_pyfunction!(answer_hook, m)?)?;
     m.add_function(wrap_pyfunction!(schema, m)?)?;

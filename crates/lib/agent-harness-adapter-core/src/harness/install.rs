@@ -69,33 +69,33 @@ impl InstallOptions {
 
 /// One harness of the set: its profile, where it loads each item, and what
 /// it declined.
-struct Member {
-    harness: Arc<dyn Harness>,
-    named: bool,
-    profile: Profile,
-    reads: BTreeMap<Item, Reads>,
-    unsupported: Vec<Item>,
-    declined: Vec<String>,
+pub(super) struct Member {
+    pub(super) harness: Arc<dyn Harness>,
+    pub(super) named: bool,
+    pub(super) profile: Profile,
+    pub(super) reads: BTreeMap<Item, Reads>,
+    pub(super) unsupported: Vec<Item>,
+    pub(super) declined: Vec<String>,
 }
 
 /// A part's role, state and what the tree held, computed before any write.
-struct Examined<'a> {
-    member: usize,
-    part: &'a Part,
-    path: String,
-    state: State,
-    existed: bool,
-    by: Option<String>,
+pub(super) struct Examined<'a> {
+    pub(super) member: usize,
+    pub(super) part: &'a Part,
+    pub(super) path: String,
+    pub(super) state: State,
+    pub(super) existed: bool,
+    pub(super) by: Option<String>,
 }
 
 /// Everything `install` and `status` read.
-struct Run {
-    cx: Context,
-    markers: Markers,
-    record_path: PathBuf,
-    record: Record,
-    members: Vec<Member>,
-    warnings: Vec<String>,
+pub(super) struct Run {
+    pub(super) cx: Context,
+    pub(super) markers: Markers,
+    pub(super) record_path: PathBuf,
+    pub(super) record: Record,
+    pub(super) members: Vec<Member>,
+    pub(super) warnings: Vec<String>,
 }
 
 /// `path` relative to `root` when it lies under it, `/`-separated.
@@ -158,7 +158,7 @@ fn profile(
 // @zen-impl: KIT-1_AC-2
 // @zen-impl: KIT-19_AC-1
 // @zen-impl: KIT-8_AC-1
-fn run<T: Tool + ?Sized>(
+pub(super) fn run<T: Tool + ?Sized>(
     tool: &T,
     named: &[String],
     scope: Scope,
@@ -265,7 +265,7 @@ impl Run {
 
     /// The shared parts: per item, the choice of KIT-Shared.
     // @zen-impl: KIT-19_AC-6
-    fn share(&mut self) -> Result<BTreeMap<(usize, String), (String, String)>> {
+    pub(super) fn share(&mut self) -> Result<BTreeMap<(usize, String), (String, String)>> {
         let mut shared = BTreeMap::new();
         for item in Item::ALL {
             let mut idx = Vec::new();
@@ -311,7 +311,7 @@ impl Run {
 
     /// Examine every part of every member: declined, shared, or its state.
     // @zen-impl: KIT-8_AC-2
-    fn examine(
+    pub(super) fn examine(
         &self,
         shared: &BTreeMap<(usize, String), (String, String)>,
     ) -> Result<Vec<Examined<'_>>> {
@@ -370,7 +370,7 @@ impl Run {
     }
 
     /// The result of the named members, from their parts' results.
-    fn result(&self, parts: Vec<(usize, PartResult)>) -> InstallResult {
+    pub(super) fn result(&self, parts: Vec<(usize, PartResult)>) -> InstallResult {
         let harnesses = self
             .members
             .iter()
@@ -399,10 +399,11 @@ impl Run {
     }
 }
 
-/// The existing text of `path`: planned already, or on disk.
-fn existing_text(plan: &Plan, path: &Path) -> Result<Option<String>> {
-    if let Some(text) = plan.pending(path) {
-        return Ok(Some(text.to_string()));
+/// The existing text of `path`: planned already (`None` for a planned
+/// deletion), or on disk.
+pub(super) fn existing_text(plan: &Plan, path: &Path) -> Result<Option<String>> {
+    if let Some(planned) = plan.pending(path) {
+        return Ok(planned.map(str::to_string));
     }
     read_text(path)
 }
@@ -499,7 +500,7 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
     if record != run.record || !run.record_path.is_file() {
         plan.record = Some((
             run.record_path.clone(),
-            render_record(&record, &tool.record_header()),
+            Some(render_record(&record, &tool.record_header())),
         ));
     }
     apply_plan(&plan)?;

@@ -8,7 +8,7 @@
 // right, this proves the shipped artifact is. Extend both together.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -66,6 +66,12 @@ try {
   const status = JSON.parse(run(["status", "--manifest", manifest, "--root", proj, "--json"], 0, { env }).stdout);
   if (status.harnesses[0]?.parts[0]?.state !== "current") {
     fail(`status after install is not current: ${JSON.stringify(status)}`);
+  }
+
+  // uninstall takes it all back out: the project is empty again.
+  run(["uninstall", "--manifest", manifest, "--harness", "all", "--root", proj], 0, { env });
+  if (readdirSync(proj).length !== 0) {
+    fail(`uninstall left ${readdirSync(proj).join(", ")}`);
   }
 
   // The hook bridge, with node as the tool: it reads the contract's input

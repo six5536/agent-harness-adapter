@@ -48,7 +48,8 @@ crates/lib/agent-harness-adapter-core/src/
 │   ├── region.rs       Markers
 │   ├── shared.rs       the shared-location choice (internal)
 │   ├── state.rs        State, internal Found / Observed / hash
-│   ├── install.rs      install, status, InstallOptions
+│   ├── install.rs      install, status, InstallOptions; the run uninstall shares
+│   ├── uninstall.rs    uninstall, UninstallOptions (KIT-Uninstall)
 │   ├── file.rs         file part rendering (internal)
 │   ├── result.rs       InstallResult, HarnessResult, PartResult, Action
 │   ├── record.rs       the record (internal)
@@ -303,6 +304,21 @@ impl Markers {
 }
 ```
 
+### KIT-Uninstall
+
+Builds the same run as install: the named harnesses and the installed ones (from the record), their profiles, `reads` and declined parts, the shared-location choice and each part's state. A named part that is current or stale (edited with `--force`) is planned for removal unless an installed, unnamed member's `reads` for that item includes the part's location; then it is kept with `by` = those harnesses. Removal is planned per kind into the same `Plan`, whose writes may now be deletions: files (each part file, then empty directories up to the root), `Markers::remove` (the block, its markers and the blank line before), `render_unmerge` (the inverse of each op: an array entry by equality, a member by key, owned entries by their match, owned entries in groups with a group left empty dropped; then empty containers along the op's path pruned; JSON in the file's style, TOML through `toml_edit`), an external part's `remove` (planned only when `removable`). Text that ends up empty, `{}` or an empty TOML document is a deletion. The record drops the named tables and is deleted when empty; each named harness's declined list is cleared after the writes. `all` is `installed()`.
+
+IMPLEMENTS: KIT-22_AC-1, KIT-22_AC-2, KIT-22_AC-3, KIT-22_AC-4, KIT-22_AC-5, KIT-22_AC-6, KIT-22_AC-7, KIT-22_AC-8, KIT-22_AC-9
+
+```rust
+pub struct UninstallOptions { pub harnesses: Vec<String>, pub scope: Scope, pub force: bool }
+pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<InstallResult>;
+// ExternalPart gains, with defaults:
+fn removable(&self) -> bool { false }
+fn remove(&self) -> Result<()> { Err(Error::Unsupported { .. }) }
+// Action gains Removed.
+```
+
 ### KIT-Results
 
 `PartResult::verb` is the action's word, else the state's; `PartResult::to_line` pads it to seven columns. `InstallResult::to_text` prints each harness (`<id>:`, then indented: part lines, `unsupported: …`, `note: …`), then `warning: …` lines. Serialised: `{"scope","root","harnesses":[{"harness","parts":[{"part","state","action"?,"path","by"?}],"unsupported":[…],"notes":[…]}],"warnings":[…]}`.
@@ -499,6 +515,10 @@ TOML at the store's path
   VALIDATES: KIT-19_AC-4
 - KIT_P-11 [TOML merge keeps the rest]: after a TOML merge every member is present, other keys, comments and order are unchanged, and merging again changes nothing
   VALIDATES: KIT-10_AC-5
+- KIT_P-12 [Uninstall undoes install]: on a tree whose text files end with a newline and whose JSON files are in the library's style, install then uninstall of the same harnesses leaves every file byte-identical (absent files absent again), and uninstalling twice equals once
+  VALIDATES: KIT-22_AC-1, KIT-22_AC-2, KIT-22_AC-6
+- KIT_P-13 [Unmerge keeps the rest]: removing an op's entries leaves every other member, entry and their order unchanged
+  VALIDATES: KIT-22_AC-1
 
 ## Error Handling
 
@@ -582,6 +602,8 @@ SOURCE: .zen/specs/REQ-KIT-harness-kit.md
 - KIT-19_AC-6 → KIT-Harness
 - KIT-20_AC-1 → KIT-Harness
 - KIT-21_AC-1 → KIT-Adapter
+- KIT-22_AC-1, KIT-22_AC-2, KIT-22_AC-6 → KIT-Uninstall (KIT_P-12, KIT_P-13)
+- KIT-22_AC-3, KIT-22_AC-4, KIT-22_AC-5, KIT-22_AC-7, KIT-22_AC-8, KIT-22_AC-9 → KIT-Uninstall
 
 ## Library Usage
 

@@ -25,6 +25,8 @@ struct Cli {
 enum Cmd {
     /// Install a manifest's integration into harnesses.
     Install(install::InstallArgs),
+    /// Take a manifest's integration back out of harnesses.
+    Uninstall(install::UninstallArgs),
     /// Report the state of a manifest's integration in harnesses.
     Status(install::StatusArgs),
     /// Run a harness's hook through a command that speaks the hook contract:
@@ -41,6 +43,7 @@ fn main() -> ExitCode {
     let args = Cli::parse();
     cli::finish(match args.command {
         Cmd::Install(a) => install::run_install(&a),
+        Cmd::Uninstall(a) => install::run_uninstall(&a),
         Cmd::Status(a) => install::run_status(&a),
         Cmd::Hook(a) => bridge::run(&a).map_err(error::Error::from),
         Cmd::Schema { contract } => schema::run(contract).map_err(error::Error::from),

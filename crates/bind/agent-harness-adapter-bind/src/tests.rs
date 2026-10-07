@@ -137,3 +137,20 @@ fn schemas_and_versions() {
     assert!(schema("nope").unwrap_err().contains("no contract `nope`"));
     assert_eq!((MANIFEST_VERSION, HOOK_VERSION), (1, 1));
 }
+
+// @zen-test: BND-1_AC-4
+#[test]
+fn uninstall_takes_it_back_out() {
+    let d = Dir::new("uninstall");
+    install(Source::Json(manifest()), &d.options(&["claude", "codex"])).unwrap();
+    let out = uninstall(Source::Json(manifest()), &d.options(&["all"])).unwrap();
+    let names: Vec<_> = out["harnesses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|h| h["harness"].clone())
+        .collect();
+    assert_eq!(names, [json!("claude"), json!("codex")]);
+    assert_eq!(out["harnesses"][0]["parts"][0]["action"], "removed");
+    assert_eq!(fs::read_dir(d.0.join("proj")).unwrap().count(), 0);
+}

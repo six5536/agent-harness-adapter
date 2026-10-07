@@ -38,6 +38,15 @@ function install(manifest, harnesses, opts) {
   return JSON.parse(native.install(...source(manifest), options(harnesses, opts)));
 }
 
+/**
+ * Take the manifest's integration back out of `harnesses` (ids, or "all":
+ * the installed ones). A part edited by hand stays unless `force`.
+ */
+// @zen-impl: BND-1_AC-4
+function uninstall(manifest, harnesses, opts) {
+  return JSON.parse(native.uninstall(...source(manifest), options(harnesses, opts)));
+}
+
 /** The state of each part, for `harnesses` or the installed ones. */
 function status(manifest, harnesses, opts) {
   return JSON.parse(native.status(...source(manifest), options(harnesses, opts)));
@@ -79,6 +88,7 @@ function schema(contract) {
 
 module.exports = {
   install,
+  uninstall,
   status,
   parseHook,
   answerHook,

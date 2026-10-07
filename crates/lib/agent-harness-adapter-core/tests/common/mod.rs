@@ -131,6 +131,14 @@ impl ExternalPart for FakeMcp {
         }
         fs::write(&self.file, self.expected()).map_err(|e| Error::io(&self.file, e))
     }
+
+    fn removable(&self) -> bool {
+        true
+    }
+
+    fn remove(&self) -> Result<()> {
+        fs::remove_file(&self.file).map_err(|e| Error::io(&self.file, e))
+    }
 }
 
 /// The tool under test: named `tool`. `old` is an older version of it:

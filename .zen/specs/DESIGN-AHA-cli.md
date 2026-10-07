@@ -92,10 +92,11 @@ pub fn answer_json(answer: &Answer) -> Value;
 
 clap derive: `install`, `status`, `hook`, `schema`. `--root` defaults to the working directory, the home directory comes from `HOME` / `USERPROFILE`. `all` expands to the manifest's harnesses with files at the scope. Results print through `InstallResult::to_text` or `cli::json_line`; failures through `cli::finish`.
 
-IMPLEMENTS: AHA-3_AC-1, AHA-3_AC-2, AHA-3_AC-3, AHA-3_AC-4, AHA-5_AC-1, AHA-6_AC-1
+IMPLEMENTS: AHA-3_AC-1, AHA-3_AC-2, AHA-3_AC-3, AHA-3_AC-4, AHA-3_AC-5, AHA-5_AC-1, AHA-6_AC-1
 
 ```text
 agent-harness-adapter install --manifest <file> --harness <ids|all>[,..] [--scope project|user|local] [--root <dir>] [--force] [--without <parts>] [--json]
+agent-harness-adapter uninstall --manifest <file> --harness <ids|all>[,..] [--scope ..] [--root <dir>] [--force] [--json]
 agent-harness-adapter status  --manifest <file> [--harness <ids|all>] [--scope ..] [--root <dir>] [--json]
 agent-harness-adapter hook [--tool <name>] [--tools <kind>] <harness> <event> -- <command> [args..]
 agent-harness-adapter schema <manifest|hook-input|hook-answer|result>
@@ -239,6 +240,7 @@ SOURCE: .zen/specs/REQ-AHA-agent-harness-adapter.md
 - AHA-3_AC-2 → AHA-Cli
 - AHA-3_AC-3 → AHA-Cli
 - AHA-3_AC-4 → AHA-Cli
+- AHA-3_AC-5 → AHA-Cli
 - AHA-4_AC-1 → AHA-Bridge
 - AHA-4_AC-2 → AHA-Bridge
 - AHA-4_AC-3 → AHA-Bridge

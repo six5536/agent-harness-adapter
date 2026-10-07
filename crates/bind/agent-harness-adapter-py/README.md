@@ -25,7 +25,7 @@ def decide(hook):
 sys.exit(agent-harness-adapter.run_hook(sys.argv[2], sys.argv[3], decide))
 ```
 
-Functions: `install`, `status`, `parse_hook`, `answer_hook`, `run_hook`,
+Functions: `install`, `uninstall`, `status`, `parse_hook`, `answer_hook`, `run_hook`,
 `schema`; errors raise `ValueError` with the library's message. The manifest and
 the hook contract are those of the `agent-harness-adapter` command:
 <https://github.com/six5536/agent-harness-adapter/tree/main/crates/app/agent-harness-adapter>.

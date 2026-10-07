@@ -3,12 +3,14 @@
 
 mod json;
 mod op;
+mod remove;
 mod toml;
 
 use serde_json::Value;
 
 use json::parse_json;
 pub use op::{EntryMatch, MergeOp};
+pub(crate) use remove::render_unmerge;
 pub(crate) use toml::parse_toml;
 
 use crate::Result;

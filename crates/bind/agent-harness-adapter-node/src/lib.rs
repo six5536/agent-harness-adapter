@@ -28,6 +28,15 @@ pub fn install(path: Option<String>, json: Option<String>, options: String) -> R
         .map_err(err)
 }
 
+/// Uninstall: `options` is JSON; returns the result as JSON.
+#[napi]
+pub fn uninstall(path: Option<String>, json: Option<String>, options: String) -> Result<String> {
+    let o = Options::parse(&options).map_err(err)?;
+    bind::uninstall(source(path, json)?, &o)
+        .map(|v| v.to_string())
+        .map_err(err)
+}
+
 /// Status: `options` is JSON; returns the result as JSON.
 #[napi]
 pub fn status(path: Option<String>, json: Option<String>, options: String) -> Result<String> {

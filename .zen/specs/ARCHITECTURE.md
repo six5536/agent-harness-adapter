@@ -116,7 +116,8 @@ RESPONSIBILITIES
 - `Tool` trait: name, harnesses, integration per scope, root, record path, declined store
 - Part kinds `file`, `region`, `merge` (JSON or TOML), `external`; states skipped, shared, absent, current, stale, edited
 - Shared locations: per item, the fewest locations every harness in the set loads; the rest shared; warnings for double loads
-- `install` plans every write before writing any, then writes external parts, files and the record
+- `uninstall`: the inverse of install over the same run (removes current and stale parts, keeps edits and what other installed harnesses read, drops the record)
+- `install` / `uninstall` plan every write or deletion before any, then apply external parts, files, deletions (and the folders they empty) and the record
 - Record of written content hashes per harness; declined parts store (`TomlDeclined`)
 
 CONSTRAINTS

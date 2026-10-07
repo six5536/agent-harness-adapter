@@ -20,6 +20,22 @@ pub trait ExternalPart: fmt::Debug + Send + Sync {
     fn observe(&self) -> Result<Option<String>>;
     /// Make the part hold [`expected`](ExternalPart::expected).
     fn write(&self) -> Result<()>;
+    /// Whether the tool can take the part back out ([`remove`]); without
+    /// it, uninstall keeps the part and warns.
+    ///
+    /// [`remove`]: ExternalPart::remove
+    // @zen-impl: KIT-22_AC-5
+    fn removable(&self) -> bool {
+        false
+    }
+    /// Take the part back out; called by uninstall when
+    /// [`removable`](ExternalPart::removable).
+    fn remove(&self) -> Result<()> {
+        Err(crate::Error::Refused(format!(
+            "the tool cannot remove {}",
+            self.location()
+        )))
+    }
 }
 
 /// A part's kind and the content the tool wants there.

@@ -113,6 +113,30 @@ impl Markers {
         let out = if crlf { out.replace('\n', "\r\n") } else { out };
         (out != existing).then_some(out)
     }
+
+    /// `existing` without the region: its marker lines, what lies between
+    /// them, and the one blank line before the opening marker that
+    /// [`render`](Markers::render) puts there when it appends. The file's line
+    /// endings are kept. `None` when there is no region.
+    // @zen-impl: KIT-22_AC-1
+    pub(crate) fn remove(&self, existing: &str) -> Option<String> {
+        let crlf = existing.contains("\r\n");
+        let text = normalise(existing);
+        let lines: Vec<&str> = text.split('\n').collect();
+        let (open, close) = self.locate(&lines)?;
+        let from = if open > 0 && lines[open - 1].trim().is_empty() {
+            open - 1
+        } else {
+            open
+        };
+        let kept: Vec<&str> = lines[..from]
+            .iter()
+            .chain(&lines[close + 1..])
+            .copied()
+            .collect();
+        let out = kept.join("\n");
+        Some(if crlf { out.replace('\n', "\r\n") } else { out })
+    }
 }
 
 #[cfg(test)]
@@ -125,6 +149,23 @@ mod tests {
 
     fn m() -> Markers {
         Markers::new("tool")
+    }
+
+    // @zen-test: KIT-22_AC-1
+    #[test]
+    fn remove_undoes_render() {
+        for before in [None, Some(""), Some("Mine.\n"), Some("Mine.\r\nMore.\r\n")] {
+            let rendered = m().render(before, BLOCK).unwrap();
+            assert_eq!(
+                m().remove(&rendered).as_deref(),
+                Some(before.unwrap_or("")),
+                "{before:?}"
+            );
+        }
+        // A region the user moved between their lines: the lines stay.
+        let moved = "A\n\n<!-- tool:harness -->\n\nx\n<!-- /tool:harness -->\nB\n";
+        assert_eq!(m().remove(moved).as_deref(), Some("A\nB\n"));
+        assert_eq!(m().remove("no region\n"), None);
     }
 
     #[test]

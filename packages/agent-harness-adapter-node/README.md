@@ -26,7 +26,7 @@ agent-harness-adapter
   .then((code) => process.exit(code));
 ```
 
-Functions: `install`, `status`, `parseHook`, `answerHook`, `runHook`,
+Functions: `install`, `uninstall`, `status`, `parseHook`, `answerHook`, `runHook`,
 `schema`; errors throw with the library's message. TypeScript types are
 included. Prebuilt for Linux (glibc; x64, arm64), macOS (x64, arm64) and
 Windows (x64).

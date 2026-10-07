@@ -55,6 +55,7 @@ ACCEPTANCE CRITERIA
 - [ ] AHA-3_AC-2 [event]: WHEN `agent-harness-adapter status --manifest <file>` runs THEN the system SHALL report the state of the named harnesses, or of the recorded ones when none is named (KIT-5)
 - [ ] AHA-3_AC-3 [ubiquitous]: The system SHALL print the result as text, or as the result's JSON with `--json`, and exit 0; on an error it SHALL print `error: <message>` and exit 2 (KIT-14)
 - [ ] AHA-3_AC-4 [conditional]: IF a part is edited and was not written, and the output is text THEN the system SHALL add a note on stderr that `--force` overwrites it
+- [ ] AHA-3_AC-5 [event]: WHEN `agent-harness-adapter uninstall --manifest <file> --harness <ids|all>` runs THEN the system SHALL uninstall the manifest's integration from those harnesses (KIT-22), `all` being the installed ones, with `--scope`, `--root`, `--force` and `--json` as for install; an edited part kept gets the `--force` note (AHA-3_AC-4)
 
 ### AHA-4: Hook bridge [MUST]
 

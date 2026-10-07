@@ -6,8 +6,11 @@
 use std::path::PathBuf;
 
 use agent_harness_adapter_core::{
-    InstallOptions, InstallResult, Scope, fs,
-    harness::{self, expand, install as kit_install, installed, status as kit_status},
+    InstallOptions, InstallResult, Scope, UninstallOptions, fs,
+    harness::{
+        self, expand, install as kit_install, installed, status as kit_status,
+        uninstall as kit_uninstall,
+    },
     hook::{Answer, Event, HookInput, wire},
     manifest::{self, Manifest, ManifestTool},
 };
@@ -104,6 +107,15 @@ pub fn install(source: Source, options: &Options) -> Result<Value> {
         opts = opts.without(w.iter().cloned());
     }
     to_json(&kit_install(&tool, &opts).map_err(msg)?)
+}
+
+/// Take `source`'s integration out of `options.harnesses` (`all`: the
+/// installed ones).
+// @zen-impl: BND-1_AC-4
+pub fn uninstall(source: Source, options: &Options) -> Result<Value> {
+    let (tool, scope) = tool(source, options)?;
+    let opts = UninstallOptions::new(options.harnesses.iter().cloned(), scope).force(options.force);
+    to_json(&kit_uninstall(&tool, &opts).map_err(msg)?)
 }
 
 /// The state of `options.harnesses`, or of the installed ones when none

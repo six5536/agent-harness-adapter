@@ -182,3 +182,35 @@ fn errors_exit_2_with_one_line() {
     assert_eq!(code, 2);
     assert!(err.contains("none.toml: no such file"), "{err}");
 }
+
+// @zen-test: AHA-3_AC-5
+#[test]
+fn uninstall_takes_it_all_back_out() {
+    let t = tree();
+    run(&t, &["install", "--harness", "claude,codex"]);
+    t.write(
+        "proj/CLAUDE.md",
+        "<!-- mytool:harness -->\nMine.\n<!-- /mytool:harness -->\n",
+    );
+    let (code, out, err) = run(&t, &["uninstall", "--harness", "all"]);
+    assert_eq!(code, 0, "{err}");
+    assert!(
+        out.contains("removed .claude/settings.json (hooks)"),
+        "{out}"
+    );
+    assert!(out.contains("edited  CLAUDE.md (instructions)"), "{out}");
+    assert!(
+        err.contains("`agent-harness-adapter uninstall --force` removes them"),
+        "{err}"
+    );
+    assert!(t.exists("proj/CLAUDE.md") && !t.exists("proj/AGENTS.md"));
+    assert!(!t.exists("proj/.claude") && !t.exists("proj/.codex"));
+    // Nothing left installed: the record is gone, `all` is no harness.
+    assert!(!t.exists("proj/.mytool"));
+    let (code, out, _) = run(&t, &["uninstall", "--harness", "all", "--json"]);
+    assert_eq!(code, 0);
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["harnesses"], serde_json::json!([]));
+    let (code, _, err) = run(&t, &["uninstall"]);
+    assert_eq!(code, 2, "--harness is required: {err}");
+}

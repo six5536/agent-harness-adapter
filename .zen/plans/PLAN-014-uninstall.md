@@ -2,7 +2,7 @@
 
 | Field              | Value |
 | ------------------ | ----- |
-| Status             | in-progress (planned 2026-10-07) |
+| Status             | done (2026-10-07); the agent check (PLAN-013 A10) follows |
 | Workflow direction | top-down (requirements → design → code & tests → docs) |
 | Traces to          | REQ-KIT (KIT-2..KIT-8, KIT-19), DESIGN-KIT, REQ-AHA (AHA-3), REQ-BND (BND-1), PLAN-013 §5, PLAN-011 P9 |
 
@@ -66,3 +66,10 @@ Ship 0.1.0 with `uninstall`: take a tool's integration back out of the named har
 | P3 `harness::uninstall` | Planning over the states, shared-location keep rule, record and declined store, `ExternalPart::remove`; integration tests per harness and scope, F1 property | F1–F6 |
 | P4 CLI and bindings | Command, Python and Node functions, schema regenerated, release smoke step | F7 |
 | P5 Docs | READMEs, CHANGELOG, ARCHITECTURE | Committed; PLAN-013 continues |
+
+## 7. Implementation notes
+
+- A part uninstall keeps because other installed harnesses read it gets a new action, `kept`, so its line reads `kept AGENTS.md (instructions, used by pi)` instead of borrowing install's `by` wording.
+- The record is deleted whenever no table is left, even when unchanged: install of no harness writes an empty record, which the round-trip property found.
+- `ExternalPart` gains `removable` (default `false`) and `remove` (default: a refusal), so existing external parts (smllm's `claude mcp`) compile and are kept with a warning until they add removal.
+- Byte-for-byte round trip (KIT_P-12) holds for every harness and scope, with and without the user's own files beside the tool's.

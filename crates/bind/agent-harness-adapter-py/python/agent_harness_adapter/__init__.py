@@ -18,6 +18,7 @@ from . import _native
 __all__ = [
     "install",
     "status",
+    "uninstall",
     "parse_hook",
     "answer_hook",
     "run_hook",
@@ -78,6 +79,25 @@ def install(
     path, text = _source(manifest)
     options = _options(harnesses, scope, root, home, force, without)
     return json.loads(_native.install(path, text, options))
+
+
+def uninstall(
+    manifest: Manifest,
+    harnesses: Iterable[str],
+    *,
+    scope: str = "project",
+    root: PathLike = None,
+    home: PathLike = None,
+    force: bool = False,
+) -> Dict[str, Any]:
+    """Take the manifest's integration back out of ``harnesses`` (ids, or
+    "all": the installed ones). A part edited by hand stays unless
+    ``force``; what another installed harness reads stays. Returns the
+    result, as ``agent-harness-adapter uninstall --json`` prints it.
+    """
+    # @zen-impl: BND-1_AC-4
+    path, text = _source(manifest)
+    return json.loads(_native.uninstall(path, text, _options(harnesses, scope, root, home, force)))
 
 
 def status(

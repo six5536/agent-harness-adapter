@@ -23,6 +23,11 @@ pub enum Action {
     /// A region or merge part written into the existing file, or an
     /// external part written again.
     Updated,
+    /// Taken out by uninstall (KIT-22).
+    Removed,
+    /// Left by uninstall because other installed harnesses, named in `by`,
+    /// still read it (KIT-22_AC-4).
+    Kept,
 }
 
 impl Action {
@@ -32,6 +37,8 @@ impl Action {
             Action::Created => "created",
             Action::Rewrote => "rewrote",
             Action::Updated => "updated",
+            Action::Removed => "removed",
+            Action::Kept => "kept",
         }
     }
 }
@@ -71,11 +78,20 @@ impl PartResult {
     }
 
     /// One text line: `<verb> <path> (<part>)`, the verb padded to seven
-    /// columns; a shared part names its writer: `(<part>, by <harness>)`.
+    /// columns; a shared part names its writer: `(<part>, by <harness>)`,
+    /// a part uninstall kept its users: `(<part>, used by <harnesses>)`.
     pub fn to_line(&self) -> String {
-        match &self.by {
-            Some(by) => format!("{:<7} {} ({}, by {by})", self.verb(), self.path, self.part),
-            None => format!("{:<7} {} ({})", self.verb(), self.path, self.part),
+        match (&self.by, self.action) {
+            (Some(by), Some(Action::Kept)) => {
+                format!(
+                    "{:<7} {} ({}, used by {by})",
+                    self.verb(),
+                    self.path,
+                    self.part
+                )
+            }
+            (Some(by), _) => format!("{:<7} {} ({}, by {by})", self.verb(), self.path, self.part),
+            (None, _) => format!("{:<7} {} ({})", self.verb(), self.path, self.part),
         }
     }
 }

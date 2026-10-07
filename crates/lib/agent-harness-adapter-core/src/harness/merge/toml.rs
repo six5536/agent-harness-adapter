@@ -116,7 +116,7 @@ fn table_at<'a>(doc: &'a mut DocumentMut, path: &[String], display: &str) -> Res
     Ok(cur)
 }
 
-fn members(op: &MergeOp) -> Result<(&[String], &str, &Value)> {
+pub(super) fn members(op: &MergeOp) -> Result<(&[String], &str, &Value)> {
     match &op.0 {
         Op::ObjectMember { path, key, value } => Ok((path, key, value)),
         _ => Err(Error::Internal(

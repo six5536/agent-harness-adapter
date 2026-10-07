@@ -191,7 +191,7 @@ fn main() {
 ### Modules
 
 - `integration`: `Integration` and its items (`Skill`, `Hook`, `McpServer`, `Agent`, `Command`)
-- `harness`: the `Harness` contract, the parts, their states, `install` / `status` / `installed`, the same for every harness
+- `harness`: the `Harness` contract, the parts, their states, `install` / `uninstall` / `status` / `installed`, the same for every harness
 - `hook`: events, `HookInput`, `Answer`, `emit`, `LoopGuard`; `wire`, the hook contract's JSON
 - `manifest`: an integration declared in a TOML or JSON file (`Manifest`, `ManifestTool`), as the `agent-harness-adapter` command reads it
 - `claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`, `pi`, `agents_md`: one harness each

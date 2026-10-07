@@ -25,6 +25,7 @@ ACCEPTANCE CRITERIA
 - [ ] BND-1_AC-1 [event]: WHEN `install(manifest, harnesses, scope, root, home, force, without)` is called THEN the BINDING SHALL install the MANIFEST SOURCE's integration and return the RESULT; `scope` defaults to project, `root` to the working directory, `home` to the user's home directory, `all` stands for every harness of the manifest with files at the scope
 - [ ] BND-1_AC-2 [event]: WHEN `status(manifest, harnesses, scope, root, home)` is called THEN the BINDING SHALL return the RESULT of status, for the installed harnesses when none is named
 - [ ] BND-1_AC-3 [conditional]: IF the library refuses (KIT-16) or the manifest is wrong (AHA-1_AC-7) THEN the BINDING SHALL raise (Python: `ValueError`) or throw (Node: `Error`) with the library's message
+- [ ] BND-1_AC-4 [event]: WHEN `uninstall(manifest, harnesses, scope, root, home, force)` is called THEN the BINDING SHALL uninstall the MANIFEST SOURCE's integration (KIT-22) and return the RESULT; `all` stands for the installed harnesses
 
 ### BND-2: Hooks [MUST]
 

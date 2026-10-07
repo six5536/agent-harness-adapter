@@ -251,6 +251,24 @@ ACCEPTANCE CRITERIA
 
 - [ ] KIT-21_AC-1 [ubiquitous]: Scopes SHALL be `project` (the project root), `user` (the home directory) and `local` (the project root, git-ignored files only); each harness SHALL state which scopes it has
 
+### KIT-22: Uninstall [MUST]
+
+AS AN agent user, I WANT to take a tool back out of my harnesses, SO THAT nothing of it is left behind and nothing of mine is lost.
+
+> Uninstall finds the tool's content through the integration it is given (markers, keys, owned-entry matches, the part's files), so it runs with the integration the tool installed with.
+
+ACCEPTANCE CRITERIA
+
+- [ ] KIT-22_AC-1 [event]: WHEN `uninstall` runs for named harnesses at a scope THEN for each part of a named harness whose state is current or stale the system SHALL remove the tool's content: a file part's files, then each directory under the root the removal left empty; a region with its marker lines and the one blank line before it; a merge part's entries (the inverse of each operation of KIT-2_AC-3 and KIT-2_AC-5), then each array, object or table on the operation's path the removal left empty; an external part through the tool's own removal
+- [ ] KIT-22_AC-2 [ubiquitous]: A file the removal leaves empty (only whitespace, an empty JSON object, or an empty TOML document) SHALL be deleted
+- [ ] KIT-22_AC-3 [conditional]: IF a part is edited THEN the system SHALL keep it and report it, unless `--force` is given, which removes it
+- [ ] KIT-22_AC-4 [conditional]: IF a harness installed at the scope and not named reads the part's item at the part's location THEN the system SHALL keep the part and report the harnesses that use it
+- [ ] KIT-22_AC-5 [conditional]: IF an external part's tool cannot remove it THEN the system SHALL keep it and add a warning naming it
+- [ ] KIT-22_AC-6 [ubiquitous]: The record SHALL lose each named harness's table, and SHALL be deleted when no table is left; the declined parts of each named harness SHALL be cleared
+- [ ] KIT-22_AC-7 [ubiquitous]: `all` SHALL stand for the harnesses installed at the scope; a named harness that is not installed SHALL get an entry with nothing removed; an unknown harness or one without the scope SHALL be refused (KIT-1_AC-2)
+- [ ] KIT-22_AC-8 [ubiquitous]: Uninstall SHALL keep the guarantees of install: every removal planned before any write, a refusal writing nothing (KIT-6), atomic writes only on change (KIT-7), external parts first
+- [ ] KIT-22_AC-9 [ubiquitous]: The result SHALL be install's (KIT-4_AC-3) with the action `removed` for a part removed; a part kept for KIT-22_AC-4 SHALL name the harnesses that use it
+
 ## Assumptions
 
 - Each harness's files and hook formats behave as its documentation says on 2026-10-06 (REQ-HAR)

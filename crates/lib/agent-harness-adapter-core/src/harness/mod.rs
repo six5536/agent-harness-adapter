@@ -1,8 +1,8 @@
 //! Harness integration, the same for every harness: the [`Harness`]
 //! contract, the parts a harness renders (`file`, `region`, `merge`,
 //! `external`), the state of each part, the shared-location choice, the
-//! record, the declined parts, and [`install`] / [`status`] over a set of
-//! harnesses. A harness's own formats live in its module (e.g.
+//! record, the declined parts, and [`install`] / [`status`] /
+//! [`uninstall`] over a set of harnesses. A harness's own formats live in its module (e.g.
 //! [`claude`](crate::claude)).
 
 mod adapter;
@@ -17,6 +17,7 @@ mod result;
 mod shared;
 mod state;
 mod tool;
+mod uninstall;
 mod write;
 
 pub use adapter::{Context, Harness, Reads, builtin, find};
@@ -30,3 +31,4 @@ pub use region::Markers;
 pub use result::{Action, HarnessResult, InstallResult, PartResult};
 pub use state::State;
 pub use tool::{Scope, Tool};
+pub use uninstall::{UninstallOptions, uninstall};

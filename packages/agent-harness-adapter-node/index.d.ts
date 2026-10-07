@@ -17,10 +17,15 @@ export interface InstallOptions extends Options {
   without?: string[];
 }
 
+export interface UninstallOptions extends Options {
+  /** Also remove parts edited by hand. */
+  force?: boolean;
+}
+
 export interface PartResult {
   part: string;
   state: "skipped" | "shared" | "absent" | "current" | "stale" | "edited";
-  action?: "created" | "rewrote" | "updated";
+  action?: "created" | "rewrote" | "updated" | "removed" | "kept";
   path: string;
   by?: string;
 }
@@ -67,6 +72,7 @@ export type Answer =
 export type Manifest = string | Record<string, unknown>;
 
 export function install(manifest: Manifest, harnesses: string[], options?: InstallOptions): Result;
+export function uninstall(manifest: Manifest, harnesses: string[], options?: UninstallOptions): Result;
 export function status(manifest: Manifest, harnesses?: string[], options?: Options): Result;
 export function parseHook(harness: string, event: Event | string, text: string): HookInput;
 export function answerHook(

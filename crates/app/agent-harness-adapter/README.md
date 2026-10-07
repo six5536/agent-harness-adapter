@@ -58,6 +58,7 @@ agent-harness-adapter status  --manifest mytool.harness.toml
 
 ```text
 agent-harness-adapter install --manifest <file> --harness <ids|all> [--scope project|user|local] [--root <dir>] [--force] [--without <parts>] [--json]
+agent-harness-adapter uninstall --manifest <file> --harness <ids|all> [--scope ..] [--root <dir>] [--force] [--json]
 agent-harness-adapter status  --manifest <file> [--harness <ids|all>] [--scope ..] [--root <dir>] [--json]
 agent-harness-adapter hook [--tool <name>] [--tools <kind>] <harness> <event> -- <command> [args..]
 agent-harness-adapter schema <manifest|hook-input|hook-answer|result>
@@ -67,7 +68,12 @@ agent-harness-adapter schema <manifest|hook-input|hook-answer|result>
   `pi`, `agents`; `all` is every harness of the manifest with files at the
   scope. `status` without `--harness` reports the installed ones.
 - A part changed by hand is reported `edited` and left alone; `--force`
-  overwrites it.
+  overwrites it (install) or removes it (uninstall).
+- `uninstall` takes the tool's content back out: its files, its block in
+  the instructions file, its entries in settings files (the user's stay),
+  and files and folders that are then empty. Content another installed
+  harness still reads is kept (`kept … used by <harness>`). `all` is the
+  installed harnesses. Run it with the manifest you installed with.
 - Exit codes: 0, or 2 with `error: <message>` on stderr.
 
 ## The manifest

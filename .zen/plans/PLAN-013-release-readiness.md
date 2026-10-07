@@ -2,7 +2,7 @@
 
 | Field              | Value |
 | ------------------ | ----- |
-| Status             | in-progress: P3–P5 run (2026-10-07): three findings to fix (§6); P1–P2 next |
+| Status             | in-progress: findings 1–3 fixed (`ff4d029`), uninstall done (PLAN-014); P5b (agent checks in the repo) next, then P5c retest, then P1–P2 |
 | Workflow direction | bottom-up (CI and manual checks → fixes through the specs) |
 | Traces to          | PLAN-011 (P9, D11-11, N4), PLAN-010 (N4), REQ-HAR (HAR-2 Codex, HAR-7 Pi), REQ-AHA, `.github/workflows/release.yml` |
 
@@ -53,6 +53,8 @@ Each check is recorded pass / fail with the agent's version in §6.
 | P3 Agent setup | Install Codex and Pi in the scratch area; the user logs in; scratch project with the example tool (D13-4) | Both agents answer a prompt |
 | P4 Codex | §3 checks | Results in §6; fixes landed |
 | P5 Pi | §3 checks | Results in §6; fixes landed |
+| P5b Agent checks in the repo | The scratch checks (§3) as a script under `scripts/agents/`, run on demand against installed, logged-in agents with an isolated `HOME`; Codex and Pi first, written so other agents can be added | `scripts/agents` runs §3 for Codex and Pi and prints a pass / fail table |
+| P5c Retest | Run P5b after the findings' fixes (`ff4d029`) and PLAN-014 | All of §3, A10 included, pass or are written down as known limits |
 | P6 Close | README harness table notes; PLAN-011 P9 unblocked | Committed and pushed |
 
 ## 5. Resolved

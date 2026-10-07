@@ -49,13 +49,14 @@ packages/agent-harness-adapter-node-<platform>/ index.node
 
 Builds a `Manifest` from a path or a JSON value (TEXT files against the working directory), a `ManifestTool` at `root` / `home` (defaults: working directory, `fs::home_dir`), expands `all` (`harness::expand`), defaults status to `harness::installed`, and serialises results.
 
-IMPLEMENTS: BND-1_AC-1, BND-1_AC-2, BND-1_AC-3, BND-2_AC-1, BND-2_AC-2, BND-2_AC-3, BND-3_AC-1, BND-3_AC-2
+IMPLEMENTS: BND-1_AC-1, BND-1_AC-2, BND-1_AC-3, BND-1_AC-4, BND-2_AC-1, BND-2_AC-2, BND-2_AC-3, BND-3_AC-1, BND-3_AC-2
 
 ```rust
 pub enum Source { Path(PathBuf), Json(Value) }
 #[derive(Deserialize, Default)] pub struct Options { harnesses, scope, root, home, force, without }
 pub fn install(source: Source, options: &Options) -> Result<Value, String>;
 pub fn status(source: Source, options: &Options) -> Result<Value, String>;
+pub fn uninstall(source: Source, options: &Options) -> Result<Value, String>;
 pub fn parse_hook(harness: &str, event: &str, text: &str) -> Result<Value, String>;
 pub fn answer_hook(harness: &str, event: &str, answer: &str) -> Result<Value, String>; // {stdout, stderr, exit}
 pub fn schema(contract: &str) -> Result<Value, String>;
@@ -139,6 +140,7 @@ SOURCE: .zen/specs/REQ-BND-bindings.md
 
 - BND-1_AC-1 → BND-Glue (BND_P-1)
 - BND-1_AC-2 → BND-Glue (BND_P-1)
+- BND-1_AC-4 → BND-Glue
 - BND-1_AC-3 → BND-Glue, BND-Python, BND-Node
 - BND-2_AC-1 → BND-Glue
 - BND-2_AC-2 → BND-Glue

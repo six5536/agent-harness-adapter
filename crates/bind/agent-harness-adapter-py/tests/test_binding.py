@@ -57,6 +57,14 @@ class InstallStatus(unittest.TestCase):
             )
             self.assertEqual([h["harness"] for h in local["harnesses"]], ["claude", "copilot"])
 
+    # @zen-test: BND-1_AC-4
+    def test_uninstall(self):
+        with Tree() as t:
+            aha.install(MANIFEST, ["claude", "codex"], root=t.proj, home=t.home)
+            out = aha.uninstall(MANIFEST, ["all"], root=t.proj, home=t.home)
+            self.assertEqual([h["harness"] for h in out["harnesses"]], ["claude", "codex"])
+            self.assertEqual(os.listdir(t.proj), [])
+
     # @zen-test: BND-1_AC-3
     def test_refusals_raise_value_error(self):
         with Tree() as t:

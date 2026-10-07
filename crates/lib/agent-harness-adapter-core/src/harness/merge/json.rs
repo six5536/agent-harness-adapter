@@ -24,7 +24,7 @@ pub(crate) fn parse_json(display: &str, text: &str) -> Result<Value> {
 
 /// The indent of a file: the leading whitespace of its first indented line,
 /// or two spaces.
-fn indent_of(text: &str) -> String {
+pub(super) fn indent_of(text: &str) -> String {
     text.lines()
         .find(|l| l.starts_with(' ') || l.starts_with('\t'))
         .map(|l| l[..l.len() - l.trim_start().len()].to_string())
@@ -33,12 +33,12 @@ fn indent_of(text: &str) -> String {
 }
 
 /// The value at `path` in `doc`, when every step is an object member.
-fn get<'a>(doc: &'a Value, path: &[String]) -> Option<&'a Value> {
+pub(super) fn get<'a>(doc: &'a Value, path: &[String]) -> Option<&'a Value> {
     path.iter().try_fold(doc, |v, k| v.as_object()?.get(k))
 }
 
 /// Whether an entry is the tool's: its `field` matches.
-fn is_tool_entry(entry: &Value, field: &str, owned: &EntryMatch) -> bool {
+pub(super) fn is_tool_entry(entry: &Value, field: &str, owned: &EntryMatch) -> bool {
     entry[field].as_str().is_some_and(|c| owned.matches(c))
 }
 
@@ -234,7 +234,7 @@ fn apply(doc: &mut Value, op: &MergeOp, display: &str) -> Result<()> {
 }
 
 /// Serialise with an indent and, when asked, a trailing newline.
-fn json_text(doc: &Value, indent: &str, trailing_newline: bool) -> String {
+pub(super) fn json_text(doc: &Value, indent: &str, trailing_newline: bool) -> String {
     let mut buf = Vec::new();
     let mut ser = serde_json::Serializer::with_formatter(
         &mut buf,
