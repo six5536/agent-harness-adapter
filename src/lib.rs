@@ -10,7 +10,7 @@
 //! - [`hook`]: hook events, the input a harness sends, the answer a hook
 //!   gives, [`emit`](hook::emit), and the [`LoopGuard`](hook::LoopGuard).
 //! - One module per harness: [`claude`], [`codex`], [`factory`], [`gemini`],
-//!   [`copilot`], [`cursor`], [`agents_md`].
+//!   [`copilot`], [`cursor`], [`pi`], [`agents_md`].
 //! - [`report`]: findings (error / warning / info) and their text and JSON
 //!   forms.
 //! - [`cli`]: exit codes, stdout, broken pipes and the `error:` runner.
@@ -39,6 +39,7 @@ pub mod gemini;
 pub mod harness;
 pub mod hook;
 pub mod integration;
+pub mod pi;
 pub mod report;
 
 pub use error::{Error, Result};

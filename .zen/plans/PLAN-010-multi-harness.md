@@ -2,7 +2,7 @@
 
 | Meta               | Value |
 | ------------------ | ----- |
-| Status             | in progress: P1–P5 done (2026-10-07): specs; core; neutral hooks; Claude, Codex, Factory, Gemini CLI, `agents`, Cursor, Copilot |
+| Status             | in progress: P1–P6 done (2026-10-07): specs; core; neutral hooks; all eight harnesses |
 | Workflow direction | top-down (architecture → requirements → design → code → docs → consumers → release) |
 | Traces to          | ARCHITECTURE (harness core, harness modules), KIT-1, KIT-2, KIT-3, KIT-4, KIT-10, KIT-11, KIT-12; PLAN-009 D9-17 |
 
@@ -133,6 +133,8 @@ The per-harness locations, formats and sources are in §10.
 - P3: `LoopGuard` moved to `hook`; the README examples use the new API.
 - P4: Gemini CLI loads every name `context.fileName` lists, so all count as read; the region goes in `AGENTS.md` when listed, else the first name (HAR-4_AC-2 sharpened). Factory's user skills stay in `~/.factory/skills` (its `~/.agents` support is unconfirmed). `builtin()` puts the generic `agents` last, so a shared location is written by a specific harness.
 - P5: Copilot's parser reads both casings (the VS Code agent sends Claude-style fields, the CLI camelCase), and falls back to Claude's tool names. Cursor's tool names are classified by what they contain (unconfirmed). Claude's parser hands a payload with `cursor_version` to Cursor's (HAR-9_AC-2).
+- P6, D10-11 for Pi settled from `@earendil-works/pi-coding-agent` 1.0.4 (`dist/core/extensions/types.d.ts`, `docs/extensions.md`, `docs/session-format.md`): `agent_before_settle` gives `context.canContinue` and takes `{ continue, entries }`; a `custom_message` entry takes part in the model's context. The extension also maps context answers (`before_agent_start` message, `tool_result` content) and `session_before_compact`.
+- P6 check: a generated extension type-checks (`tsc --strict`, TypeScript 5) against the 1.0.4 package and `@types/node`, and a deliberate type error fails. Run under Node 26 with a stand-in `pi` and real shell commands as hooks: a tool call is blocked with the hook's reason and the hook gets the event JSON on stdin; a stop continues once with the reason as a `custom_message`, then allows when the hook sees `continuing: true`; nothing is asked when the context cannot continue; a hook that times out or exits non-zero allows. A run inside Pi itself is part of the smoke checks (N4).
 
 ## 9. Resolved questions
 
