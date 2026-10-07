@@ -149,6 +149,8 @@ pub fn builtin() -> Vec<Arc<dyn Harness>> {
         Arc::new(crate::codex::Codex),
         Arc::new(crate::factory::Factory),
         Arc::new(crate::gemini::Gemini),
+        Arc::new(crate::copilot::Copilot),
+        Arc::new(crate::cursor::Cursor),
         Arc::new(crate::agents_md::AgentsMd),
     ]
 }

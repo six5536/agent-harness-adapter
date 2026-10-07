@@ -161,3 +161,112 @@ fn codex_config_keeps_the_users_toml() {
     .unwrap();
     assert_eq!(parts(&st, "codex")[3].verb(), "edited");
 }
+
+// @zen-test: KIT-19_AC-4
+#[test]
+fn cursor_reads_claudes_skills_and_agents_and_is_warned_about_hooks() {
+    let tree = TempTree::empty("claude-cursor");
+    let tool = tree.tool().with(harness::builtin());
+    let out = install(
+        &tool,
+        &InstallOptions::new(["claude", "cursor"], Scope::Project),
+    )
+    .unwrap();
+    let cursor = parts(&out, "cursor");
+    let by: Vec<_> = cursor
+        .iter()
+        .map(|p| (p.part.as_str(), p.state, p.by.as_deref()))
+        .collect();
+    assert_eq!(
+        by,
+        [
+            ("instructions", State::Absent, None),
+            ("skills", State::Shared, Some("claude")),
+            ("hooks", State::Absent, None),
+            ("mcp", State::Absent, None),
+            ("permissions", State::Absent, None),
+        ]
+    );
+    assert!(tree.exists(".cursor/hooks.json"));
+    assert!(!tree.exists(".agents/skills"));
+    assert_eq!(
+        out.warnings,
+        [
+            "cursor may load the instructions twice: CLAUDE.md, AGENTS.md",
+            "cursor may load the hooks twice: .claude/settings.json, .cursor/hooks.json"
+        ]
+    );
+    let hooks: serde_json::Value = serde_json::from_str(&tree.read(".cursor/hooks.json")).unwrap();
+    assert_eq!(hooks["version"], 1);
+    assert_eq!(
+        hooks["hooks"]["stop"][0]["command"],
+        "tool harness hook cursor stop"
+    );
+    assert_eq!(
+        tree.read(".cursor/cli.json"),
+        "{\n  \"permissions\": {\n    \"allow\": [\n      \"Shell(tool)\"\n    ]\n  }\n}\n"
+    );
+}
+
+#[test]
+fn copilot_shares_claudes_files() {
+    let tree = TempTree::empty("claude-copilot");
+    let out = install_all(&tree, &["claude", "copilot"]);
+    let copilot: Vec<_> = parts(&out, "copilot")
+        .iter()
+        .map(|p| (p.part.as_str(), p.verb(), p.path.as_str()))
+        .collect();
+    assert_eq!(
+        copilot,
+        [
+            ("instructions", "shared", "CLAUDE.md"),
+            ("skills", "shared", ".claude/skills"),
+            ("hooks", "created", ".github/hooks"),
+            ("mcp", "shared", ".mcp.json"),
+        ]
+    );
+    assert!(tree.exists(".github/hooks/tool.json"));
+    assert!(!tree.exists("AGENTS.md"));
+    assert_eq!(
+        out.warnings,
+        ["copilot may load the hooks twice: .claude/settings.json, .github/hooks"]
+    );
+    // With codex as well, AGENTS.md is needed and Copilot reads both.
+    let out = install_all(&tree, &["claude", "codex", "copilot"]);
+    assert!(
+        out.warnings
+            .contains(&"copilot may load the instructions twice: CLAUDE.md, AGENTS.md".to_string()),
+        "{:?}",
+        out.warnings
+    );
+    let before = tree.files();
+    install_all(&tree, &["claude", "codex", "copilot"]);
+    assert_eq!(tree.files(), before);
+}
+
+#[test]
+fn every_harness_at_once_installs_and_settles() {
+    let tree = TempTree::empty("all");
+    let ids: Vec<String> = harness::builtin()
+        .iter()
+        .map(|h| h.id().to_string())
+        .collect();
+    let tool = tree.tool().with(harness::builtin());
+    let out = install(&tool, &InstallOptions::new(ids.clone(), Scope::Project)).unwrap();
+    assert_eq!(out.harnesses.len(), ids.len());
+    let before = tree.files();
+    let again = install(&tool, &InstallOptions::new(ids.clone(), Scope::Project)).unwrap();
+    assert_eq!(tree.files(), before);
+    for h in &again.harnesses {
+        for p in &h.parts {
+            assert!(
+                matches!(p.state, State::Current | State::Shared),
+                "{}: {p:?}",
+                h.harness
+            );
+        }
+    }
+    // Every harness has a user scope.
+    let user = install(&tool, &InstallOptions::new(ids, Scope::User));
+    assert!(user.is_ok(), "{user:?}");
+}

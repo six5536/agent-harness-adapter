@@ -169,7 +169,12 @@ impl Harness for Claude {
     }
 
     // @zen-impl: HAR-1_AC-4
+    // @zen-impl: HAR-9_AC-2
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
+        // The Cursor CLI runs Claude Code's hooks with its own input.
+        if protocol::raw_object(text)?.get("cursor_version").is_some() {
+            return crate::cursor::Cursor.parse_hook(event, text);
+        }
         protocol::parse(ID, event, text, tool_kind, "last_assistant_message")
     }
 
@@ -388,6 +393,15 @@ mod tests {
                 .unwrap()
                 .continuing
         );
+        // A Cursor payload is read as Cursor's.
+        // @zen-test: HAR-9_AC-2
+        let i = Claude
+            .parse_hook(
+                Event::Stop,
+                r#"{"cursor_version":"2","loop_count":2,"conversation_id":"c"}"#,
+            )
+            .unwrap();
+        assert_eq!((i.harness.as_str(), i.continuing), ("cursor", true));
     }
 
     // @zen-test: HAR-1_AC-5

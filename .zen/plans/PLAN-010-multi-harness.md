@@ -2,7 +2,7 @@
 
 | Meta               | Value |
 | ------------------ | ----- |
-| Status             | in progress: P1–P4 done (2026-10-06): specs; core; neutral hooks; Claude, Codex, Factory, Gemini CLI, `agents` |
+| Status             | in progress: P1–P5 done (2026-10-07): specs; core; neutral hooks; Claude, Codex, Factory, Gemini CLI, `agents`, Cursor, Copilot |
 | Workflow direction | top-down (architecture → requirements → design → code → docs → consumers → release) |
 | Traces to          | ARCHITECTURE (harness core, harness modules), KIT-1, KIT-2, KIT-3, KIT-4, KIT-10, KIT-11, KIT-12; PLAN-009 D9-17 |
 
@@ -132,6 +132,7 @@ The per-harness locations, formats and sources are in §10.
 - P2: `tests/shared.rs` drives `install` / `status` / `emit` through three harnesses defined in the test, as a third party would.
 - P3: `LoopGuard` moved to `hook`; the README examples use the new API.
 - P4: Gemini CLI loads every name `context.fileName` lists, so all count as read; the region goes in `AGENTS.md` when listed, else the first name (HAR-4_AC-2 sharpened). Factory's user skills stay in `~/.factory/skills` (its `~/.agents` support is unconfirmed). `builtin()` puts the generic `agents` last, so a shared location is written by a specific harness.
+- P5: Copilot's parser reads both casings (the VS Code agent sends Claude-style fields, the CLI camelCase), and falls back to Claude's tool names. Cursor's tool names are classified by what they contain (unconfirmed). Claude's parser hands a payload with `cursor_version` to Cursor's (HAR-9_AC-2).
 
 ## 9. Resolved questions
 
