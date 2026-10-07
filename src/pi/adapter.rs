@@ -256,7 +256,7 @@ mod tests {
         );
         assert_eq!(Pi.scopes(), [Scope::Project, Scope::User]);
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
-        let p = Profile::new(ID, Pi.render(&full(), &cx).unwrap());
+        let p = Profile::new(Pi.render(&full(), &cx).unwrap());
         assert!(p.part("hooks").unwrap().same_content(&Part::files(
             "hooks",
             ".pi/extensions",

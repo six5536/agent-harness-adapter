@@ -180,7 +180,7 @@ fn harnesses_sharing_agents_md_write_it_once() {
     assert!(tree.exists(".agents/skills/tool/SKILL.md"));
     let record = tree.read(".tool/harness.toml");
     assert!(
-        record.contains("[alpha]") && !record.contains("[beta]"),
+        record.contains("[alpha]") && record.ends_with("[beta]\n"),
         "{record}"
     );
     let alpha = out.harness("alpha").unwrap();

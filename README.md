@@ -28,7 +28,9 @@ embeds no content of its own.
   the file's own style kept, whole files for skills, agents and commands
 - One hook model: events, input and answers the same for every harness;
   hook commands in any shape (`{harness}` and `{event}` placeholders
-  optional)
+  optional), one per harness when needed (`Hook::command_for`)
+- Allowed commands and MCP tools (`allow_command`, `allow_mcp_tool`) in each
+  harness's permission list where it has one
 - Declined parts (`--without`) remembered in the tool's TOML config
 - `LoopGuard` so a stop hook blocks only once on the same text
 - Findings reports, CLI exit codes, broken-pipe handling, atomic writes

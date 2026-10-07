@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn renders_every_item() {
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
-        let p = Profile::new(ID, Cursor.render(&full(), &cx).unwrap());
+        let p = Profile::new(Cursor.render(&full(), &cx).unwrap());
         let names: Vec<_> = p
             .parts()
             .iter()
@@ -296,7 +296,7 @@ mod tests {
             ]
         );
         let user = Context::new("t", Scope::User, "/nowhere", None);
-        let u = Profile::new(ID, Cursor.render(&full(), &user).unwrap());
+        let u = Profile::new(Cursor.render(&full(), &user).unwrap());
         assert!(u.part("instructions").is_none());
         assert_eq!(
             u.part("permissions").unwrap().location(),

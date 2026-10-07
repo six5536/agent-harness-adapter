@@ -45,8 +45,7 @@ pub mod report;
 pub use error::{Error, Result};
 pub use harness::{
     Action, DeclinedStore, EntryMatch, ExternalPart, Harness, HarnessResult, InstallOptions,
-    InstallResult, MergeOp, Part, PartResult, Profile, Scope, State, TomlDeclined, Tool, install,
-    status,
+    InstallResult, MergeOp, Part, PartResult, Scope, State, TomlDeclined, Tool, install, status,
 };
 pub use integration::{Integration, Item};
 pub use report::{Finding, Report, Severity};

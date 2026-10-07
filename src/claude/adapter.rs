@@ -261,7 +261,7 @@ mod tests {
     fn rendered(scope: Scope) -> Profile {
         let dir = temp_dir("claude-render");
         let cx = Context::new("t", scope, &dir, None);
-        let p = Profile::new(ID, Claude.render(&full(), &cx).unwrap());
+        let p = Profile::new(Claude.render(&full(), &cx).unwrap());
         fs::remove_dir_all(&dir).unwrap();
         p
     }

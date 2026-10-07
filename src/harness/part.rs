@@ -153,23 +153,14 @@ impl Part {
 /// A harness profile at one scope: its parts in profile order, as the
 /// harness rendered them from the integration, then the raw parts.
 #[derive(Debug, Clone)]
-pub struct Profile {
-    harness: String,
+pub(crate) struct Profile {
     parts: Vec<Part>,
 }
 
 impl Profile {
-    /// The profile of `harness` with `parts` in profile order.
-    pub(crate) fn new(harness: impl Into<String>, parts: Vec<Part>) -> Self {
-        Profile {
-            harness: harness.into(),
-            parts,
-        }
-    }
-
-    /// The harness name.
-    pub fn harness(&self) -> &str {
-        &self.harness
+    /// A profile of `parts` in profile order.
+    pub(crate) fn new(parts: Vec<Part>) -> Self {
+        Profile { parts }
     }
 
     /// The parts, in profile order.
@@ -210,20 +201,16 @@ mod tests {
     // @zen-test: KIT-2_AC-4
     #[test]
     fn constructors_set_the_kind() {
-        let p = Profile::new(
-            "claude",
-            vec![
-                Part::files(
-                    "skills",
-                    ".claude/skills/t",
-                    vec![("SKILL.md".into(), "s".into())],
-                ),
-                Part::region("notes", "NOTES.md", "n"),
-                Part::merge("hooks", ".claude/settings.json", vec![]),
-                Part::external("mcp", Arc::new(Ext)),
-            ],
-        );
-        assert_eq!(p.harness(), "claude");
+        let p = Profile::new(vec![
+            Part::files(
+                "skills",
+                ".claude/skills/t",
+                vec![("SKILL.md".into(), "s".into())],
+            ),
+            Part::region("notes", "NOTES.md", "n"),
+            Part::merge("hooks", ".claude/settings.json", vec![]),
+            Part::external("mcp", Arc::new(Ext)),
+        ]);
         assert_eq!(p.parts().len(), 4);
         assert!(
             matches!(&p.part("skills").unwrap().kind, Kind::Files { dir, .. } if dir == ".claude/skills/t")

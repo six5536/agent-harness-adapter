@@ -217,8 +217,7 @@ pub trait Tool {
     fn record_header(&self) -> String { /* "# Written by {name} harness install. Do not edit." */ }
 }
 
-pub struct Profile { /* private */ }               // harness id + parts; built by the core
-impl Profile { pub fn harness(&self) -> &str; pub fn parts(&self) -> &[Part]; pub fn part(&self, name: &str) -> Option<&Part>; }
+pub(crate) struct Profile { /* parts */ }          // built by the core from a harness's render and the raw parts
 
 pub struct Part { /* name + private Kind */ }
 impl Part {

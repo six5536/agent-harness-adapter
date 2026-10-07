@@ -222,7 +222,7 @@ mod tests {
     fn renders_every_item_it_takes() {
         let dir = temp_dir("factory");
         let cx = Context::new("t", Scope::Project, &dir, None);
-        let p = Profile::new(ID, Factory.render(&full(), &cx).unwrap());
+        let p = Profile::new(Factory.render(&full(), &cx).unwrap());
         assert_eq!(
             names(&p),
             [
@@ -258,7 +258,7 @@ mod tests {
         // Hooks already in the settings file stay there.
         fs::create_dir_all(dir.join(".factory")).unwrap();
         fs::write(dir.join(SETTINGS), r#"{"hooks": {}}"#).unwrap();
-        let p = Profile::new(ID, Factory.render(&full(), &cx).unwrap());
+        let p = Profile::new(Factory.render(&full(), &cx).unwrap());
         assert_eq!(p.part("hooks").unwrap().location(), SETTINGS);
         assert_eq!(
             p.part("hooks").unwrap().ops()[0].path(),
@@ -276,7 +276,6 @@ mod tests {
         assert!(matches!(e, Error::File { .. }), "{e}");
         let user = Context::new("t", Scope::User, &dir, None);
         let p = Profile::new(
-            ID,
             Factory
                 .render(
                     &Integration::new()

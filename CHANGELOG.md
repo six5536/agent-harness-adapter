@@ -20,10 +20,12 @@ First release as a crate of its own.
 
 - `integration`: `Integration`, declared once per scope without naming a
   harness: an instructions block, skills (`Skill`), hooks (`Hook`), MCP
-  servers (`McpServer`), allowed commands, subagents (`Agent`), slash
-  commands (`Command`), and raw parts for one harness. `Item` names each kind.
-- `harness`: the `Harness` contract (render, reads, hook parsing and answers,
-  notes), `builtin()` and `find()`; `install` / `status` over a set of
+  servers (`McpServer`), allowed commands and MCP tools (`allow_command`,
+  `allow_mcp_tool`), subagents (`Agent`), slash commands (`Command`), and raw
+  parts for one harness (a raw part may stand for an item the harness does
+  not render). `Item` names each kind.
+- `harness`: the `Harness` contract (render, reads, hook events, hook
+  parsing and answers, notes), `builtin()` and `find()`; `install` / `status` over a set of
   harnesses with `InstallOptions`, `InstallResult`, `HarnessResult`,
   `PartResult` (`State`, `Option<Action>`, `by`); `Part` (`files`, `region`,
   `merge`, `external`); `MergeOp` (`array_entry`, `object_member`,
@@ -40,7 +42,7 @@ First release as a crate of its own.
 - `hook`: `Event`, `HookInput`, `ToolCall` / `ToolKind`, `Answer` (`Allow`,
   `Deny`, `Continue`, `Context`), `Output`, `emit` through a harness, and
   `LoopGuard`. Hook commands are any command line, with optional `{harness}`
-  and `{event}` placeholders.
+  and `{event}` placeholders, and may differ per harness (`Hook::command_for`).
 - `report` (`Finding`, `Report`, `Severity`), `cli`, `fs`.
 - `Error` with one variant per kind of refusal.
 - Optional feature `schemars`: `JsonSchema` on the result types.

@@ -197,7 +197,7 @@ mod tests {
 
     fn rendered(scope: Scope) -> Profile {
         let cx = Context::new("t", scope, "/nowhere", None);
-        Profile::new(ID, Codex.render(&full(), &cx).unwrap())
+        Profile::new(Codex.render(&full(), &cx).unwrap())
     }
 
     // @zen-test: HAR-2_AC-1

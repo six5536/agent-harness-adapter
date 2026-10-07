@@ -56,7 +56,7 @@ AS AN agent user, I WANT each part's state told apart, SO THAT the tool never ov
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-3_AC-1 [ubiquitous]: The system SHALL give each part exactly one state: skipped (declined), shared (KIT-19), absent (nothing the tool could own), current (equal to the tool's content), stale (differs, and equals the recorded hash), edited (differs from both, or present with no recorded hash)
+- [ ] KIT-3_AC-1 [ubiquitous]: The system SHALL give each part exactly one state: skipped (declined), shared (KIT-19), absent (nothing the tool could own; for a file part, none of its files), current (equal to the tool's content), stale (differs, and equals the recorded hash), edited (differs from both, or present with no recorded hash)
 - [ ] KIT-3_AC-2 [ubiquitous]: The system SHALL compare files and external text ignoring CRLF/LF differences, a region block by its words, and merge entries by JSON equality
 
 ### KIT-4: Install [MUST]
@@ -67,7 +67,7 @@ ACCEPTANCE CRITERIA
 
 - [ ] KIT-4_AC-1 [event]: WHEN `install` runs THEN the system SHALL write absent and stale parts, leave current and skipped parts, and leave edited parts unless forced
 - [ ] KIT-4_AC-2 [event]: WHEN `install` writes or finds current a part THEN the system SHALL record its content hash; a skipped part's hash SHALL be removed; an edited part left as found SHALL keep its recorded hash
-- [ ] KIT-4_AC-3 [ubiquitous]: The result SHALL give, per harness named, in the tool's order, per part in profile order, its name, its path relative to the root (an external part's location; a shared part's covering location), the state found, the harness that writes a shared part, and what install did: created (absent before), rewrote (a file part that existed), updated (a region or merge that existed), or nothing; then the items the harness does not support at the scope, and its notes (KIT-20); and, for the whole run, the warnings of KIT-19_AC-4
+- [ ] KIT-4_AC-3 [ubiquitous]: The result SHALL give, per harness named, in the tool's order, per part in profile order, its name, its path relative to the root (an external part's location; a shared part's covering location), the state found, the harness that writes a shared part, and what install did: created (absent before; for a file part, none of its files existed), rewrote (a file part that existed), updated (a region or merge that existed), or nothing; then the items the harness does not support at the scope, and its notes (KIT-20); and, for the whole run, the warnings of KIT-19_AC-4
 - [ ] KIT-4_AC-4 [ubiquitous]: The text form SHALL be, per harness, a `<harness>:` line, then, indented two spaces, one line per part, `<word> <path> (<part>)` (`(<part>, by <harness>)` for a shared part), the word (the action, else the state) padded to seven columns, then `unsupported: <items>` when any, then one `note: <text>` line per note; then one `warning: <text>` line per warning; the JSON form SHALL carry the same content
 
 DEPENDS ON: KIT-3
@@ -96,7 +96,7 @@ AS AN agent user, I WANT the tool's writes to be minimal and safe, SO THAT my fi
 ACCEPTANCE CRITERIA
 
 - [ ] KIT-7_AC-1 [ubiquitous]: The system SHALL write a file only when its text changes, atomically, after planning every write; several parts in one file SHALL produce one write
-- [ ] KIT-7_AC-2 [ubiquitous]: The record SHALL be the tool's header line, then one table per harness in name order with part hashes in name order, LF; a record that does not change SHALL not be written unless the file is missing
+- [ ] KIT-7_AC-2 [ubiquitous]: The record SHALL be the tool's header line, then one table per installed harness in name order (empty when it has no hash, every part shared or declined) with part hashes in name order, LF; a record that does not change SHALL not be written unless the file is missing
 
 ### KIT-8: Declined parts [MUST]
 

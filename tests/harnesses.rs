@@ -94,7 +94,8 @@ fn agents_md_and_skills_are_written_once() {
     assert_eq!(settings["tools"]["allowed"][0], "run_shell_command(tool)");
     let record = tree.read(".tool/harness.toml");
     assert!(record.contains("[codex]\n"), "{record}");
-    assert!(!record.contains("[agents]"), "{record}");
+    // Every part of `agents` is shared: an empty table keeps it installed.
+    assert!(record.contains("\n[agents]\n\n"), "{record}");
     let before = tree.files();
     install_all(&tree, &["agents", "gemini", "factory", "codex"]);
     assert_eq!(tree.files(), before);

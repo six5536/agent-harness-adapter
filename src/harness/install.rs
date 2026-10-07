@@ -150,7 +150,7 @@ fn profile(
         .into_iter()
         .filter(|i| !rendered.contains(i))
         .collect();
-    Ok((Profile::new(harness.id(), parts), unsupported))
+    Ok((Profile::new(parts), unsupported))
 }
 
 /// Resolve the set, render each profile, read the declined parts.
@@ -346,8 +346,16 @@ impl Run {
                 let observed = observe(&self.cx.root, part, &path, &self.markers)?;
                 let st = state(&observed, &expected(part), self.recorded(i, part), false);
                 let present = matches!(observed, Observed::Present(_));
+                // A file part existed when any of its files did (its directory
+                // may hold others'); a region or merge when its file did.
                 let existed = present
-                    || (!matches!(part.kind, Kind::External(_)) && self.cx.path(&path).exists());
+                    || match &part.kind {
+                        Kind::Files { files, .. } => files
+                            .iter()
+                            .any(|(rel, _)| self.cx.path(&path).join(rel).exists()),
+                        Kind::Region { .. } | Kind::Merge { .. } => self.cx.path(&path).exists(),
+                        Kind::External(_) => false,
+                    };
                 out.push(Examined {
                     member: i,
                     part,

@@ -39,14 +39,13 @@ pub(crate) fn read_record(path: &Path, display: &str) -> Result<Record> {
 }
 
 /// The record file's text: `header`, then one table per harness in name
-/// order, keys in name order, LF.
+/// order, keys in name order, LF. A harness with no hash (every part shared
+/// or declined) keeps an empty table: it is installed, and stays in the set.
+// @zen-impl: KIT-19_AC-1
 // @zen-impl: KIT-7_AC-2
 pub(crate) fn render_record(record: &Record, header: &str) -> String {
     let mut out = format!("{header}\n");
     for (name, parts) in &record.harnesses {
-        if parts.is_empty() {
-            continue;
-        }
         out.push_str(&format!("\n[{name}]\n"));
         for (part, hash) in parts {
             out.push_str(&format!("{part} = \"{hash}\"\n"));
@@ -92,9 +91,12 @@ mod tests {
         );
         fs::write(&path, &text).unwrap();
         assert_eq!(read_record(&path, "harness.toml").unwrap(), record);
-        // An empty table renders nothing; a broken file is a refusal.
+        // An empty table stays; a broken file is a refusal.
         record.harnesses.insert("empty".into(), BTreeMap::new());
-        assert_eq!(render_record(&record, HEADER), text);
+        let with_empty = render_record(&record, HEADER);
+        assert!(with_empty.contains("\n[empty]\n"), "{with_empty}");
+        fs::write(&path, &with_empty).unwrap();
+        assert_eq!(read_record(&path, "harness.toml").unwrap(), record);
         for (bad, why) in [
             ("[claude]\nskills = 1\n", "`claude.skills` is not a string"),
             ("claude = 1\n", "`claude` is not a table"),

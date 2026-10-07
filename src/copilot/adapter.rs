@@ -305,7 +305,7 @@ mod tests {
             "{\n  \"version\": 1,\n  \"hooks\": {\n    \"preToolUse\": [\n      {\n        \"type\": \"command\",\n        \"bash\": \"t hook copilot pre-tool\",\n        \"powershell\": \"t hook copilot pre-tool\",\n        \"timeoutSec\": 10\n      }\n    ],\n    \"agentStop\": [\n      {\n        \"type\": \"command\",\n        \"bash\": \"t hook copilot stop\",\n        \"powershell\": \"t hook copilot stop\"\n      }\n    ]\n  }\n}\n"
         );
         let cx = Context::new("t", Scope::Local, "/nowhere", None);
-        let p = Profile::new(ID, Copilot.render(&full(), &cx).unwrap());
+        let p = Profile::new(Copilot.render(&full(), &cx).unwrap());
         let ops = p.part("hooks").unwrap().ops();
         assert_eq!(ops.len(), 7);
         assert_eq!(ops[5].path(), ["hooks", "agentStop"]);

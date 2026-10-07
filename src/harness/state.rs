@@ -98,15 +98,21 @@ pub(crate) fn expected(part: &Part) -> Found {
 pub(crate) fn observe(root: &Path, part: &Part, path: &str, markers: &Markers) -> Result<Observed> {
     let fs_path = root.join(path);
     Ok(match &part.kind {
+        // The files that exist: a part with some of them missing differs
+        // from the tool's content, so an edited file among the rest is never
+        // rewritten without `--force`; absent only when none exists.
         Kind::Files { files, .. } => {
             let mut found = Vec::new();
             for (rel, _) in files {
-                let Some(text) = read_text(&fs_path.join(rel))? else {
-                    return Ok(Observed::Absent);
-                };
-                found.push((rel.clone(), text));
+                if let Some(text) = read_text(&fs_path.join(rel))? {
+                    found.push((rel.clone(), text));
+                }
             }
-            Observed::Present(Found::Files(found))
+            if found.is_empty() {
+                Observed::Absent
+            } else {
+                Observed::Present(Found::Files(found))
+            }
         }
         Kind::Region { .. } => match read_text(&fs_path)?.and_then(|t| markers.find(&t)) {
             Some(block) => Observed::Present(Found::Block(block)),

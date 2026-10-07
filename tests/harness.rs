@@ -514,3 +514,57 @@ fn every_refusal_leaves_the_tree_byte_identical() {
     std::fs::remove_dir(tree.dir().join(".claude")).unwrap();
     assert_eq!(tree.files(), pristine);
 }
+
+// A skills part with one file missing (the tool added a skill) is not
+// absent: an edited skill beside it is kept until forced; a skill added to
+// a directory holding others' is created, not rewritten.
+// @zen-test: KIT-3_AC-1
+#[test]
+fn a_new_skill_beside_an_edited_one_is_not_written_without_force() {
+    let tree = TempTree::empty("skills-added");
+    tree.write(".claude/skills/mine/SKILL.md", "theirs\n");
+    let out = project(&tree, None, false);
+    assert_eq!(parts(&out, "claude")[1].verb(), "created");
+    tree.write(".claude/skills/tool/SKILL.md", "edited\n");
+    // A second skill in the tool's integration is missing on disk.
+    struct Two(common::TestTool);
+    impl agent_harness_kit::Tool for Two {
+        fn name(&self) -> &str {
+            self.0.name()
+        }
+        fn harnesses(&self) -> Vec<std::sync::Arc<dyn agent_harness_kit::Harness>> {
+            self.0.harnesses()
+        }
+        fn integration(&self, scope: Scope) -> agent_harness_kit::Integration {
+            self.0
+                .integration(scope)
+                .skill(agent_harness_kit::integration::Skill::new(
+                    "two", "Second.", "# Two\n",
+                ))
+        }
+        fn root(&self, scope: Scope) -> Result<std::path::PathBuf> {
+            self.0.root(scope)
+        }
+        fn record_path(&self, scope: Scope) -> Result<std::path::PathBuf> {
+            self.0.record_path(scope)
+        }
+        fn declined_store(
+            &self,
+            scope: Scope,
+        ) -> Result<Box<dyn agent_harness_kit::DeclinedStore + '_>> {
+            self.0.declined_store(scope)
+        }
+    }
+    let two = Two(tree.tool());
+    let out = install(&two, &InstallOptions::new(["claude"], Scope::Project)).unwrap();
+    assert_eq!(parts(&out, "claude")[1].verb(), "edited");
+    assert_eq!(tree.read(".claude/skills/tool/SKILL.md"), "edited\n");
+    assert!(!tree.exists(".claude/skills/two/SKILL.md"));
+    // Unedited, the added skill makes the part stale and it is written.
+    project(&tree, None, true);
+    let out = install(&two, &InstallOptions::new(["claude"], Scope::Project)).unwrap();
+    assert_eq!(parts(&out, "claude")[1].verb(), "rewrote");
+    assert_eq!(parts(&out, "claude")[1].state, State::Stale);
+    assert!(tree.exists(".claude/skills/two/SKILL.md"));
+    assert_eq!(tree.read(".claude/skills/mine/SKILL.md"), "theirs\n");
+}

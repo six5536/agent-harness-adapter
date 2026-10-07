@@ -282,7 +282,7 @@ mod tests {
     fn renders_every_item() {
         let dir = temp_dir("gemini");
         let cx = Context::new("t", Scope::Project, &dir, None);
-        let p = Profile::new(ID, Gemini.render(&full(), &cx).unwrap());
+        let p = Profile::new(Gemini.render(&full(), &cx).unwrap());
         let names: Vec<_> = p
             .parts()
             .iter()
