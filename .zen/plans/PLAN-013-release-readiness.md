@@ -2,7 +2,7 @@
 
 | Field              | Value |
 | ------------------ | ----- |
-| Status             | in-progress: P3 started (2026-10-07); P1–P2 next |
+| Status             | in-progress: P3–P5 run (2026-10-07): three findings to fix (§6); P1–P2 next |
 | Workflow direction | bottom-up (CI and manual checks → fixes through the specs) |
 | Traces to          | PLAN-011 (P9, D11-11, N4), PLAN-010 (N4), REQ-HAR (HAR-2 Codex, HAR-7 Pi), REQ-AHA, `.github/workflows/release.yml` |
 
@@ -63,11 +63,26 @@ Each check is recorded pass / fail with the agent's version in §6.
 
 Agents: Codex CLI 0.160.1, Pi 1.0.4 (npm, in the session's scratch area), isolated `HOME`, scratch git project, `examples/python-tool` manifest.
 
-| Check | Codex | Pi |
+| Check | Codex 0.160.1 (gpt-6-luna) | Pi 1.0.4 (openai-codex/gpt-6-luna) |
 | ----- | ----- | -- |
-| A1 install / status / no-op re-install | pass (2026-10-07) | pass (`AGENTS.md` and `.agents/skills` shared from Codex; `.pi/extensions/mytool.ts` written) |
-| A2 instructions | pass: `codex debug prompt-input` holds the block between the markers | needs a login |
-| A3 skill | pass: listed in the model input (`mytool: Check a shell command…`) | needs a login |
-| A4–A9 | need a login | need a login |
+| A1 install / status / no-op re-install | pass | pass (`AGENTS.md`, `.agents/skills` shared from Codex) |
+| A2 instructions | pass | pass |
+| A3 skill | pass (the model ran `mytool.py check` on its own) | pass |
+| A4 session-start context | pass, once hooks are trusted | **fail**: the hook answers, Pi drops it (finding 1) |
+| A5 pre-tool deny | pass (`echo git push --force` blocked with mytool's reason) | pass |
+| A6 pre-tool allow | pass | pass |
+| A7 stop continues once | pass (continued once, then `continuing` → allow) | **fail**: the stop hook never runs (finding 3) |
+| A7b post-tool context | pass | pass (appended to the tool result; the model did not act on it) |
+| A8 notes | right: Codex runs new hooks only once trusted (`/hooks`, or `--dangerously-bypass-hook-trust`); the project needed trust | right: `--approve` / trust needed for project files |
+| A9 user scope | pass | pass |
+| A10 uninstall | after PLAN-014 | after PLAN-014 |
+
+Test conditions: Codex's own sandbox cannot start in the dev container (`bwrap`), so Codex ran with `--sandbox danger-full-access`; Codex also refuses `rm -rf` itself, before any hook, so the deny test used `echo git push --force`.
+
+### Findings
+
+- Finding 1 (Pi, session-start context): Pi has no way to add context at session start; the adapter refuses that answer (by design, HAR-7), so a tool's session-start context silently vanishes on Pi while Claude and Codex deliver it. Fix: the extension keeps the text and adds it to the first prompt (`before_agent_start`), and the adapter accepts `context` at session start. Spec: HAR-7_AC-3.
+- Finding 2 (Pi, Cursor, Copilot: no tool matcher): a hook with `tools = "shell"` runs for every tool there (documented: the hook filters on the tool kind), so the example's post-tool context also fired after `read`. Fix for bridged hooks: the template carries `--tools <kind>` and `agent-harness-adapter hook` allows without running the command for other kinds. Spec: AHA-1_AC-8, AHA-4.
+- Finding 3 (Pi, stop): bug. At `agent_before_settle` Pi's `context.canContinue` is false whenever the last message is the model's answer, which is always the case at a stop; it turns true only once a handler adds an entry. The extension returned early on it, so stop hooks never ran on Pi. Our earlier check used a mock with `canContinue: true`. Fix: run the stop hooks at every settle, answer `continue` with a `custom_message` entry, and reset the `continuing` flag at each new prompt (`before_agent_start`). Spec: HAR-7_AC-3, HAR-7_AC-4.
 
 Codex 0.160.1 reports `hooks` as a stable feature, on by default.
