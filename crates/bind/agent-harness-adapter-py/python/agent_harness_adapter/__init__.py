@@ -1,8 +1,8 @@
 """agent-harness-adapter for Python: plug a tool into LLM agent harnesses.
 
 Install a manifest's integration into Claude Code, Codex, Gemini CLI,
-GitHub Copilot, Cursor, Factory Droid, Pi and any agent that reads
-AGENTS.md, and speak every harness's hook protocol through one format: the
+GitHub Copilot, Cursor, Factory Droid, Pi, OpenCode, Kilo Code, Qwen Code,
+Devin and any agent that reads AGENTS.md, and speak every harness's hook protocol through one format: the
 hook contract (``parse_hook`` / ``answer_hook``). Errors raise ValueError
 with the library's message.
 """

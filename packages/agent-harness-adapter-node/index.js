@@ -2,8 +2,9 @@
 // @zen-component: BND-Node
 
 // agent-harness-adapter for Node: plug a tool into LLM agent harnesses (Claude
-// Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi, any
-// agent that reads AGENTS.md) from a manifest, and speak every harness's
+// Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi,
+// OpenCode, Kilo Code, Qwen Code, Devin, any agent that reads AGENTS.md)
+// from a manifest, and speak every harness's
 // hook protocol through one format. Errors throw with the library's message.
 
 const { loadAddon } = require("./addon");

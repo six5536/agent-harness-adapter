@@ -12,6 +12,12 @@ GitHub release notes.
 
 ## [Unreleased]
 
+### Fixed
+
+- The library's module docs (`lib.rs`), the Python package's docstring and
+  the Node binding's header list every built-in harness: Kilo Code, Qwen
+  Code and Devin were missing (and OpenCode from the bindings).
+
 ## [0.1.0] - 2026-10-07
 
 First release: the library `agent-harness-adapter-core` and the

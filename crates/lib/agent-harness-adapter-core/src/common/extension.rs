@@ -1,7 +1,8 @@
 //! The library's own hook format, between a generated extension (Pi's
-//! extension, OpenCode's plugin) and the tool: the extension writes the
-//! event as JSON on the command's stdin and reads `{"answer": "allow" |
-//! "deny" | "continue" | "context", "reason"?, "text"?}` back.
+//! extension, the OpenCode and Kilo Code plugin) and the tool: the
+//! extension writes the event as JSON on the command's stdin and reads
+//! `{"answer": "allow" | "deny" | "continue" | "context", "reason"?,
+//! "text"?}` back.
 
 use serde_json::{Value, json};
 
