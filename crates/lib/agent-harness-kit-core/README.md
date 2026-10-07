@@ -14,6 +14,10 @@ harness's hook input and answers into one shape, and gives you a findings
 report, CLI exit and output conventions, and atomic file writes. The kit
 embeds no content of its own.
 
+Tools in other languages use the same kit through the `ahk` command
+([`agent-harness-kit`](https://crates.io/crates/agent-harness-kit)) and a
+manifest file.
+
 ## Features
 
 - One `Integration` for every harness; each `Harness` renders it into its
@@ -187,8 +191,9 @@ fn main() {
 ### Modules
 
 - `integration`: `Integration` and its items (`Skill`, `Hook`, `McpServer`, `Agent`, `Command`)
-- `harness`: the `Harness` contract, the parts, their states, `install` / `status`, the same for every harness
-- `hook`: events, `HookInput`, `Answer`, `emit`, `LoopGuard`
+- `harness`: the `Harness` contract, the parts, their states, `install` / `status` / `installed`, the same for every harness
+- `hook`: events, `HookInput`, `Answer`, `emit`, `LoopGuard`; `wire`, the hook contract's JSON
+- `manifest`: an integration declared in a TOML or JSON file (`Manifest`, `ManifestTool`), as the `ahk` command reads it
 - `claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`, `pi`, `agents_md`: one harness each
 - `report`: `Finding`, `Report`, text and JSON forms
 - `cli`: exit codes (0 ok, 1 errors found, 2 usage or internal error), stdout, broken pipes, `finish`

@@ -2,6 +2,7 @@
 //! manifest file, and bridge their hooks to a command in any language.
 // @zen-component: AHK-Cli
 
+mod bridge;
 mod error;
 mod install;
 mod schema;
@@ -26,6 +27,9 @@ enum Cmd {
     Install(install::InstallArgs),
     /// Report the state of a manifest's integration in harnesses.
     Status(install::StatusArgs),
+    /// Run a harness's hook through a command that speaks the hook contract:
+    /// the hook input as JSON on its stdin, one answer as JSON on its stdout.
+    Hook(bridge::HookArgs),
     /// Print the JSON Schema of a contract.
     Schema {
         /// The contract.
@@ -38,6 +42,7 @@ fn main() -> ExitCode {
     cli::finish(match args.command {
         Cmd::Install(a) => install::run_install(&a),
         Cmd::Status(a) => install::run_status(&a),
+        Cmd::Hook(a) => bridge::run(&a).map_err(error::Error::from),
         Cmd::Schema { contract } => schema::run(contract).map_err(error::Error::from),
     })
 }

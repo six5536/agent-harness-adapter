@@ -160,6 +160,18 @@ fn errors_exit_2_with_one_line() {
     let (code, _, err) = run(&t, &["install", "--harness", "claude", "--scope", "global"]);
     assert_eq!(code, 2);
     assert!(err.contains("no scope named `global`"), "{err}");
+    t.write("mytool.harness.toml", MANIFEST);
+    let (code, _, err) = output(
+        ahk()
+            .current_dir(t.path("proj"))
+            .env_remove("HOME")
+            .env_remove("USERPROFILE")
+            .args(["status", "--manifest", "../mytool.harness.toml"]),
+    );
+    assert_eq!(
+        (code, err.as_str()),
+        (2, "error: no home directory: set HOME\n")
+    );
     let (code, _, err) = output(
         ahk()
             .current_dir(t.path("proj"))

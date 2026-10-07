@@ -48,3 +48,23 @@ impl From<io::Error> for Error {
         Error::Io(e)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error as _;
+
+    use super::*;
+
+    #[test]
+    fn each_kind_displays_and_chains() {
+        let kit = Error::from(agent_harness_kit_core::Error::Refused("no".into()));
+        assert_eq!(kit.to_string(), "no");
+        assert!(kit.source().is_some());
+        let io = Error::from(io::Error::new(io::ErrorKind::BrokenPipe, "pipe"));
+        assert_eq!(io.to_string(), "pipe");
+        assert!(agent_harness_kit_core::cli::is_broken_pipe(&io));
+        let usage = Error::Usage("set HOME".into());
+        assert_eq!(usage.to_string(), "set HOME");
+        assert!(usage.source().is_none());
+    }
+}

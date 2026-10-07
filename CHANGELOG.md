@@ -14,10 +14,23 @@ GitHub release notes.
 
 ## [0.1.0]
 
-First release as a crate of its own.
+First release: the library `agent-harness-kit-core` and the `ahk` command
+(crate `agent-harness-kit`, npm `@six5536/agent-harness-kit`).
 
 ### Added
 
+- `ahk`: `install` and `status` from a manifest file, `hook` (runs a
+  harness's hook through a command that speaks the hook contract), `schema`
+  (the contracts' JSON Schemas, also in `schema/`). Prebuilt binaries for
+  Linux and macOS (x64, arm64) and Windows (x64) through npm and the GitHub
+  release.
+- `manifest`: `Manifest` (TOML or JSON, version 1; text inline or from
+  files; per-scope tables; mistakes reported with their place) and
+  `ManifestTool`, a `Tool` over it.
+- `hook::wire`: the hook contract (version 1): `input_json`, `parse_answer`,
+  `answer_json`; `HookInput`, `ToolCall`, `Event`, `ToolKind` and `Answer`
+  are serde types.
+- `harness::installed`: the harnesses recorded at a scope.
 - `integration`: `Integration`, declared once per scope without naming a
   harness: an instructions block, skills (`Skill`), hooks (`Hook`), MCP
   servers (`McpServer`), allowed commands and MCP tools (`allow_command`,
@@ -45,7 +58,8 @@ First release as a crate of its own.
   and `{event}` placeholders, and may differ per harness (`Hook::command_for`).
 - `report` (`Finding`, `Report`, `Severity`), `cli`, `fs`.
 - `Error` with one variant per kind of refusal.
-- Optional feature `schemars`: `JsonSchema` on the result types.
+- Optional feature `schemars`: `JsonSchema` on the result types, and the
+  schemas of the result, the manifest and the hook contract.
 - MSRV 1.85.
 
 [Unreleased]: https://github.com/six5536/agent-harness-kit/compare/v0.1.0...HEAD
