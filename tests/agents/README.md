@@ -1,20 +1,39 @@
 # Real-agent checks
 
-`run.mjs` installs a test tool with `agent-harness-adapter` into a throwaway
-project, drives each agent non-interactively, and checks what reached it
-(PLAN-013 §3). It needs the agents' own logins, so it runs on demand, not in
-CI.
+These checks install a test tool with `agent-harness-adapter` into a
+throwaway project, drive each agent non-interactively, and check what
+reached it (PLAN-013 §3). They need the agents' own logins, so they run on
+demand, not in CI.
 
 ```sh
 cargo build -p agent-harness-adapter
 node tests/agents/run.mjs setup              # pinned agents, into target/agent-checks
-node tests/agents/run.mjs login <agent>      # once per agent (see below)
-node tests/agents/run.mjs run [--agents claude,codex,gemini,copilot,pi] [--codex-full-access] [--<agent>-model <m>]
+node tests/agents/run.mjs login <agent>      # once per agent
+node tests/agents/run.mjs run [--agents claude,codex,gemini,copilot,pi] [--<agent>-model <m>] [--codex-full-access]
 ```
 
 Every agent runs with `HOME` set to `target/agent-checks/home`, so your own
-agent setup is never touched. Each run writes the agents' outputs, the hook
-log and `results.json` under `target/agent-checks/run-<time>/`.
+agent setup is never touched. The test projects are fresh folders in the
+system's temporary directory, away from the run's files, so an agent that
+searches cannot find the run's words. Each run keeps every reply
+(`ask-<n>.out`), the hook log and `results.json` under
+`target/agent-checks/run-<time>/<agent>/`.
+
+## Layout
+
+| File | What it holds |
+| ---- | ------------- |
+| `run.mjs` | the command line: `setup`, `login`, `run`, the results table |
+| `checks.mjs` | the check suite, the same for every agent |
+| `tool.mjs` | the test tool the hooks run: answers from the run's words, logs every call |
+| `lib.mjs` | helpers the checks and the agents share |
+| `agents/index.mjs` | the list of agents, and what an agent module holds |
+| `agents/<agent>.mjs` | one agent: package and version, login, how to prompt it, how to trust a project, how to read its whole reply, what it cannot do |
+
+To add an agent: a new `agents/<agent>.mjs` (see the fields in
+`agents/index.mjs`) and its line in `agents/index.mjs`.
+
+## Checks
 
 | Check | How it is decided |
 | ----- | ----------------- |
@@ -29,19 +48,16 @@ log and `results.json` under `target/agent-checks/run-<time>/`.
 | A9 user scope | from an empty project, the reply holds the codeword |
 | A10 uninstall | `status` absent at user scope; the project holds nothing of the tool, the reply has no codeword and no hook runs |
 
-Agents and their logins: `claude` (Claude Code: `login claude` signs in), `codex` (device code), `gemini` (prints how to sign in from Gemini CLI's screen, or set `GEMINI_API_KEY`), `copilot` (device code; needs Copilot quota), `pi` (prints how to `/login` in Pi).
+A check an agent cannot pass by design shows `n/a`. A run where the agent
+ran out of quota or hit a rate limit ends with a `quota` warning: its
+failures after that say nothing about the adapter.
 
-Notes:
+## Agents
 
-- Codex runs new project hooks only after you approve them in its `/hooks`;
-  the checks pass `--dangerously-bypass-hook-trust` in its place. The
-  project is trusted in the checks' own Codex config.
-- `--codex-full-access` turns Codex's sandbox off, for machines where it
-  cannot start (e.g. containers without user namespaces).
-- Claude Code runs with `-p` (no trust dialog) and `--dangerously-skip-permissions`; the checks remove any `CLAUDE*` variables of a surrounding Claude Code session, so the test agent uses only the checks' `HOME`.
-- Gemini CLI runs with `--approval-mode yolo` and `GEMINI_CLI_TRUST_WORKSPACE=true`.
-- Copilot CLI runs with `--allow-all --no-ask-user`; Copilot loads a repository's hooks only from a trusted folder, so the checks add the project to `trustedFolders` in its `config.json` (`copilot config` cannot set that key). Copilot takes no context from hooks, so A4 and A7b show `n/a`.
-- Pi trusts the project through `--approve`. `pi -p` prints only its last
-  message, so the checks read Pi's session file for the whole reply.
-- To add an agent: an entry in `AGENTS` in `run.mjs` (package, version, how
-  to prompt it, how to trust a project, how to read its whole reply).
+| Agent | Login | How it runs |
+| ----- | ----- | ----------- |
+| `claude` (Claude Code) | `login claude` signs in | `-p` (no trust dialog), `--dangerously-skip-permissions`; the `CLAUDE*` variables of a surrounding Claude Code session are removed, so it uses only the checks' `HOME` |
+| `codex` (Codex) | device code | `exec` with `--dangerously-bypass-hook-trust` in place of approving new hooks in `/hooks`; the project is trusted in the checks' Codex config; `--codex-full-access` turns its sandbox off where it cannot start (e.g. containers without user namespaces) |
+| `gemini` (Gemini CLI) | prints how to sign in on its screen, or set `GEMINI_API_KEY` | `--approval-mode yolo`, `GEMINI_CLI_TRUST_WORKSPACE=true`; the free tier allows about 20 requests a day (3 per run) |
+| `copilot` (Copilot CLI) | device code; needs Copilot quota | `--allow-all --no-ask-user`; the project is added to `trustedFolders` in its `config.json` (it loads repository hooks only from a trusted folder); it takes no context from hooks, so A4 and A7b show `n/a` |
+| `pi` (Pi) | prints how to `/login` on its screen | `--approve` trusts the project; `pi -p` prints only its last message, so the checks read its session file |
