@@ -2,7 +2,7 @@
 
 `agent-harness-adapter`: plug a command-line tool, written in any language, into LLM agent
 harnesses (Claude Code, OpenAI Codex, Gemini CLI, GitHub Copilot, Cursor,
-Factory Droid, Pi, and any agent that reads `AGENTS.md`).
+Factory Droid, Pi, OpenCode, and any agent that reads `AGENTS.md`).
 
 ## Install
 

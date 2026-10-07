@@ -5,7 +5,7 @@
 
 Shared plumbing for command-line tools that plug into LLM agent harnesses:
 Claude Code, OpenAI Codex, Gemini CLI, GitHub Copilot, Cursor, Factory
-Droid, Pi, and any agent that reads `AGENTS.md`. Your tool declares its
+Droid, Pi, OpenCode, and any agent that reads `AGENTS.md`. Your tool declares its
 integration once (an instructions block, skills, hooks, MCP servers,
 allowed commands, subagents, slash commands); the library writes it into each
 harness's own files, puts shared content in one place, reports what it
@@ -50,6 +50,7 @@ manifest file.
 | GitHub Copilot | `copilot` | `AGENTS.md` | `.github/hooks/<tool>.json` | `.agents/skills` | `.mcp.json` | – | yes | – |
 | Cursor | `cursor` | `AGENTS.md` | `.cursor/hooks.json` | `.agents/skills` | `.cursor/mcp.json` | yes | yes | yes |
 | Pi | `pi` | `AGENTS.md` (first of `AGENTS.override.md`, `AGENTS.md`, `CLAUDE.md`) | a generated extension, `.pi/extensions/<tool>.ts` | `.agents/skills` | `.pi/mcp.json` | – | – | yes |
+| OpenCode | `opencode` | `AGENTS.md` (first of `AGENTS.md`, `CLAUDE.md`) | a generated plugin, `.opencode/plugins/<tool>.ts` | `.agents/skills` | `opencode.json` | yes | yes | yes |
 | Any `AGENTS.md` agent | `agents` | `AGENTS.md` | – | `.agents/skills` | – | – | – | – |
 
 Paths are for project scope; user scope uses each harness's directory under

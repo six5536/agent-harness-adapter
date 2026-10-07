@@ -1,4 +1,4 @@
-// The test tool for extension.test.mjs: reads the hook contract's input on
+// The test tool for the extension tests (pi.test.mjs, opencode.test.mjs): reads the hook contract's input on
 // stdin, logs it to seen.jsonl in the working directory, and answers.
 import { appendFileSync, readFileSync } from "node:fs";
 
@@ -14,6 +14,8 @@ const answer = (() => {
       return JSON.stringify(input.tool?.input).includes("rm -rf")
         ? { answer: "deny", reason: "no rm -rf" }
         : { answer: "allow" };
+    case "post-tool":
+      return { answer: "context", text: "after tool" };
     case "stop":
       return input.continuing ? { answer: "allow" } : { answer: "continue", reason: "continue once" };
     default:

@@ -64,7 +64,7 @@ crates/lib/agent-harness-adapter-core/src/
 │   └── wire.rs         the hook contract's JSON (DESIGN-AHA)
 ├── manifest/           an integration from a TOML or JSON file (DESIGN-AHA)
 ├── common/             pieces several harnesses share (DESIGN-HAR)
-├── claude/ codex/ factory/ gemini/ copilot/ cursor/ pi/ agents_md/   adapter.rs each (DESIGN-HAR)
+├── claude/ codex/ factory/ gemini/ copilot/ cursor/ pi/ opencode/ agents_md/   adapter.rs each (DESIGN-HAR)
 └── report/
     ├── mod.rs
     ├── finding.rs      Finding, Severity
@@ -74,14 +74,14 @@ crates/lib/agent-harness-adapter-core/src/
 ### Architectural Decisions
 
 - NEUTRAL INTEGRATION, ADAPTERS RENDER: the tool states what it installs once; a `Harness` turns it into parts. The low-level `Part` / `MergeOp` stay public for adapters and raw parts. Alternatives: a profile per harness written by the tool (every tool re-learns every harness)
-- RENDER WITH THE TREE: `Harness::render` and `Harness::reads` get a `Context` with the root, so a harness picks its instructions file (Claude, Pi, Gemini) or hook file (Factory) from what exists. This replaces `Part::region_chosen` / `ChooseFile`. Alternatives: choice functions inside parts (a second mechanism for the same need)
+- RENDER WITH THE TREE: `Harness::render` and `Harness::reads` get a `Context` with the root, so a harness picks its instructions file (Claude, Pi, OpenCode, Gemini) or hook file (Factory) from what exists. This replaces `Part::region_chosen` / `ChooseFile`. Alternatives: choice functions inside parts (a second mechanism for the same need)
 - PART NAMES ARE ITEM NAMES: an item renders to at most one part per harness, named `instructions`, `skills`, …; the core maps a part to its item by name, and lists as unsupported the items the integration has and the harness did not render. Alternatives: an `unsupported` method per harness (can disagree with render)
 - SHARED LOCATIONS AS A SET COVER: per item, candidates are the locations of the set's parts; a harness is covered by a location it always loads; the core picks the smallest cover, then the one most harnesses load (always or maybe), then the earliest in tool order; brute force over subsets (at most a few candidates per item). Alternatives: fixed preference lists per harness (miss cross-reads, can't warn)
 - STABLE WRITER: the order is the tool's `harnesses()` order, so the same set always picks the same writer; a hash is looked up by writer, then by any harness with the same item and location, so a writer change never makes a part look edited
 - HOOK COMMAND TEMPLATE: the command is the tool's own command line, any words, any order; `{harness}` and `{event}` are optional placeholders anywhere (`{{` / `}}` escape braces), so a third-party CLI keeps its own argument style or uses one command per event. The tool's CLI parses its arguments however it likes, then calls `harness::find` and `Event::from_str`. Copilot sends no event name, so a Copilot hook's command must carry the event (a placeholder, or a command per event). Ownership is per hook: its own match, else the integration's, else the prefix before the first placeholder (the whole template without one); an empty prefix is `Internal`. Alternatives: the library owning the hook CLI's argument syntax (`<cmd> hook <harness> <event>`)
 - ANSWER ERRORS: `Harness::answer` returns `Result<Output>`; an answer the harness cannot express for the event is `Error::Unsupported`, which `emit` reports like any failure. Alternatives: silently allow (hides a tool bug)
 - TOML MERGE: a merge part whose file ends in `.toml` applies object members with `toml_edit` (comments and order kept); other ops in TOML are an internal error. Alternatives: a separate part kind
-- USER ROOT IS HOME: user-scope paths include the harness's own directory (`.claude/…`, `.codex/…`, `.pi/agent/…`), so one root serves every harness. Local scope uses the project root
+- USER ROOT IS HOME: user-scope paths include the harness's own directory (`.claude/…`, `.codex/…`, `.pi/agent/…`, `.config/opencode/…`), so one root serves every harness. Local scope uses the project root
 - OPAQUE PARTS AND OPS, ENTRY MATCH, TYPED RESULTS, STRUCTURED ERRORS, OPTIONAL SCHEMA, NO UNINSTALL: as in the 0.1 design (PLAN-009 D9-15..D9-20)
 
 ## Components and Interfaces
@@ -196,7 +196,7 @@ impl Context { pub fn new(tool, scope, root, user_root: Option<PathBuf>) -> Self
 pub struct Reads { pub always: Vec<String>, pub maybe: Vec<String> }
 impl Reads { pub fn always<I: IntoIterator<Item = S>, S: Into<String>>(locations: I) -> Self; pub fn maybe(self, …) -> Self; }
 
-pub fn builtin() -> Vec<Arc<dyn Harness>>;   // claude, codex, factory, gemini, copilot, cursor, pi, agents
+pub fn builtin() -> Vec<Arc<dyn Harness>>;   // claude, codex, factory, gemini, copilot, cursor, pi, opencode, agents
 pub fn find(id: &str) -> Option<Arc<dyn Harness>>;
 ```
 

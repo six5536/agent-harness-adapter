@@ -18,5 +18,5 @@ Tests that belong to one package stay beside it:
 | The npm launcher's unit tests | `packages/agent-harness-adapter/test/` | `npm run test:launcher` | yes |
 | The Node binding | `packages/agent-harness-adapter-node/test/` | `npm run build:node`, then `AHA_NODE_ADDON=… npm run test:node` | yes |
 | The Python binding | `crates/bind/agent-harness-adapter-py/tests/` | `maturin develop`, then `python -m unittest discover -s crates/bind/agent-harness-adapter-py/tests` | yes |
-| The generated Pi extension | `crates/lib/agent-harness-adapter-core/tests/pi/` | `AHA=target/debug/agent-harness-adapter npm run test:pi` | yes |
+| The generated Pi extension and OpenCode plugin | `crates/lib/agent-harness-adapter-core/tests/extensions/` | `AHA=target/debug/agent-harness-adapter npm run test:extensions` | yes |
 | A Python tool, end to end | `examples/python-tool/test_example.py` | `python3 examples/python-tool/test_example.py target/debug/agent-harness-adapter` | yes |

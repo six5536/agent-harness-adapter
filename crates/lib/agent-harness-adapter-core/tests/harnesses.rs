@@ -248,6 +248,50 @@ fn copilot_shares_claudes_files() {
     assert_eq!(tree.files(), before);
 }
 
+// @zen-test: HAR-10_AC-3
+// @zen-test: HAR-10_AC-5
+// @zen-test: HAR-10_AC-6
+#[test]
+fn opencode_shares_claudes_skills_and_writes_its_own_files() {
+    let tree = TempTree::empty("claude-opencode");
+    let out = install_all(&tree, &["claude", "opencode"]);
+    let opencode: Vec<_> = parts(&out, "opencode")
+        .iter()
+        .map(|p| (p.part.as_str(), p.verb(), p.path.as_str()))
+        .collect();
+    assert_eq!(
+        opencode,
+        [
+            ("instructions", "created", "AGENTS.md"),
+            ("skills", "shared", ".claude/skills"),
+            ("hooks", "created", ".opencode/plugins"),
+            ("mcp", "created", "opencode.json"),
+            ("permissions", "created", "opencode.json"),
+        ]
+    );
+    assert!(out.warnings.is_empty(), "{:?}", out.warnings);
+    assert_eq!(
+        out.harness("opencode").unwrap().notes,
+        ["restart OpenCode to load the changes"]
+    );
+    let config: serde_json::Value = serde_json::from_str(&tree.read("opencode.json")).unwrap();
+    assert_eq!(
+        config,
+        serde_json::json!({
+            "mcp": { "tool": { "type": "local", "command": ["tool", "mcp"] } },
+            "permission": { "bash": { "tool *": "allow" } }
+        })
+    );
+    let plugin = tree.read(".opencode/plugins/tool.ts");
+    assert!(
+        plugin.contains("tool harness hook opencode stop"),
+        "{plugin}"
+    );
+    let before = tree.files();
+    install_all(&tree, &["claude", "opencode"]);
+    assert_eq!(tree.files(), before);
+}
+
 #[test]
 fn every_harness_at_once_installs_and_settles() {
     let tree = TempTree::empty("all");
@@ -296,7 +340,7 @@ fn all_is_every_harness_of_the_tool_with_the_scope() {
     assert_eq!(
         expand(&tool, &["all"], Scope::Project),
         [
-            "claude", "codex", "factory", "gemini", "copilot", "cursor", "pi", "agents"
+            "claude", "codex", "factory", "gemini", "copilot", "cursor", "pi", "opencode", "agents"
         ]
     );
     assert_eq!(

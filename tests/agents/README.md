@@ -9,7 +9,7 @@ demand, not in CI.
 cargo build -p agent-harness-adapter
 node tests/agents/run.mjs setup              # pinned agents, into target/agent-checks
 node tests/agents/run.mjs login <agent>      # once per agent
-node tests/agents/run.mjs run [--agents claude,codex,gemini,copilot,pi] [--<agent>-model <m>] [--codex-full-access]
+node tests/agents/run.mjs run [--agents claude,codex,gemini,copilot,pi,opencode] [--<agent>-model <m>] [--codex-full-access]
 ```
 
 Every agent runs with `HOME` set to `target/agent-checks/home`, so your own
@@ -29,6 +29,7 @@ searches cannot find the run's words. Each run keeps every reply
 | `lib.mjs` | helpers the checks and the agents share |
 | `agents/index.mjs` | the list of agents, and what an agent module holds |
 | `agents/<agent>.mjs` | one agent: package and version, login, how to prompt it, how to trust a project, how to read its whole reply, what it cannot do |
+| `agents/opencode-ask.mjs` | one prompt to OpenCode through its server, followed until the session stays idle |
 
 To add an agent: a new `agents/<agent>.mjs` (see the fields in
 `agents/index.mjs`) and its line in `agents/index.mjs`.
@@ -61,3 +62,4 @@ failures after that say nothing about the adapter.
 | `gemini` (Gemini CLI) | prints how to sign in on its screen, or set `GEMINI_API_KEY` | `--approval-mode yolo`, `GEMINI_CLI_TRUST_WORKSPACE=true`; the free tier allows about 20 requests a day (3 per run) |
 | `copilot` (Copilot CLI) | device code; needs Copilot quota | `--allow-all --no-ask-user`; the project is added to `trustedFolders` in its `config.json` (it loads repository hooks only from a trusted folder); it takes no context from hooks, so A4 and A7b show `n/a` |
 | `pi` (Pi) | prints how to `/login` on its screen | `--approve` trusts the project; `pi -p` prints only its last message, so the checks read its session file |
+| `opencode` (OpenCode) | `auth login`, or one of its free models (`--opencode-model opencode/big-pickle`) | through `opencode serve` and its HTTP API, not `opencode run`: `run` exits when the session first goes idle, before a stop hook's continuation; the files OpenCode adds to the project's `.opencode` (its plugin package) do not count against A10 |

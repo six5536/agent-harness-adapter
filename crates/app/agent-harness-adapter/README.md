@@ -4,7 +4,7 @@
 
 `agent-harness-adapter`: plug a command-line tool, written in any language, into LLM agent
 harnesses: Claude Code, OpenAI Codex, Gemini CLI, GitHub Copilot, Cursor,
-Factory Droid, Pi, and any agent that reads `AGENTS.md`.
+Factory Droid, Pi, OpenCode, and any agent that reads `AGENTS.md`.
 
 Your tool declares its integration once, in a manifest file. `agent-harness-adapter install`
 writes it into each harness's own files, puts shared content in one place,
@@ -65,7 +65,7 @@ agent-harness-adapter schema <manifest|hook-input|hook-answer|result>
 ```
 
 - Harness ids: `claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`,
-  `pi`, `agents`; `all` is every harness of the manifest with files at the
+  `pi`, `opencode`, `agents`; `all` is every harness of the manifest with files at the
   scope. `status` without `--harness` reports the installed ones.
 - A part changed by hand is reported `edited` and left alone; `--force`
   overwrites it (install) or removes it (uninstall).
@@ -108,7 +108,7 @@ Events: `session-start`, `session-end`, `prompt-submit`, `pre-tool`,
 
 A bridged hook runs `agent-harness-adapter hook --tool <name> <harness> <event> -- <run>`
 (with `--tools <kind>` when the hook gives `tools`: on harnesses that cannot
-match tools, such as Copilot, Cursor and Pi, the bridge then skips your
+match tools, such as Copilot, Cursor, Pi and OpenCode, the bridge then skips your
 command for other tools).
 Your command gets one JSON object on stdin:
 

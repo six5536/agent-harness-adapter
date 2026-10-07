@@ -7,13 +7,11 @@
 //! 2026-10-07).
 // @zen-component: HAR-Pi
 
-use serde_json::{Value, json};
-
 use crate::{
     Result,
-    common::{parts, protocol},
+    common::{extension, parts},
     harness::{Context, Harness, Part, PartResult, Reads, Scope},
-    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind},
+    hook::{Answer, Event, HookInput, Output, ToolKind},
     integration::{Integration, Item},
 };
 
@@ -49,31 +47,10 @@ fn instructions_file(cx: &Context) -> String {
         .unwrap_or_else(|| format!("{dir}AGENTS.md"))
 }
 
-/// The tool name as it may appear in a comment: no line breaks.
-fn comment_safe(name: &str) -> String {
-    name.chars()
-        .map(|c| if c.is_control() { ' ' } else { c })
-        .collect()
-}
-
 /// The extension that runs the integration's hooks.
 // @zen-impl: HAR-7_AC-3
 fn extension(tool: &str, integration: &Integration) -> String {
-    let hooks: Vec<Value> = integration
-        .hooks()
-        .iter()
-        .map(|h| {
-            let mut spec = json!({ "event": h.event().as_str(), "command": h.command(ID) });
-            if let Some(t) = h.timeout_value() {
-                spec["timeout"] = json!(u64::try_from(t.as_millis()).unwrap_or(u64::MAX));
-            }
-            spec
-        })
-        .collect();
-    TEMPLATE
-        .replace("__TOOL_COMMENT__", &comment_safe(tool))
-        .replace("__TOOL__", &Value::String(tool.to_string()).to_string())
-        .replace("__HOOKS__", &Value::Array(hooks).to_string())
+    extension::fill(TEMPLATE, ID, tool, integration)
 }
 
 fn tool_kind(name: &str) -> ToolKind {
@@ -141,45 +118,12 @@ impl Harness for Pi {
 
     // @zen-impl: HAR-7_AC-4
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
-        let raw = protocol::raw_object(text)?;
-        let mut input = HookInput::new(ID, event, raw.clone());
-        let text = |k: &str| protocol::text(&raw, k);
-        input.session_id = text("session_id");
-        input.transcript_path = text("transcript_path");
-        input.cwd = text("cwd");
-        input.prompt = text("prompt");
-        input.source = text("source");
-        input.tool = text("tool_name").map(|name| {
-            let kind = tool_kind(&name);
-            ToolCall::new(
-                name,
-                kind,
-                raw.get("tool_input").cloned().unwrap_or(Value::Null),
-            )
-        });
-        input.tool_output = raw.get("tool_output").cloned();
-        input.continuing = raw["continuing"].as_bool().unwrap_or(false);
-        Ok(input)
+        extension::parse(ID, event, text, tool_kind)
     }
 
     // @zen-impl: AHA-2_AC-3
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
-        Ok(match (answer, event) {
-            (Answer::Allow { stderr }, _) => {
-                Output::json(json!({ "answer": "allow" })).stderr(stderr.clone())
-            }
-            (Answer::Deny { reason }, Event::PreTool) => {
-                Output::json(json!({ "answer": "deny", "reason": reason }))
-            }
-            (Answer::Continue { reason }, Event::Stop) => {
-                Output::json(json!({ "answer": "continue", "reason": reason }))
-            }
-            (
-                Answer::Context { text },
-                Event::SessionStart | Event::PromptSubmit | Event::PostTool,
-            ) => Output::json(json!({ "answer": "context", "text": text })),
-            _ => return Err(protocol::unsupported(ID, event, answer)),
-        })
+        extension::answer(ID, event, answer)
     }
 
     // @zen-impl: HAR-7_AC-7

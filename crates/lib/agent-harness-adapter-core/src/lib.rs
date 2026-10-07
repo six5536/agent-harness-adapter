@@ -1,6 +1,6 @@
 //! agent-harness-adapter-core: shared plumbing for CLIs that plug into LLM agent
 //! harnesses (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor,
-//! Factory Droid, Pi, and any agent that reads `AGENTS.md`).
+//! Factory Droid, Pi, OpenCode, and any agent that reads `AGENTS.md`).
 //!
 //! - [`integration`]: what a tool installs, declared once without naming a
 //!   harness.
@@ -10,7 +10,7 @@
 //! - [`hook`]: hook events, the input a harness sends, the answer a hook
 //!   gives, [`emit`](hook::emit), and the [`LoopGuard`](hook::LoopGuard).
 //! - One module per harness: [`claude`], [`codex`], [`factory`], [`gemini`],
-//!   [`copilot`], [`cursor`], [`pi`], [`agents_md`].
+//!   [`copilot`], [`cursor`], [`pi`], [`opencode`], [`agents_md`].
 //! - [`manifest`]: an integration declared in a TOML or JSON file, for
 //!   tools not written in Rust; [`hook::wire`] is their hook contract.
 //! - [`report`]: findings (error / warning / info) and their text and JSON
@@ -42,6 +42,7 @@ pub mod harness;
 pub mod hook;
 pub mod integration;
 pub mod manifest;
+pub mod opencode;
 pub mod pi;
 pub mod report;
 

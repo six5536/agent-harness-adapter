@@ -4,7 +4,7 @@
 // contract. Real Pi reports `context.canContinue: false` at every stop
 // (PLAN-013 finding 3), so the stand-in does too.
 //
-//   AHA=target/debug/agent-harness-adapter node --test crates/lib/agent-harness-adapter-core/tests/pi/
+//   AHA=target/debug/agent-harness-adapter node --test crates/lib/agent-harness-adapter-core/tests/extensions/
 
 import { test } from "node:test";
 import assert from "node:assert";

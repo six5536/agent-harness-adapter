@@ -12,9 +12,9 @@ AFFECTED LAYERS: harness modules
 
 ```mermaid
 flowchart LR
-    Core[harness core] -->|render, reads| Mod[claude / codex / factory / gemini / copilot / cursor / pi / agents_md]
+    Core[harness core] -->|render, reads| Mod[claude / codex / factory / gemini / copilot / cursor / pi / opencode / agents_md]
     Hook[hook::HookInput / emit] -->|parse_hook, answer| Mod
-    Mod --> Common[common: claude protocol, instructions, group hooks, skills, MCP JSON]
+    Mod --> Common[common: claude protocol, extension format, instructions, group hooks, skills, MCP JSON]
     Mod --> Items[integration items: dir_files, to_json, to_markdown]
 ```
 
@@ -25,6 +25,7 @@ crates/lib/agent-harness-adapter-core/src/
 ├── common/            crate-private
 │   ├── mod.rs
 │   ├── protocol.rs    Claude-family input fields and answers
+│   ├── extension.rs   the generated extensions' input and answers (Pi, OpenCode), template filling
 │   ├── parts.rs       instructions region, group hook ops, skills, MCP JSON, markdown agents and commands
 │   └── toml_out.rs    small TOML documents (Codex agents, Gemini commands) via toml_edit
 ├── claude/   mod.rs, adapter.rs (Claude, instructions_file)
@@ -34,6 +35,7 @@ crates/lib/agent-harness-adapter-core/src/
 ├── copilot/  mod.rs, adapter.rs
 ├── cursor/   mod.rs, adapter.rs
 ├── pi/       mod.rs, adapter.rs, extension.ts (template, include_str!)
+├── opencode/ mod.rs, adapter.rs, tests.rs, plugin.ts (template, include_str!)
 └── agents_md/ mod.rs, adapter.rs
 ```
 
@@ -44,6 +46,7 @@ crates/lib/agent-harness-adapter-core/src/
 - CURSOR DETECTION IN CLAUDE: Claude's parser hands a payload with `cursor_version` to Cursor's (HAR-6_AC-4), because the Cursor CLI runs Claude's hooks; Cursor accepts Claude-format answers, so answers need no hand-off. Alternatives: detection in the core (the core would know harnesses)
 - MATCHERS ONLY WHERE CONFIRMED: a hook's tool kind becomes a matcher only where the harness's tool names are confirmed (Claude, Factory, Gemini; Codex `Bash`); elsewhere no matcher, and the hook filters on `HookInput.tool.kind`
 - PI EXTENSION OWNS TRANSLATION: Pi has no command hooks; the library writes one TypeScript extension per tool that maps Pi events to the tool's command (JSON on stdin through `node:child_process`, async with the hook's timeout) and maps the library's neutral answer JSON back. Failures and bad output allow, so a broken tool never blocks Pi
+- OPENCODE PLUGIN LIKE PI'S EXTENSION: OpenCode has no command hooks either; the library writes one plugin per tool in the same way, with the same input and answer format (`common::extension`). OpenCode has no hook that can refuse the end of a turn, so a stop runs on the `session.idle` event and a continue sends a new prompt; `opencode run` exits at the first idle, so this reaches the model in OpenCode's TUI and server, not in `opencode run`. Alternatives: guessing the last step in `experimental.text.complete` (it fires for every text part, so stop would run mid-turn)
 - UNCONFIRMED FACTS ARE UNSUPPORTED: an item or answer resting on an unconfirmed fact (REQ-HAR notes) is not rendered, or is `Error::Unsupported`, until confirmed (PLAN-010 D10-11)
 
 ## Components and Interfaces
@@ -52,7 +55,7 @@ Common shape of every module:
 
 ```rust
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Claude;              // likewise Codex, Factory, Gemini, Copilot, Cursor, Pi, AgentsMd
+pub struct Claude;              // likewise Codex, Factory, Gemini, Copilot, Cursor, Pi, OpenCode, AgentsMd
 impl Harness for Claude { /* KIT-Adapter */ }
 ```
 
@@ -67,6 +70,7 @@ Tool kinds (`ToolKind` from the tool name; unlisted names are `Other`):
 | copilot | `bash`, `powershell` | `view` | `edit`, `create` | `*/*` (unconfirmed) |
 | cursor | `Shell` | `Read` | `Write`, `Edit` | `MCP:*` (unconfirmed) |
 | pi | `bash` | `read`, `grep`, `find`, `ls` | `edit`, `write` | — |
+| opencode | `bash` | `read`, `glob`, `grep`, `list` | `edit`, `write`, `apply_patch` | — (`<server>_<tool>`, not told from its own) |
 
 ### HAR-Common
 
@@ -121,6 +125,12 @@ Scopes project, user (paths under `.pi/agent`). Instructions: the first existing
 
 IMPLEMENTS: HAR-7_AC-1, HAR-7_AC-2, HAR-7_AC-3, HAR-7_AC-4, HAR-7_AC-5, HAR-7_AC-6, HAR-7_AC-7
 
+### HAR-OpenCode
+
+Scopes project, user (OpenCode's own paths under `.config/opencode`). Instructions: the first existing of `AGENTS.md`, `CLAUDE.md` (`.config/opencode/AGENTS.md`, `.claude/CLAUDE.md` at user scope), else the first; `reads` always that file only. Hooks: `Part::files("hooks", ".opencode/plugins" | ".config/opencode/plugins", [("<tool>.ts", ts)])`, `ts` = `plugin.ts` filled by `extension::fill`; its default export is the only export (OpenCode refuses a plugin file with any other). The plugin keeps per session: whether it is a subagent's (`session.created` with `parentID`), whether it started, whether the last stop continued, and whether the next message is its own continuation. `chat.message` (not the plugin's own, not a subagent's): resets `continuing`; at a session's first message runs session-start (`source: "startup"`) and keeps its context; runs prompt-submit with the message's text; pushes the kept and the prompt's context as one text part `{id: "prt_<time><random>", sessionID, messageID, type: "text", text, synthetic: true}`. `tool.execute.before`: `deny` → `throw new Error(reason)`. `tool.execute.after`: `context` → `output.output += "\n\n" + text`. `session.idle`: stop with `continuing`; `continue` → `client.session.promptAsync({path: {id}, body: {agent, model, parts: [{type: "text", text: reason}]}})` with the session's last agent and model. `experimental.session.compacting`: pre-compact. Input and answers: `extension::parse` / `extension::answer`. Skills `.agents/skills` (`reads` always also `.claude/skills`, `<base>/skills`); agents `<base>/agents/<name>.md` (`to_markdown(&[("mode","subagent")])`); commands `<base>/commands/<name>.md`. MCP and permissions in `opencode.json` / `.config/opencode/opencode.json`: `object_member(["mcp"], name, {type: "local", command: [..], environment?} | {type: "remote", url, headers?})`; `object_member(["permission","bash"], "<prefix> *", "allow")`, no part without allowed commands. Notes: restart.
+
+IMPLEMENTS: HAR-10_AC-1, HAR-10_AC-2, HAR-10_AC-3, HAR-10_AC-4, HAR-10_AC-5, HAR-10_AC-6, HAR-10_AC-7, HAR-10_AC-8, AHA-2_AC-3
+
 ### HAR-AgentsMd
 
 Id `agents`. Scopes project, user. Instructions `AGENTS.md` at project scope; skills `.agents/skills`; nothing else. `parse_hook` and `answer` give `Unsupported` (it installs no hooks).
@@ -131,12 +141,12 @@ IMPLEMENTS: HAR-8_AC-1, HAR-8_AC-2, HAR-8_AC-3
 
 ### Core Types
 
-- PI ANSWER: `{"answer":"allow"|"deny"|"continue"|"context","reason"?:string,"text"?:string}` — the library's own wire format between a Pi extension and the tool
+- EXTENSION ANSWER: `{"answer":"allow"|"deny"|"continue"|"context","reason"?:string,"text"?:string}` — the library's own wire format between a generated extension (Pi's extension, OpenCode's plugin) and the tool
 
 ## Correctness Properties
 
 - HAR_P-1 [Answers well formed]: for every built-in harness, event and answer, `answer` is `Unsupported` or exit 0 with stdout that parses as one JSON object
-  VALIDATES: KIT-11_AC-4, HAR-1_AC-5, HAR-4_AC-5, HAR-5_AC-5, HAR-6_AC-5, HAR-7_AC-4
+  VALIDATES: KIT-11_AC-4, HAR-1_AC-5, HAR-4_AC-5, HAR-5_AC-5, HAR-6_AC-5, HAR-7_AC-4, HAR-10_AC-4
 - HAR_P-2 [Shared renders equal]: for any integration and scope, every harness that renders an item at the same location renders an equal part
   VALIDATES: HAR-9_AC-1
 - HAR_P-3 [Parse total]: for every harness and event, any JSON object parses without error, and unknown fields are ignored
@@ -154,7 +164,7 @@ IMPLEMENTS: HAR-8_AC-1, HAR-8_AC-2, HAR-8_AC-3
 PRINCIPLES:
 
 - Unconfirmed facts make an item unsupported, never a guess
-- The Pi extension fails open
+- The Pi extension and the OpenCode plugin fail open
 
 ## Testing Strategy
 
@@ -167,12 +177,12 @@ PRINCIPLES:
 ### Unit Testing
 
 Per module: rendered parts of a full integration on an empty tree, per scope (`insta` snapshots); trees that change a choice (Claude and Pi instructions, Gemini `context.fileName`, Factory hooks file); `reads` per item; input parsing from each harness's documented example payloads; every answer form; tool kinds from the table.
-- AREAS: render, reads, parse_hook, answer, notes, the Pi extension text
+- AREAS: render, reads, parse_hook, answer, notes, the Pi extension and OpenCode plugin text
 
 ### Integration Testing
 
-`crates/lib/agent-harness-adapter-core/tests/` installs a full integration into each harness and into the sets {claude, codex}, {claude, cursor}, {codex, gemini, pi, agents}, {claude, codex, copilot}, checking shared parts and warnings. The Pi extension is type-checked against `@earendil-works/pi-coding-agent` once by hand (PLAN-010 P6), and each harness is smoke-tested by hand (PLAN-010 N4).
-- SCENARIOS: each harness alone; sets sharing `AGENTS.md`, `.agents/skills` and `.mcp.json`; Cursor's cross-reads warn; Copilot double-loads `AGENTS.md` and `CLAUDE.md` warn
+`crates/lib/agent-harness-adapter-core/tests/` installs a full integration into each harness and into the sets {claude, codex}, {claude, cursor}, {codex, gemini, pi, agents}, {claude, codex, copilot}, {claude, opencode}, checking shared parts and warnings. The Pi extension is type-checked against `@earendil-works/pi-coding-agent` once by hand (PLAN-010 P6), the OpenCode plugin against `@opencode-ai/plugin` 1.18.35 the same way; both run in Node against stand-ins for their APIs (`tests/extensions/`). Each harness is smoke-tested by hand (PLAN-010 N4), and the real-agent checks (`tests/agents`) drive Claude Code, Codex, Gemini CLI, Copilot CLI, Pi and OpenCode.
+- SCENARIOS: each harness alone; sets sharing `AGENTS.md`, `.agents/skills` and `.mcp.json`; Cursor's cross-reads warn; Copilot double-loads `AGENTS.md` and `CLAUDE.md` warn; OpenCode shares Claude Code's skills
 
 ## Requirements Traceability
 
@@ -185,6 +195,7 @@ SOURCE: .zen/specs/REQ-HAR-harnesses.md
 - HAR-5_AC-1..AC-10 → HAR-Copilot (HAR_P-1 for AC-5)
 - HAR-6_AC-1..AC-8 → HAR-Cursor (HAR_P-1 for AC-5)
 - HAR-7_AC-1..AC-7 → HAR-Pi (HAR_P-1 for AC-4)
+- HAR-10_AC-1..AC-8 → HAR-OpenCode (HAR_P-1 for AC-4)
 - HAR-8_AC-1..AC-3 → HAR-AgentsMd
 - HAR-9_AC-1 → HAR-Common (HAR_P-2)
 - HAR-9_AC-2 → HAR-Claude
@@ -192,3 +203,4 @@ SOURCE: .zen/specs/REQ-HAR-harnesses.md
 ## Change Log
 
 - 0.1.0 (2026-10-06): Initial design (PLAN-010)
+- 0.1.0 (2026-10-07): HAR-OpenCode; the extension format shared as `common::extension`

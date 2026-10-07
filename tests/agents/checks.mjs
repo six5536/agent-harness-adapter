@@ -4,12 +4,12 @@
 // random words in the reply), not the wording of the reply.
 
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { run } from "./lib.mjs";
+import { run, walk } from "./lib.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -102,7 +102,7 @@ export function checks(a, base, adapter) {
   /** One run of the agent; its whole reply, also kept as ask-<n>.out. */
   const ask = (text, cwd) => {
     const since = Date.now() - 1000;
-    const r = run(a.binPath, a.def.prompt(a, text), { cwd, env: a.env });
+    const r = a.def.ask ? a.def.ask(a, text, cwd) : run(a.binPath, a.def.prompt(a, text), { cwd, env: a.env });
     const out = `${r.stdout}\n${r.stderr}\n${a.def.transcript?.(a, since) ?? ""}`;
     writeFileSync(join(dir, `ask-${++asked}.out`), out);
     quota ||= QUOTA.test(out);
@@ -159,7 +159,9 @@ export function checks(a, base, adapter) {
 
   // A10: uninstall, then the agent sees nothing of the tool.
   const un = ahk(["uninstall", "--harness", a.def.id, "--root", proj]);
-  const left = readdirSync(proj).filter((f) => ![".git", "aha-allowed.txt"].includes(f));
+  const left = walk(proj)
+    .map((f) => relative(proj, f).split(sep).join("/"))
+    .filter((f) => !f.startsWith(".git/") && f !== "aha-allowed.txt" && !a.def.own?.(f));
   const before = hooks(dir).length;
   const aout = ask(CODEWORD, proj);
   check(

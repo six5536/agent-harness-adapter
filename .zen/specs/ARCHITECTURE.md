@@ -2,13 +2,13 @@
 
 ## Project Purpose
 
-agent-harness-adapter is a Rust workspace: the library `agent-harness-adapter-core` for command-line tools that plug into LLM agent harnesses (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi, and any agent that reads `AGENTS.md`). A tool declares its integration once (instructions, skills, hooks, MCP servers, allowed commands, agents, commands); each harness adapter renders it into that agent's files, the library installs them with shared content written once, reports their state without ever overwriting what the user changed, and translates hook input and answers for every harness. It also supplies findings reports, CLI exit and output conventions, and atomic file writes. It embeds no content of its own and depends on no tool.
+agent-harness-adapter is a Rust workspace: the library `agent-harness-adapter-core` for command-line tools that plug into LLM agent harnesses (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi, OpenCode, and any agent that reads `AGENTS.md`). A tool declares its integration once (instructions, skills, hooks, MCP servers, allowed commands, agents, commands); each harness adapter renders it into that agent's files, the library installs them with shared content written once, reports their state without ever overwriting what the user changed, and translates hook input and answers for every harness. It also supplies findings reports, CLI exit and output conventions, and atomic file writes. It embeds no content of its own and depends on no tool.
 
 ## System Overview
 
 - Integration (`integration`): the tool's neutral declaration
 - Harness core (`harness`): the `Harness` contract, parts, profiles, states, shared-location choice, `install` / `status`, record, declined parts
-- Harness modules (`claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`, `pi`, `agents_md`): one adapter per harness for its files, formats and hook IO
+- Harness modules (`claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`, `pi`, `opencode`, `agents_md`): one adapter per harness for its files, formats and hook IO
 - Hooks (`hook`): neutral events, input, answers, `emit`, `LoopGuard`; the hook contract's JSON (`hook::wire`)
 - Manifest (`manifest`): a tool's integration from a TOML or JSON file, as a `Tool`
 - Report (`report`): findings and their text and JSON forms
@@ -43,7 +43,7 @@ flowchart LR
     subgraph Core[agent-harness-adapter-core]
         Integration[integration]
         Harness[harness: Harness contract, shared locations, install / status]
-        Adapters[claude, codex, factory, gemini, copilot, cursor, pi, agents_md]
+        Adapters[claude, codex, factory, gemini, copilot, cursor, pi, opencode, agents_md]
         Hook[hook: input, answers, emit, LoopGuard]
         Report[report]
         Cli[cli]
@@ -75,7 +75,7 @@ crates/lib/agent-harness-adapter-core/        # the library crate (crates.io `ag
   src/hook/                               # neutral hook events, input, answers, emit, LoopGuard, wire (the hook contract)
   src/manifest/                           # Manifest, ManifestTool: the integration from a file
   src/common/                             # crate-private pieces several harnesses share: Claude-family protocol, instructions region, group hooks, skills, MCP JSON
-  src/<harness>/                          # one adapter per harness: claude, codex, factory, gemini, copilot, cursor, pi, agents_md
+  src/<harness>/                          # one adapter per harness: claude, codex, factory, gemini, copilot, cursor, pi, opencode, agents_md
   src/report/                             # findings, report, text form
   tests/                                  # integration tests through the public API (a test Tool over a temp dir)
 crates/app/agent-harness-adapter/             # the `agent-harness-adapter` CLI crate (crates.io `agent-harness-adapter`)

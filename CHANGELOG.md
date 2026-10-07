@@ -62,8 +62,9 @@ First release: the library `agent-harness-adapter-core` and the
   agent that may load something twice.
 - Harnesses: `claude` (Claude Code), `codex` (OpenAI Codex CLI), `factory`
   (Factory Droid), `gemini` (Gemini CLI), `copilot` (GitHub Copilot),
-  `cursor` (Cursor), `pi` (Pi, through a generated TypeScript extension) and
-  `agents` (any agent that reads `AGENTS.md`).
+  `cursor` (Cursor), `pi` (Pi, through a generated TypeScript extension),
+  `opencode` (OpenCode, through a generated plugin) and `agents` (any agent
+  that reads `AGENTS.md`).
 - `hook`: `Event`, `HookInput`, `ToolCall` / `ToolKind`, `Answer` (`Allow`,
   `Deny`, `Continue`, `Context`), `Output`, `emit` through a harness, and
   `LoopGuard`. Hook commands are any command line, with optional `{harness}`

@@ -18,7 +18,7 @@
     "smoke:launcher": "node tests/smoke/launcher-smoke.mjs",
     "test:launcher": "node --test packages/agent-harness-adapter/test/*.test.js",
     "test:node": "node --test packages/agent-harness-adapter-node/test/",
-    "test:pi": "node --test crates/lib/agent-harness-adapter-core/tests/pi/",
+    "test:extensions": "node --test crates/lib/agent-harness-adapter-core/tests/extensions/",
     "release": "node scripts/release/release.mjs",
     "set-version": "node scripts/release/set-version.mjs",
     "verify-version": "node scripts/release/verify-version.mjs"
