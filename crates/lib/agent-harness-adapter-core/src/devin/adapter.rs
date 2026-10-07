@@ -163,7 +163,9 @@ impl Harness for Devin {
         let user = cx.scope == Scope::User;
         let own = Reads::always(location(item, cx));
         Ok(match item {
-            Item::Instructions if user => own.maybe([".claude/CLAUDE.md"]),
+            Item::Instructions if user => {
+                Reads::always([".config/devin/AGENTS.md", ".claude/CLAUDE.md"])
+            }
             Item::Instructions => Reads::always(["AGENTS.md", "CLAUDE.md"]),
             Item::Skills if user => {
                 Reads::always([".agents/skills", ".config/devin/skills", ".claude/skills"])

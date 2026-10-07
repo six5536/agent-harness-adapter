@@ -49,7 +49,10 @@ To add an agent: a new `agents/<agent>.mjs` (see the fields in
 | A9 user scope | from an empty project, the reply holds the codeword |
 | A10 uninstall | `status` absent at user scope; the project holds nothing of the tool, the reply has no codeword and no hook runs |
 
-A check an agent cannot pass by design shows `n/a`. A run where the agent
+A check an agent cannot pass by design shows `n/a`. A5 and A6 rest on the
+model running the two commands as asked: a weak or free model that skips
+them, or chains them into one call, fails them; run it again before
+suspecting the adapter (the hook log shows what ran). A run where the agent
 ran out of quota or hit a rate limit ends with a `quota` warning: its
 failures after that say nothing about the adapter.
 

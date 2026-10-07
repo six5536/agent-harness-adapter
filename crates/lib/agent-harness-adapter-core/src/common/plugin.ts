@@ -80,10 +80,10 @@ export default (async ({ client, directory }) => {
 	// Sessions whose last stop asked to go on (`continuing`); a new prompt
 	// starts over.
 	const continued = new Set<string>();
-	// Sessions whose stop is being decided, or whose continuation (the
-	// plugin's own next message) has not arrived yet: a stop can be reported
-	// as idle more than once, and is decided once.
-	const pending = new Set<string>();
+	// Sessions whose stop is being decided (null), or whose continuation, the
+	// plugin's own next message, has not arrived yet (its text): a stop can
+	// be reported as idle more than once, and is decided once.
+	const pending = new Map<string, string | null>();
 	const last = new Map<string, { agent?: string; model?: { providerID: string; modelID: string } }>();
 
 	return {
@@ -94,7 +94,7 @@ export default (async ({ client, directory }) => {
 			if (event.type !== "session.idle") return;
 			const id = event.properties.sessionID;
 			if (children.has(id) || pending.has(id)) return;
-			pending.add(id);
+			pending.set(id, null);
 			const a = await first("stop", "continue", { session_id: id, continuing: continued.has(id) }, directory);
 			if (!a) {
 				continued.delete(id);
@@ -102,6 +102,7 @@ export default (async ({ client, directory }) => {
 				return;
 			}
 			continued.add(id);
+			pending.set(id, a.reason ?? "");
 			try {
 				await client.session.promptAsync({
 					path: { id },
@@ -118,7 +119,12 @@ export default (async ({ client, directory }) => {
 			const id = input.sessionID;
 			if (children.has(id)) return;
 			last.set(id, { agent: input.agent, model: input.model });
-			if (pending.delete(id)) return;
+			const prompt = output.parts
+				.flatMap((p) => (p.type === "text" && !p.synthetic ? [p.text] : []))
+				.join("\n");
+			const own = pending.get(id);
+			pending.delete(id);
+			if (typeof own === "string" && own === prompt) return;
 			continued.delete(id);
 			const texts: string[] = [];
 			if (!started.has(id)) {
@@ -126,9 +132,6 @@ export default (async ({ client, directory }) => {
 				const s = await first("session-start", "context", { session_id: id, source: "startup" }, directory);
 				if (s?.text) texts.push(s.text);
 			}
-			const prompt = output.parts
-				.flatMap((p) => (p.type === "text" && !p.synthetic ? [p.text] : []))
-				.join("\n");
 			const a = await first("prompt-submit", "context", { session_id: id, prompt }, directory);
 			if (a?.text) texts.push(a.text);
 			if (texts.length > 0) {

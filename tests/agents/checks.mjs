@@ -64,7 +64,8 @@ const MAIN = `Do these steps in order and keep your answer short:
 3. Name the skill whose name starts with aha-.
 4. Run exactly this shell command: touch aha-denied-marker
 5. Run exactly this shell command: echo ok > aha-allowed.txt
-6. Tell me the after-tool word, if you were given one.`;
+6. Tell me the after-tool word, if you were given one.
+Run the two commands separately, one call each, exactly as written.`;
 
 // The answer must come from the instructions alone: an agent that searches
 // could find the codeword elsewhere.

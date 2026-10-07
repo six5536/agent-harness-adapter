@@ -117,7 +117,7 @@ fn reads_claude_codes_files_too() {
         Devin
             .reads(Item::Instructions, &user)
             .unwrap()
-            .may_load(".claude/CLAUDE.md")
+            .loads(".claude/CLAUDE.md")
     );
     assert!(
         Devin

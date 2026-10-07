@@ -356,6 +356,16 @@ fn devin_shares_claude_codes_files_and_is_warned_about_hooks() {
     assert_eq!(
         tree.read(".devin/config.json"),
         "{\n  \"permissions\": {\n    \"allow\": [\n      \"Exec(tool)\"\n    ]\n  }\n}\n"
+    ); // At user scope too: Claude Code's ~/.claude/CLAUDE.md serves Devin.
+    let user = install(
+        &tree.tool().with(harness::builtin()),
+        &InstallOptions::new(["claude", "devin"], Scope::User),
+    )
+    .unwrap();
+    let p = &parts(&user, "devin")[0];
+    assert_eq!(
+        (p.part.as_str(), p.verb(), p.path.as_str()),
+        ("instructions", "shared", ".claude/CLAUDE.md")
     );
 }
 

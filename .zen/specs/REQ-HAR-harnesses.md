@@ -148,7 +148,7 @@ AS A tool author, I WANT Devin's files and hooks (Devin CLI, and Devin Local in 
 ACCEPTANCE CRITERIA
 
 - [ ] HAR-11_AC-1 [ubiquitous]: Scopes SHALL be project and user; Devin's own user-scope paths SHALL be under `.config/devin`
-- [ ] HAR-11_AC-2 [ubiquitous]: Instructions SHALL be a region in `AGENTS.md` (`.config/devin/AGENTS.md` at user scope); Devin SHALL be taken to load `AGENTS.md` and `CLAUDE.md` both at project scope, and maybe `.claude/CLAUDE.md` at user scope
+- [ ] HAR-11_AC-2 [ubiquitous]: Instructions SHALL be a region in `AGENTS.md` (`.config/devin/AGENTS.md` at user scope); Devin SHALL be taken to load `AGENTS.md` and `CLAUDE.md` both (`.config/devin/AGENTS.md` and `.claude/CLAUDE.md` at user scope)
 - [ ] HAR-11_AC-3 [ubiquitous]: Hooks SHALL be group hooks under `<Event>` at the top of `.devin/hooks.v1.json` (under `hooks.<Event>` of `.config/devin/config.json` at user scope), events `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop` (no event before compaction), timeouts in seconds, matchers `^exec$`; `^(read|grep|glob|notebook_read)$`; `^(write|edit|apply_patch|notebook_edit)$`; `^mcp__`; Devin SHALL be taken to maybe run Claude Code's hooks from `.claude/settings.json` too
 - [ ] HAR-11_AC-4 [ubiquitous]: Hook input SHALL be read as the Claude family's (HAR-1_AC-4), the working directory from `DEVIN_PROJECT_DIR` when the input has no `cwd`
 - [ ] HAR-11_AC-5 [ubiquitous]: Answers SHALL be: allow `{}`; deny before a tool or a prompt, and continue at stop, `{"decision":"block","reason":…}`; context at session start, on a prompt and after a tool `{"hookSpecificOutput":{"hookEventName":…,"additionalContext":…}}`; exit 0

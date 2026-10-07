@@ -84,11 +84,18 @@ test("session context reaches the first prompt; stop continues once per prompt",
     await idle("s1");
     assert.strictEqual(sent.length, 2);
 
+    // The continuation just sent never arrives: the user's next prompt is
+    // still the user's, and starts over.
+    assert.strictEqual((await chat("s1", "fourth"))[0].text, "prompt context for fourth");
+    await idle("s1");
+    assert.strictEqual(sent.length, 3);
+    assert.deepStrictEqual(await chat("s1", "continue once"), []);
+
     // A subagent's session has no prompt or stop hooks of its own.
     await hooks.event({ event: { type: "session.created", properties: { info: { id: "c1", parentID: "s1" } } } });
     assert.deepStrictEqual(await chat("c1", "sub"), []);
     await idle("c1");
-    assert.strictEqual(sent.length, 2);
+    assert.strictEqual(sent.length, 3);
 
     await assert.rejects(
       hooks["tool.execute.before"]({ tool: "bash", sessionID: "s1", callID: "1" }, { args: { command: "rm -rf /" } }),
@@ -101,7 +108,7 @@ test("session context reaches the first prompt; stop continues once per prompt",
 
     const seen = readFileSync(join(dir, "proj", "seen.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
     const stops = seen.filter((i) => i.event === "stop").map((i) => i.continuing ?? false);
-    assert.deepStrictEqual(stops, [false, true, false]);
+    assert.deepStrictEqual(stops, [false, true, false, false]);
     assert.strictEqual(seen.filter((i) => i.event === "session-start").length, 1);
     assert.ok(seen.every((i) => i.v === 1 && i.harness === "opencode" && i.session_id === "s1"));
   } finally {

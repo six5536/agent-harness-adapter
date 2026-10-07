@@ -60,8 +60,8 @@ export default {
   // Hooks load only in a trusted folder; `-p` cannot ask, so trust is not
   // checked for the run. `-p` prints the last reply only: the whole
   // trajectory is exported and its agent messages read (`transcript`).
+  prepare: (a) => mkdirSync(join(a.home, "devin-exports"), { recursive: true }),
   prompt: (a, text) => [
-    ...(mkdirSync(join(a.home, "devin-exports"), { recursive: true }) && []),
     "-p",
     text,
     "--permission-mode",
