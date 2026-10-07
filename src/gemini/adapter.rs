@@ -186,6 +186,8 @@ impl Harness for Gemini {
                     Part::merge(item.as_str(), at, parts::group_hooks(&LAYOUT, integration)?)
                 }
                 Item::Mcp => parts::mcp(&at, "mcpServers", integration, mcp_entry),
+                // MCP tools: no confirmed allow-list form.
+                Item::Permissions if integration.allowed_commands().is_empty() => continue,
                 Item::Permissions => Part::merge(
                     item.as_str(),
                     at,

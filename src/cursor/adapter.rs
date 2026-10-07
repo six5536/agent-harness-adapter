@@ -137,13 +137,14 @@ impl Harness for Cursor {
                     integration
                         .allowed_commands()
                         .iter()
-                        .map(|p| {
-                            let program = p.split_whitespace().next().unwrap_or(p);
-                            MergeOp::array_entry(
-                                ["permissions", "allow"],
-                                format!("Shell({program})"),
-                            )
-                        })
+                        .map(|p| format!("Shell({})", p.split_whitespace().next().unwrap_or(p)))
+                        .chain(
+                            integration
+                                .allowed_mcp_tools()
+                                .iter()
+                                .map(|(s, t)| format!("Mcp({s}:{t})")),
+                        )
+                        .map(|rule| MergeOp::array_entry(["permissions", "allow"], rule))
                         .collect(),
                 ),
                 Item::Agents => parts::agents(at, ".md", integration, |a| {
@@ -236,6 +237,7 @@ mod tests {
             .hook(Hook::new(Event::PreTool, "t hook {harness} {event}").tools(ToolKind::Shell))
             .mcp_server(McpServer::stdio("t", "t", ["mcp"]))
             .allow_command("t check")
+            .allow_mcp_tool("t", "run")
             .agent(Agent::new("r", "Reviews.", "Review.\n"))
             .command(Command::new("c", "Checks.", "Check $ARGUMENTS.\n"))
     }
@@ -288,7 +290,10 @@ mod tests {
         );
         assert_eq!(
             p.part("permissions").unwrap().ops(),
-            &[MergeOp::array_entry(["permissions", "allow"], "Shell(t)")]
+            &[
+                MergeOp::array_entry(["permissions", "allow"], "Shell(t)"),
+                MergeOp::array_entry(["permissions", "allow"], "Mcp(t:run)")
+            ]
         );
         let user = Context::new("t", Scope::User, "/nowhere", None);
         let u = Profile::new(ID, Cursor.render(&full(), &user).unwrap());

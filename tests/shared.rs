@@ -262,8 +262,9 @@ fn refusals_from_the_set() {
     let e = install(&tool, &InstallOptions::new(["beta"], Scope::User)).unwrap_err();
     assert!(matches!(e, Error::UnsupportedScope { .. }), "{e}");
     assert_eq!(e.to_string(), "harness `beta` has no user scope");
-    // A raw part named like an item clashes.
-    struct Clash(TempTree);
+    // A raw part named like an item the harness renders clashes; one named
+    // like an item it does not render fills it.
+    struct Clash(TempTree, &'static str);
     impl agent_harness_kit::Tool for Clash {
         fn name(&self) -> &str {
             "tool"
@@ -274,7 +275,7 @@ fn refusals_from_the_set() {
         fn integration(&self, _scope: Scope) -> Integration {
             Integration::new()
                 .instructions("x\n")
-                .part("alpha", Part::region("skills", "S.md", "s"))
+                .part("alpha", Part::region(self.1, "S.md", "s\n"))
         }
         fn root(&self, _scope: Scope) -> Result<std::path::PathBuf> {
             Ok(self.0.dir().to_path_buf())
@@ -292,10 +293,16 @@ fn refusals_from_the_set() {
             )))
         }
     }
-    let clash = Clash(TempTree::empty("clash"));
+    let clash = Clash(TempTree::empty("clash"), "instructions");
     let e = install(&clash, &InstallOptions::new(["alpha"], Scope::Project)).unwrap_err();
     assert!(matches!(e, Error::Internal(_)), "{e}");
     assert!(clash.0.files().is_empty());
+    let fill = Clash(TempTree::empty("fill"), "mcp");
+    let out = install(&fill, &InstallOptions::new(["alpha"], Scope::Project)).unwrap();
+    let alpha = out.harness("alpha").unwrap();
+    assert_eq!(alpha.parts[1].part, "mcp");
+    assert!(alpha.unsupported.is_empty(), "{alpha:?}");
+    assert!(fill.0.exists("S.md"));
     assert!(tree.files().is_empty());
 }
 

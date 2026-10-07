@@ -202,9 +202,9 @@ AS A tool author, I WANT to declare my integration once, SO THAT every harness g
 
 ACCEPTANCE CRITERIA
 
-- [ ] KIT-17_AC-1 [ubiquitous]: An integration SHALL hold an instructions block, skills (name, description, body, extra files), hooks (KIT-11), MCP servers (stdio: command, arguments, environment; or http: URL, headers), allowed commands (a command prefix), agents (name, description, prompt), commands (name, description, prompt with `$ARGUMENTS`), and raw parts for one harness
+- [ ] KIT-17_AC-1 [ubiquitous]: An integration SHALL hold an instructions block, skills (name, description, body, extra files), hooks (KIT-11), MCP servers (stdio: command, arguments, environment; or http: URL, headers), allowed commands (a command prefix) and allowed MCP tools (server, tool), agents (name, description, prompt), commands (name, description, prompt with `$ARGUMENTS`), and raw parts for one harness
 - [ ] KIT-17_AC-2 [ubiquitous]: Each item SHALL become at most one part per harness, named by the item; a raw part SHALL keep the tool's name
-- [ ] KIT-17_AC-3 [conditional]: IF a raw part's name equals an item's name or another part's THEN the system SHALL refuse with an internal error
+- [ ] KIT-17_AC-3 [conditional]: IF a raw part's name equals that of a part the harness rendered or another raw part's THEN the system SHALL refuse with an internal error; a raw part named like an item the harness does not render SHALL stand for that item
 - [ ] KIT-17_AC-4 [ubiquitous]: An item a harness cannot take at a scope SHALL be left out of its profile and listed as unsupported, never an error
 
 ### KIT-18: Harnesses [MUST]

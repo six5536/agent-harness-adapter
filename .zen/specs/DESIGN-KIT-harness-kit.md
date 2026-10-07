@@ -99,8 +99,12 @@ impl Integration {
     pub fn hook(self, hook: Hook) -> Self;
     pub fn hook_match(self, owned: EntryMatch) -> Self;      // for every hook without its own
     pub fn allow_command(self, prefix: impl Into<String>) -> Self;
+    pub fn allow_mcp_tool(self, server: impl Into<String>, tool: impl Into<String>) -> Self;
+    pub fn allowed_mcp_tools(&self) -> &[(String, String)];
     pub fn mcp_server(self, server: McpServer) -> Self;
     pub fn allow_command(self, prefix: impl Into<String>) -> Self;
+    pub fn allow_mcp_tool(self, server: impl Into<String>, tool: impl Into<String>) -> Self;
+    pub fn allowed_mcp_tools(&self) -> &[(String, String)];
     pub fn agent(self, agent: Agent) -> Self;
     pub fn command(self, command: Command) -> Self;
     pub fn part(self, harness: impl Into<String>, part: Part) -> Self;
@@ -192,7 +196,7 @@ pub fn find(id: &str) -> Option<Arc<dyn Harness>>;
 
 ### KIT-Harness
 
-`install` resolves the set: the named ids (each must be in `tool.harnesses()`, else `UnknownHarness`; each must list the scope, else `UnsupportedScope`), plus the supported harnesses with a table in the record, ordered by `tool.harnesses()`; only named members are written and reported. Per harness it builds a `Context`, calls `render`, appends `integration.parts_for(id)` (a name clash with an item or another part is `Internal`), reads its declined list (`--without` names checked against the union of the named harnesses' part names, else `UnknownPart`), and asks `reads` for every item it rendered. KIT-Shared then marks parts shared. Every remaining part not declined is examined as in 0.1 (target, observe, state against the expected content and the recorded hash of KIT-19_AC-7); `install` decides, plans one `Plan` keyed by path across all harnesses (a second part in the same file renders on the planned text), updates each harness's record table, and applies: external parts, then files, then the record. Declined lists are stored after the writes when `--without` was given. `status` stops after examining. Notes come from `Harness::notes` with the harness's part results.
+`install` resolves the set: the named ids (each must be in `tool.harnesses()`, else `UnknownHarness`; each must list the scope, else `UnsupportedScope`), plus the supported harnesses with a table in the record, ordered by `tool.harnesses()`; only named members are written and reported. Per harness it builds a `Context`, calls `render`, appends `integration.parts_for(id)` (a name clash with a rendered part or another raw part is `Internal`; a raw part named like an item the harness did not render stands for it), reads its declined list (`--without` names checked against the union of the named harnesses' part names, else `UnknownPart`), and asks `reads` for every item it rendered. KIT-Shared then marks parts shared. Every remaining part not declined is examined as in 0.1 (target, observe, state against the expected content and the recorded hash of KIT-19_AC-7); `install` decides, plans one `Plan` keyed by path across all harnesses (a second part in the same file renders on the planned text), updates each harness's record table, and applies: external parts, then files, then the record. Declined lists are stored after the writes when `--without` was given. `status` stops after examining. Notes come from `Harness::notes` with the harness's part results.
 
 IMPLEMENTS: KIT-1_AC-1, KIT-1_AC-2, KIT-2_AC-1, KIT-2_AC-2, KIT-2_AC-4, KIT-3_AC-1, KIT-3_AC-2, KIT-4_AC-1, KIT-4_AC-2, KIT-5_AC-1, KIT-6_AC-1, KIT-6_AC-2, KIT-7_AC-1, KIT-7_AC-2, KIT-8_AC-1, KIT-8_AC-2, KIT-17_AC-3, KIT-17_AC-4, KIT-19_AC-1, KIT-20_AC-1
 

@@ -144,6 +144,8 @@ impl Harness for Pi {
         let raw = protocol::raw_object(text)?;
         let mut input = HookInput::new(ID, event, raw.clone());
         let text = |k: &str| protocol::text(&raw, k);
+        input.session_id = text("session_id");
+        input.transcript_path = text("transcript_path");
         input.cwd = text("cwd");
         input.prompt = text("prompt");
         input.source = text("source");
@@ -303,10 +305,14 @@ mod tests {
         let i = Pi
             .parse_hook(
                 Event::PreTool,
-                r#"{"event":"pre-tool","cwd":"/w","tool_name":"bash","tool_input":{"command":"ls"},"continuing":false}"#,
+                r#"{"event":"pre-tool","session_id":"s","transcript_path":"/t","cwd":"/w","tool_name":"bash","tool_input":{"command":"ls"},"continuing":false}"#,
             )
             .unwrap();
         assert_eq!(i.cwd.as_deref(), Some("/w"));
+        assert_eq!(
+            (i.session_id.as_deref(), i.transcript_path.as_deref()),
+            (Some("s"), Some("/t"))
+        );
         assert_eq!(i.tool.unwrap().kind, ToolKind::Shell);
         assert!(
             Pi.parse_hook(Event::Stop, r#"{"continuing":true}"#)

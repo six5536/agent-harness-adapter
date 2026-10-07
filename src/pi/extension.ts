@@ -4,7 +4,7 @@
 // "context", "reason"?, "text"?}). A command that fails, times out or
 // answers something else allows.
 import { spawn } from "node:child_process";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 type Answer = { answer?: string; reason?: string; text?: string };
 type Spec = { event: string; command: string; timeout?: number };
@@ -49,10 +49,11 @@ function run(spec: Spec, payload: Record<string, unknown>, cwd: string): Promise
 }
 
 /** Run every hook of `event`; the first answer of `kind` wins. */
-async function first(event: string, kind: string, payload: Record<string, unknown>, cwd: string): Promise<Answer | undefined> {
+async function first(event: string, kind: string, payload: Record<string, unknown>, ctx: ExtensionContext): Promise<Answer | undefined> {
 	let found: Answer | undefined;
+	const session = { session_id: ctx.sessionManager.getSessionId(), transcript_path: ctx.sessionManager.getSessionFile() };
 	for (const spec of HOOKS.filter((h) => h.event === event)) {
-		const answer = await run(spec, { event, ...payload }, cwd);
+		const answer = await run(spec, { event, ...session, ...payload }, ctx.cwd);
 		if (!found && answer.answer === kind) found = answer;
 	}
 	return found;
@@ -62,20 +63,20 @@ export default function (pi: ExtensionAPI) {
 	let continued = false;
 
 	pi.on("session_start", async (event, ctx) => {
-		await first("session-start", "", { source: event.reason }, ctx.cwd);
+		await first("session-start", "", { source: event.reason }, ctx);
 	});
 
 	pi.on("session_shutdown", async (event, ctx) => {
-		await first("session-end", "", { reason: event.reason }, ctx.cwd);
+		await first("session-end", "", { reason: event.reason }, ctx);
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
-		const a = await first("prompt-submit", "context", { prompt: event.prompt }, ctx.cwd);
+		const a = await first("prompt-submit", "context", { prompt: event.prompt }, ctx);
 		if (a?.text) return { message: { customType: TOOL, content: a.text, display: false } };
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
-		const a = await first("pre-tool", "deny", { tool_name: event.toolName, tool_input: event.input }, ctx.cwd);
+		const a = await first("pre-tool", "deny", { tool_name: event.toolName, tool_input: event.input }, ctx);
 		if (a) return { block: true, reason: a.reason ?? `${TOOL} denied this tool call` };
 	});
 
@@ -84,13 +85,13 @@ export default function (pi: ExtensionAPI) {
 			"post-tool",
 			"context",
 			{ tool_name: event.toolName, tool_input: event.input, tool_output: event.content },
-			ctx.cwd,
+			ctx,
 		);
 		if (a?.text) return { content: [...event.content, { type: "text" as const, text: a.text }] };
 	});
 
 	pi.on("session_before_compact", async (event, ctx) => {
-		await first("pre-compact", "", { reason: event.reason }, ctx.cwd);
+		await first("pre-compact", "", { reason: event.reason }, ctx);
 	});
 
 	pi.on("agent_before_settle", async (event, ctx) => {
@@ -98,7 +99,7 @@ export default function (pi: ExtensionAPI) {
 			continued = false;
 			return;
 		}
-		const a = await first("stop", "continue", { continuing: continued }, ctx.cwd);
+		const a = await first("stop", "continue", { continuing: continued }, ctx);
 		continued = a !== undefined;
 		if (a) {
 			return {

@@ -87,6 +87,7 @@ pub struct Integration {
     hook_match: Option<EntryMatch>,
     mcp_servers: Vec<McpServer>,
     allowed: Vec<String>,
+    mcp_tools: Vec<(String, String)>,
     agents: Vec<Agent>,
     commands: Vec<Command>,
     parts: Vec<(String, Part)>,
@@ -140,6 +141,14 @@ impl Integration {
     #[must_use]
     pub fn allow_command(mut self, prefix: impl Into<String>) -> Self {
         self.allowed.push(prefix.into());
+        self
+    }
+
+    /// Allow the agent to call `tool` of the MCP server `server` without
+    /// asking.
+    #[must_use]
+    pub fn allow_mcp_tool(mut self, server: impl Into<String>, tool: impl Into<String>) -> Self {
+        self.mcp_tools.push((server.into(), tool.into()));
         self
     }
 
@@ -210,6 +219,11 @@ impl Integration {
         &self.allowed
     }
 
+    /// The allowed MCP tools: (server, tool).
+    pub fn allowed_mcp_tools(&self) -> &[(String, String)] {
+        &self.mcp_tools
+    }
+
     /// The subagents.
     pub fn agents(&self) -> &[Agent] {
         &self.agents
@@ -229,7 +243,7 @@ impl Integration {
                 Item::Skills => !self.skills.is_empty(),
                 Item::Hooks => !self.hooks.is_empty(),
                 Item::Mcp => !self.mcp_servers.is_empty(),
-                Item::Permissions => !self.allowed.is_empty(),
+                Item::Permissions => !self.allowed.is_empty() || !self.mcp_tools.is_empty(),
                 Item::Agents => !self.agents.is_empty(),
                 Item::Commands => !self.commands.is_empty(),
             })
@@ -270,6 +284,7 @@ mod tests {
             .hook(Hook::new(Event::Stop, "t hook {harness} {event}"))
             .mcp_server(McpServer::stdio("t", "t", ["mcp"]))
             .allow_command("t")
+            .allow_mcp_tool("t", "run")
             .agent(Agent::new("a", "d", "p"))
             .part("claude", Part::region("notes", "NOTES.md", "n"));
         assert_eq!(i.items(), Item::ALL);

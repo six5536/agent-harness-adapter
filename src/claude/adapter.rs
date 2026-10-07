@@ -152,9 +152,14 @@ impl Harness for Claude {
                     integration
                         .allowed_commands()
                         .iter()
-                        .map(|p| {
-                            MergeOp::array_entry(["permissions", "allow"], format!("Bash({p} *)"))
-                        })
+                        .map(|p| format!("Bash({p} *)"))
+                        .chain(
+                            integration
+                                .allowed_mcp_tools()
+                                .iter()
+                                .map(|(s, t)| format!("mcp__{s}__{t}")),
+                        )
+                        .map(|rule| MergeOp::array_entry(["permissions", "allow"], rule))
                         .collect(),
                 ),
                 Item::Agents => parts::agents(&at, ".md", integration, |a| a.to_markdown(&[])),
@@ -248,6 +253,7 @@ mod tests {
             .hook(Hook::new(Event::Stop, "t hook {harness} {event}"))
             .mcp_server(McpServer::stdio("t", "t", ["mcp"]))
             .allow_command("t")
+            .allow_mcp_tool("t", "run")
             .agent(Agent::new("r", "Reviews.", "Review.\n"))
             .command(Command::new("c", "Checks.", "Check $ARGUMENTS.\n"))
     }
@@ -329,7 +335,10 @@ mod tests {
         let ops = p.part("permissions").unwrap().ops();
         assert_eq!(
             ops,
-            &[MergeOp::array_entry(["permissions", "allow"], "Bash(t *)")]
+            &[
+                MergeOp::array_entry(["permissions", "allow"], "Bash(t *)"),
+                MergeOp::array_entry(["permissions", "allow"], "mcp__t__run")
+            ]
         );
         let names = |s| -> Vec<String> {
             rendered(s)

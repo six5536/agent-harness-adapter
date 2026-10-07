@@ -130,13 +130,18 @@ fn profile(
         }
         rendered.push(item);
     }
+    // A raw part may take an item's name when the harness renders nothing
+    // for that item, e.g. a tool's own way to install its MCP server there.
     for raw in integration.parts_for(harness.id()) {
-        if raw.name().parse::<Item>().is_ok() || parts.iter().any(|p| p.name() == raw.name()) {
+        if parts.iter().any(|p| p.name() == raw.name()) {
             return Err(Error::Internal(format!(
                 "the part `{}` of `{}` clashes with another part's name",
                 raw.name(),
                 harness.id()
             )));
+        }
+        if let Ok(item) = raw.name().parse::<Item>() {
+            rendered.push(item);
         }
         parts.push(raw.clone());
     }
