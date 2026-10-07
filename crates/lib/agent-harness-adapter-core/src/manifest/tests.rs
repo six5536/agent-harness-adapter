@@ -194,6 +194,7 @@ fn a_manifest_gives_the_builders_integration() {
     let built = format!("{:?}", full_builder());
     assert_eq!(format!("{:?}", m.integration(Scope::Project)), built);
     assert_eq!(format!("{:?}", m.integration(Scope::Local)), built);
+    fs::remove_dir_all(&dir).unwrap();
 }
 
 // @zen-test: AHA-1_AC-1
@@ -231,6 +232,7 @@ fn toml_json_and_a_value_load_alike() {
         e.contains("absent.toml") && e.contains("no such file"),
         "{e}"
     );
+    fs::remove_dir_all(&dir).unwrap();
 }
 
 // @zen-test: AHA-1_AC-2
@@ -248,6 +250,7 @@ fn another_version_is_refused_for_its_version() {
     assert!(e.contains("version 3"), "{e}");
     let e = err(&dir, "name = \"t\"\n");
     assert!(e.contains("missing field `version`"), "{e}");
+    fs::remove_dir_all(&dir).unwrap();
 }
 
 // @zen-test: AHA-1_AC-3
@@ -303,6 +306,7 @@ fn defaults_scopes_and_the_tool() {
         tool.record_path(Scope::Local).unwrap(),
         Path::new("/p/.t/harness.local.toml")
     );
+    fs::remove_dir_all(&dir).unwrap();
 }
 
 // @zen-test: AHA-1_AC-7
@@ -395,6 +399,7 @@ fn mistakes_are_refused_with_their_place() {
         "version = 1\nname = \"t\"\ninstructions = { file = \"d\" }\n",
     );
     assert!(e.contains("`instructions`:"), "{e}");
+    fs::remove_dir_all(&dir).unwrap();
 }
 
 #[cfg(feature = "schemars")]
