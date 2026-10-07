@@ -38,7 +38,8 @@ crates/lib/agent-harness-adapter-core/src/
 ├── integration/
 │   ├── mod.rs
 │   ├── declaration.rs  Integration, Item
-│   └── items.rs        Skill, Hook, McpServer, Transport, Agent, Command
+│   ├── items.rs        Hook, McpServer, Transport, Agent, Command
+│   └── skill.rs        Skill, declared or read from a skill directory
 ├── harness/
 │   ├── mod.rs
 │   ├── adapter.rs      Harness, Context, Reads, builtin, find

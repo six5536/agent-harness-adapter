@@ -1,6 +1,9 @@
 //! Agent skills: declared, or read from a skill directory.
 
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use super::items::yaml_scalar;
 use crate::{Error, Result};
@@ -63,9 +66,13 @@ impl Skill {
             )
         })?;
         let description = field(front, "description").unwrap_or_default();
-        let body = body.strip_prefix('\n').unwrap_or(body).to_string();
+        let body = body
+            .strip_prefix("\r\n")
+            .or_else(|| body.strip_prefix('\n'))
+            .unwrap_or(body)
+            .to_string();
         let mut files = Vec::new();
-        collect(dir, "", &mut files)?;
+        collect(dir, "", &mut Vec::new(), &mut files)?;
         Ok(Skill {
             name,
             description,
@@ -131,8 +138,23 @@ fn read(path: &Path) -> Result<String> {
 }
 
 /// Every file under `dir` but its top `SKILL.md` and hidden entries, in
-/// path order, as (`rel`-prefixed path with `/`, text).
-fn collect(dir: &Path, rel: &str, out: &mut Vec<(String, String)>) -> Result<()> {
+/// path order, as (`rel`-prefixed path with `/`, text). `above` holds the
+/// directories being read, so a symlink back into one is refused, not
+/// followed forever.
+fn collect(
+    dir: &Path,
+    rel: &str,
+    above: &mut Vec<PathBuf>,
+    out: &mut Vec<(String, String)>,
+) -> Result<()> {
+    let real = fs::canonicalize(dir).map_err(|e| Error::io(dir, e))?;
+    if above.contains(&real) {
+        return Err(Error::file(
+            dir.display().to_string(),
+            "links back to a directory above it",
+        ));
+    }
+    above.push(real);
     let mut entries: Vec<_> = fs::read_dir(dir)
         .map_err(|e| Error::io(dir, e))?
         .collect::<std::io::Result<_>>()
@@ -146,11 +168,12 @@ fn collect(dir: &Path, rel: &str, out: &mut Vec<(String, String)>) -> Result<()>
             continue;
         }
         if path.is_dir() {
-            collect(&path, &format!("{at}/"), out)?;
+            collect(&path, &format!("{at}/"), above, out)?;
         } else {
             out.push((at, read(&path)?));
         }
     }
+    above.pop();
     Ok(())
 }
 
@@ -293,6 +316,19 @@ mod tests {
         fs::remove_file(dir.join("logo.png")).unwrap();
         let s = Skill::from_dir(&dir).unwrap();
         assert_eq!((s.name(), s.description(), s.body()), ("ok", "it's", "x"));
+        fs::write(
+            dir.join("SKILL.md"),
+            "---\r\nname: ok\r\n---\r\n\r\nbody\r\n",
+        )
+        .unwrap();
+        assert_eq!(Skill::from_dir(&dir).unwrap().body(), "body\r\n");
+        #[cfg(unix)]
+        {
+            fs::create_dir_all(dir.join("sub")).unwrap();
+            std::os::unix::fs::symlink(&dir, dir.join("sub/up")).unwrap();
+            let e = refused(&dir);
+            assert!(e.contains("links back to a directory above it"), "{e}");
+        }
         fs::remove_dir_all(&dir).unwrap();
     }
 
