@@ -2,7 +2,7 @@
 
 | Meta               | Value |
 | ------------------ | ----- |
-| Status             | in progress: P1–P7 done (2026-10-07); P7's smoke checks inside each agent (N4) and P8 (consumers) remain |
+| Status             | in progress: P1–P8 done (2026-10-07); remaining: smoke checks inside each agent (N4), P9 release |
 | Workflow direction | top-down (architecture → requirements → design → code → docs → consumers → release) |
 | Traces to          | ARCHITECTURE (harness core, harness modules), KIT-1, KIT-2, KIT-3, KIT-4, KIT-10, KIT-11, KIT-12; PLAN-009 D9-17 |
 
@@ -138,6 +138,7 @@ The per-harness locations, formats and sources are in §10.
 - P7: README (harness table, multi-harness example) and CHANGELOG 0.1.0 rewritten; `cargo publish --dry-run` passes; line coverage 98.5%. D10-11 left open, so these stay unsupported: Codex allowed commands (rule-file syntax), Factory allowed commands (`permissionRules` shape) and local scope (hooks in `settings.local.json`), Copilot prompt deny and context answers. Gemini CLI's hooks merge across scopes or not: no effect on what the kit writes (one file per scope). The smoke checks inside each real agent (N4) need the agents installed and signed in.
 - P8 (smllm port) found three kit gaps, fixed in the kit: allowed MCP tools (`Integration::allow_mcp_tool`, rendered for Claude Code and Cursor); a raw part may stand for an item the harness does not render (e.g. a tool's own user-scope MCP install for Claude Code); Pi's extension sends the session id and transcript path. Not changed: hashes recorded by smllm's in-tree kit (old hook shape) read as `edited` once (no users yet, per the user).
 - P8 (sokf port) found three more, fixed in the kit: a hook may have its own command per harness (`Hook::command_for`, e.g. a path through `$CLAUDE_PROJECT_DIR`); `Harness::hook_events` says which events a harness runs (none for `agents`); double-load warnings only concern the harnesses named (a left-over copy is still warned about, since the run caused it).
+- P8 done: smllm (`db51914`, 143 tests) and sokf (`5e7310a`, 638 tests, 2 skipped) support every built-in harness on local branches `agent-harness-kit-0.1`, clippy clean, checked against kit `a584410`. Both list their behaviour changes in their CHANGELOGs; smllm 0.2 users run `harness install claude --force` once (old hook hash shape, accepted by the user). smllm keeps one declined store for project and local scope (its choice; the kit passes the scope).
 
 ## 9. Resolved questions
 
