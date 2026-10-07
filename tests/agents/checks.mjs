@@ -138,11 +138,15 @@ export function checks(a, base, adapter) {
     answered("post-tool", "context") ? "hook answered; the model may ignore it" : "hook did not run",
     true,
   );
-  const stops = log.filter((l) => l.in.event === "stop").map((l) => Boolean(l.in.continuing));
+  const stops = log.filter((l) => l.in.event === "stop");
+  const continues = stops.filter((l) => l.out.answer === "continue").length;
   check(
     "A7 stop continues once",
-    stops[0] === false && stops.includes(true) && out.includes(words.stop),
-    `stops seen: ${JSON.stringify(stops)}`,
+    stops[0]?.in.continuing !== true &&
+      continues === 1 &&
+      stops.some((l) => l.in.continuing) &&
+      out.includes(words.stop),
+    `stops seen: ${JSON.stringify(stops.map((l) => [Boolean(l.in.continuing), l.out.answer]))}`,
   );
 
   // A9: user scope, from a project with nothing of its own; then its uninstall.

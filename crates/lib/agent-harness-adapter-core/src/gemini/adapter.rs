@@ -14,15 +14,14 @@ use std::time::Duration;
 use serde_json::{Value, json};
 
 use crate::{
-    Error, Result,
+    Result,
     common::{
         parts::{self, GroupHooks},
-        protocol, toml_out,
+        protocol, settings, toml_out,
     },
-    fs::read_text,
     harness::{Context, Harness, MergeOp, Part, PartResult, Reads, Scope},
     hook::{Answer, Event, HookInput, Output, ToolKind},
-    integration::{Integration, Item, McpServer, Transport},
+    integration::{Integration, Item},
 };
 
 /// Gemini CLI (`gemini`).
@@ -80,65 +79,19 @@ const LAYOUT: GroupHooks = GroupHooks {
     harness: ID,
 };
 
-/// The context file names `settings` lists in `context.fileName` (a string
-/// or an array); `None` when it does not set it. A file that does not parse
-/// is a refusal naming `display`.
-fn file_names(text: Option<String>, display: &str) -> Result<Option<Vec<String>>> {
-    let Some(text) = text else {
-        return Ok(None);
-    };
-    let doc: Value = serde_json::from_str(&text)
-        .map_err(|e| Error::file(display, format!("does not parse as JSON: {e}")))?;
-    Ok(match &doc["context"]["fileName"] {
-        Value::String(s) => Some(vec![s.clone()]),
-        Value::Array(a) => Some(
-            a.iter()
-                .filter_map(|v| v.as_str().map(str::to_string))
-                .collect(),
-        )
-        .filter(|v: &Vec<String>| !v.is_empty()),
-        _ => None,
-    })
-}
+/// Where Gemini CLI's context files are set and found.
+const CONTEXT: settings::ContextLayout = settings::ContextLayout {
+    settings: SETTINGS,
+    user_display: "~/.gemini/settings.json",
+    user_dir: ".gemini/",
+    default: &["GEMINI.md"],
+};
 
-/// The context files Gemini CLI loads at `cx`: the scope's setting, else (at
-/// project scope) the user's, else `GEMINI.md`; and the one the
-/// instructions go in: `AGENTS.md` when listed, else the first.
+/// The context files Gemini CLI loads at `cx`, and the one the instructions
+/// go in.
 // @zen-impl: HAR-4_AC-2
 fn context_files(cx: &Context) -> Result<(String, Vec<String>)> {
-    let mut names = file_names(read_text(&cx.path(SETTINGS))?, SETTINGS)?;
-    if names.is_none() && cx.scope == Scope::Project {
-        if let Some(path) = cx.user_path(SETTINGS) {
-            names = file_names(read_text(&path)?, "~/.gemini/settings.json")?;
-        }
-    }
-    let names = names.unwrap_or_else(|| vec!["GEMINI.md".into()]);
-    let dir = if cx.scope == Scope::User {
-        ".gemini/"
-    } else {
-        ""
-    };
-    let all: Vec<String> = names.iter().map(|n| format!("{dir}{n}")).collect();
-    let chosen = names
-        .iter()
-        .position(|n| n == "AGENTS.md")
-        .map_or_else(|| all[0].clone(), |i| all[i].clone());
-    Ok((chosen, all))
-}
-
-/// An MCP server in Gemini CLI's form: an http server's URL as `httpUrl`.
-// @zen-impl: HAR-4_AC-7
-fn mcp_entry(s: &McpServer) -> Value {
-    match s.transport() {
-        Transport::Stdio { .. } => s.to_json(),
-        Transport::Http { url, headers } => {
-            let mut v = json!({ "httpUrl": url });
-            if !headers.is_empty() {
-                v["headers"] = s.to_json()["headers"].clone();
-            }
-            v
-        }
-    }
+    settings::context_files(cx, &CONTEXT)
 }
 
 /// A command as a `.toml` file, `$ARGUMENTS` written as `{{args}}`.
@@ -185,7 +138,8 @@ impl Harness for Gemini {
                 Item::Hooks => {
                     Part::merge(item.as_str(), at, parts::group_hooks(&LAYOUT, integration)?)
                 }
-                Item::Mcp => parts::mcp(&at, "mcpServers", integration, mcp_entry),
+                // @zen-impl: HAR-4_AC-7
+                Item::Mcp => parts::mcp(&at, "mcpServers", integration, settings::mcp_entry),
                 // MCP tools: no confirmed allow-list form.
                 Item::Permissions if integration.allowed_commands().is_empty() => continue,
                 Item::Permissions => Part::merge(
@@ -253,7 +207,9 @@ mod tests {
 
     use super::*;
     use crate::{
+        Error,
         harness::{Action, Profile, State},
+        integration::McpServer,
         integration::{Agent, Command, Hook, Skill},
         test_support::temp_dir,
     };

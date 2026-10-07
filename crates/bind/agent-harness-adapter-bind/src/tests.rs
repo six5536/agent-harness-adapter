@@ -46,7 +46,7 @@ fn install_then_status_from_a_value_or_a_file() {
     let st = status(Source::Path(file.clone()), &d.options(&[])).unwrap();
     assert_eq!(st["harnesses"][0]["parts"][0]["state"], "current");
     let all = status(Source::Path(file), &d.options(&["all"])).unwrap();
-    assert_eq!(all["harnesses"].as_array().unwrap().len(), 9);
+    assert_eq!(all["harnesses"].as_array().unwrap().len(), 12);
     let mut o = d.options(&["all"]);
     o.scope = Some("local".into());
     o.without = Some(vec!["permissions".into()]);

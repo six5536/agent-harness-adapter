@@ -3,9 +3,18 @@ use std::{fs, time::Duration};
 use super::*;
 use crate::{
     harness::{Action, Profile, State},
-    integration::{Agent, Command, Hook, Skill},
+    hook::ToolKind,
+    integration::{Agent, Command, Hook, McpServer, Skill},
     test_support::temp_dir,
 };
+
+fn plugin(tool: &str, integration: &Integration) -> String {
+    plugin::plugin(ID, "OpenCode", "@opencode-ai/plugin", tool, integration)
+}
+
+fn instructions_file(cx: &Context) -> String {
+    LAYOUT.location(Item::Instructions, cx)
+}
 
 fn full() -> Integration {
     Integration::new()
@@ -72,23 +81,6 @@ fn renders_every_item_per_scope() {
     // No allowed command: no permissions part.
     let none = Integration::new().allow_mcp_tool("t", "run");
     assert!(OpenCode.render(&none, &cx).unwrap().is_empty());
-}
-
-// @zen-test: HAR-10_AC-5
-#[test]
-fn mcp_entries() {
-    assert_eq!(
-        mcp_json(&McpServer::stdio("t", "t", ["mcp"]).env("K", "v")),
-        json!({ "type": "local", "command": ["t", "mcp"], "environment": { "K": "v" } })
-    );
-    assert_eq!(
-        mcp_json(&McpServer::http("w", "https://w.example").header("H", "h")),
-        json!({ "type": "remote", "url": "https://w.example", "headers": { "H": "h" } })
-    );
-    assert_eq!(
-        mcp_json(&McpServer::http("w", "https://w.example")),
-        json!({ "type": "remote", "url": "https://w.example" })
-    );
 }
 
 #[test]
@@ -168,7 +160,7 @@ fn input_and_answers() {
         ("apply_patch", ToolKind::Write),
         ("t_run", ToolKind::Other),
     ] {
-        assert_eq!(tool_kind(n), k);
+        assert_eq!(plugin::tool_kind(n), k);
     }
     let out = |e, a: Answer| OpenCode.answer(e, &a).map(|o| o.stdout);
     assert_eq!(

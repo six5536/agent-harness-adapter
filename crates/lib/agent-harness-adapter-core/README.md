@@ -5,7 +5,7 @@
 
 Shared plumbing for command-line tools that plug into LLM agent harnesses:
 Claude Code, OpenAI Codex, Gemini CLI, GitHub Copilot, Cursor, Factory
-Droid, Pi, OpenCode, and any agent that reads `AGENTS.md`. Your tool declares its
+Droid, Pi, OpenCode, Kilo Code, Qwen Code, Devin, and any agent that reads `AGENTS.md`. Your tool declares its
 integration once (an instructions block, skills, hooks, MCP servers,
 allowed commands, subagents, slash commands); the library writes it into each
 harness's own files, puts shared content in one place, reports what it
@@ -51,6 +51,9 @@ manifest file.
 | Cursor | `cursor` | `AGENTS.md` | `.cursor/hooks.json` | `.agents/skills` | `.cursor/mcp.json` | yes | yes | yes |
 | Pi | `pi` | `AGENTS.md` (first of `AGENTS.override.md`, `AGENTS.md`, `CLAUDE.md`) | a generated extension, `.pi/extensions/<tool>.ts` | `.agents/skills` | `.pi/mcp.json` | – | – | yes |
 | OpenCode | `opencode` | `AGENTS.md` (first of `AGENTS.md`, `CLAUDE.md`) | a generated plugin, `.opencode/plugins/<tool>.ts` | `.agents/skills` | `opencode.json` | yes | yes | yes |
+| Kilo Code | `kilo` | as OpenCode | a generated plugin, `.kilo/plugins/<tool>.ts` | `.agents/skills` | `kilo.json` (or a shared `opencode.json`) | yes | yes | yes |
+| Qwen Code | `qwen` | `AGENTS.md` (or what `context.fileName` names) | `.qwen/settings.json` | `.agents/skills` | `.qwen/settings.json` | yes | yes | yes |
+| Devin CLI / Devin Local | `devin` | `AGENTS.md` | `.devin/hooks.v1.json` | `.agents/skills` | `.devin/mcp_config.json` | yes | yes | – |
 | Any `AGENTS.md` agent | `agents` | `AGENTS.md` | – | `.agents/skills` | – | – | – | – |
 
 Paths are for project scope; user scope uses each harness's directory under
@@ -59,7 +62,8 @@ settings file. A dash means the harness has no file for the item, or its
 format is not yet confirmed; the item is then listed as `unsupported`. When
 several harnesses read one location (`AGENTS.md`, `.agents/skills`,
 `.mcp.json`, Claude Code's skills and agents that Cursor and Copilot also
-read), the content is written there once and the others report it as
+read, Claude Code's files that Devin also reads, OpenCode's `opencode.json`
+that Kilo Code also reads), the content is written there once and the others report it as
 `shared`.
 
 ## Installation

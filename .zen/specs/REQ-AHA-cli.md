@@ -44,7 +44,7 @@ ACCEPTANCE CRITERIA
 
 - [ ] AHA-2_AC-1 [ubiquitous]: The hook input SHALL be a JSON object with `"v": 1` and the fields of the neutral hook input (KIT-11_AC-3): `harness`, `event`, `session_id`, `cwd`, `transcript_path`, `prompt`, `tool` (`name`, `kind`, `input`), `tool_output`, `source`, `continuing`, `last_message`, `raw`; an absent value SHALL be left out
 - [ ] AHA-2_AC-2 [ubiquitous]: The answer SHALL be a JSON object `{"answer": "allow" | "deny" | "continue" | "context"}` with `stderr` (allow, optional), `reason` (deny, continue) or `text` (context); unknown fields SHALL be ignored and an optional `v` other than 1 SHALL be an error
-- [ ] AHA-2_AC-3 [ubiquitous]: Pi's generated extension (HAR-7) and OpenCode's generated plugin (HAR-10) SHALL read answers in the same format
+- [ ] AHA-2_AC-3 [ubiquitous]: Pi's generated extension (HAR-7) and the generated plugin of OpenCode and Kilo Code (HAR-10, HAR-12) SHALL read answers in the same format
 
 ### AHA-3: Install and status [MUST]
 
@@ -68,7 +68,7 @@ ACCEPTANCE CRITERIA
 - [ ] AHA-4_AC-2 [conditional]: IF the command cannot start, exits non-zero, or writes no valid answer THEN the system SHALL allow, with `<tool>: <reason>` on stderr (`--tool`, default the command's name)
 - [ ] AHA-4_AC-3 [conditional]: IF stdin is not JSON THEN the system SHALL send an input holding only `v`, `harness` and `event`
 - [ ] AHA-4_AC-4 [conditional]: IF the harness or the event is unknown THEN the system SHALL write `error: <message>` to stderr and exit 1 without running the command
-- [ ] AHA-4_AC-5 [conditional]: IF `--tools <kind>` is given and the harness's input names a tool of another kind THEN the system SHALL allow without running the command, so a harness that cannot match tools (Copilot, Cursor, Pi, OpenCode) runs the tool's command only for its kind
+- [ ] AHA-4_AC-5 [conditional]: IF `--tools <kind>` is given and the harness's input names a tool of another kind THEN the system SHALL allow without running the command, so a harness that cannot match tools (Copilot, Cursor, Pi, OpenCode, Kilo Code) runs the tool's command only for its kind
 
 ### AHA-5: Schemas [SHOULD]
 

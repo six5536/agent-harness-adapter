@@ -292,6 +292,103 @@ fn opencode_shares_claudes_skills_and_writes_its_own_files() {
     assert_eq!(tree.files(), before);
 }
 
+// @zen-test: HAR-12_AC-5
+#[test]
+fn kilo_shares_opencodes_config_but_not_its_plugin() {
+    let tree = TempTree::empty("opencode-kilo");
+    let out = install_all(&tree, &["opencode", "kilo"]);
+    let kilo: Vec<_> = parts(&out, "kilo")
+        .iter()
+        .map(|p| (p.part.as_str(), p.verb(), p.path.as_str()))
+        .collect();
+    assert_eq!(
+        kilo,
+        [
+            ("instructions", "shared", "AGENTS.md"),
+            ("skills", "shared", ".agents/skills"),
+            ("hooks", "created", ".kilo/plugins"),
+            ("mcp", "shared", "opencode.json"),
+            ("permissions", "shared", "opencode.json"),
+        ]
+    );
+    assert!(out.warnings.is_empty(), "{:?}", out.warnings);
+    assert!(tree.exists(".opencode/plugins/tool.ts") && tree.exists(".kilo/plugins/tool.ts"));
+    assert!(!tree.exists("kilo.json"));
+    assert!(
+        tree.read(".kilo/plugins/tool.ts")
+            .contains("tool harness hook kilo stop")
+    );
+    let before = tree.files();
+    install_all(&tree, &["opencode", "kilo"]);
+    assert_eq!(tree.files(), before);
+}
+
+// @zen-test: HAR-11_AC-2
+// @zen-test: HAR-11_AC-7
+#[test]
+fn devin_shares_claude_codes_files_and_is_warned_about_hooks() {
+    let tree = TempTree::empty("claude-devin");
+    let out = install_all(&tree, &["claude", "devin"]);
+    let devin: Vec<_> = parts(&out, "devin")
+        .iter()
+        .map(|p| (p.part.as_str(), p.verb(), p.path.as_str()))
+        .collect();
+    assert_eq!(
+        devin,
+        [
+            ("instructions", "shared", "CLAUDE.md"),
+            ("skills", "shared", ".claude/skills"),
+            ("hooks", "created", ".devin/hooks.v1.json"),
+            ("mcp", "shared", ".mcp.json"),
+            ("permissions", "created", ".devin/config.json"),
+        ]
+    );
+    assert_eq!(
+        out.warnings,
+        ["devin may load the hooks twice: .claude/settings.json, .devin/hooks.v1.json"]
+    );
+    let hooks: serde_json::Value =
+        serde_json::from_str(&tree.read(".devin/hooks.v1.json")).unwrap();
+    assert_eq!(
+        hooks["Stop"][0]["hooks"][0]["command"],
+        "tool harness hook devin stop"
+    );
+    assert_eq!(
+        tree.read(".devin/config.json"),
+        "{\n  \"permissions\": {\n    \"allow\": [\n      \"Exec(tool)\"\n    ]\n  }\n}\n"
+    );
+}
+
+// @zen-test: HAR-13_AC-2
+// @zen-test: HAR-13_AC-5
+#[test]
+fn qwen_writes_its_settings_beside_agents_md() {
+    let tree = TempTree::empty("codex-qwen");
+    let out = install_all(&tree, &["codex", "qwen"]);
+    let qwen: Vec<_> = parts(&out, "qwen")
+        .iter()
+        .map(|p| (p.part.as_str(), p.verb(), p.path.as_str()))
+        .collect();
+    assert_eq!(
+        qwen,
+        [
+            ("instructions", "shared", "AGENTS.md"),
+            ("skills", "shared", ".agents/skills"),
+            ("hooks", "created", ".qwen/settings.json"),
+            ("mcp", "created", ".qwen/settings.json"),
+            ("permissions", "created", ".qwen/settings.json"),
+        ]
+    );
+    let settings: serde_json::Value =
+        serde_json::from_str(&tree.read(".qwen/settings.json")).unwrap();
+    assert_eq!(
+        settings["hooks"]["Stop"][0]["hooks"][0]["command"],
+        "tool harness hook qwen stop"
+    );
+    assert_eq!(settings["permissions"]["allow"][0], "Bash(tool *)");
+    assert_eq!(settings["mcpServers"]["tool"]["command"], "tool");
+}
+
 #[test]
 fn every_harness_at_once_installs_and_settles() {
     let tree = TempTree::empty("all");
@@ -340,7 +437,8 @@ fn all_is_every_harness_of_the_tool_with_the_scope() {
     assert_eq!(
         expand(&tool, &["all"], Scope::Project),
         [
-            "claude", "codex", "factory", "gemini", "copilot", "cursor", "pi", "opencode", "agents"
+            "claude", "codex", "factory", "gemini", "copilot", "cursor", "pi", "opencode", "kilo",
+            "qwen", "devin", "agents"
         ]
     );
     assert_eq!(

@@ -12,9 +12,9 @@ AFFECTED LAYERS: harness modules
 
 ```mermaid
 flowchart LR
-    Core[harness core] -->|render, reads| Mod[claude / codex / factory / gemini / copilot / cursor / pi / opencode / agents_md]
+    Core[harness core] -->|render, reads| Mod[claude / codex / factory / gemini / copilot / cursor / pi / opencode / kilo / qwen / devin / agents_md]
     Hook[hook::HookInput / emit] -->|parse_hook, answer| Mod
-    Mod --> Common[common: claude protocol, extension format, instructions, group hooks, skills, MCP JSON]
+    Mod --> Common[common: claude protocol, extension format, OpenCode-family plugin, Gemini-family settings, instructions, group hooks, skills, MCP JSON]
     Mod --> Items[integration items: dir_files, to_json, to_markdown]
 ```
 
@@ -25,7 +25,10 @@ crates/lib/agent-harness-adapter-core/src/
 ├── common/            crate-private
 │   ├── mod.rs
 │   ├── protocol.rs    Claude-family input fields and answers
-│   ├── extension.rs   the generated extensions' input and answers (Pi, OpenCode), template filling
+│   ├── extension.rs   the generated extensions' input and answers (Pi, OpenCode, Kilo), template filling
+│   ├── plugin.rs      the OpenCode family (OpenCode, Kilo): `Layout` (paths per agent → parts, reads), the plugin
+│   ├── plugin.ts      the plugin template (include_str!)
+│   ├── settings.rs    the Gemini family (Gemini CLI, Qwen Code): context files from `context.fileName`, `httpUrl` MCP entries
 │   ├── parts.rs       instructions region, group hook ops, skills, MCP JSON, markdown agents and commands
 │   └── toml_out.rs    small TOML documents (Codex agents, Gemini commands) via toml_edit
 ├── claude/   mod.rs, adapter.rs (Claude, instructions_file)
@@ -35,7 +38,10 @@ crates/lib/agent-harness-adapter-core/src/
 ├── copilot/  mod.rs, adapter.rs
 ├── cursor/   mod.rs, adapter.rs
 ├── pi/       mod.rs, adapter.rs, extension.ts (template, include_str!)
-├── opencode/ mod.rs, adapter.rs, tests.rs, plugin.ts (template, include_str!)
+├── opencode/ mod.rs, adapter.rs, tests.rs
+├── kilo/     mod.rs, adapter.rs
+├── qwen/     mod.rs, adapter.rs, tests.rs
+├── devin/    mod.rs, adapter.rs, tests.rs
 └── agents_md/ mod.rs, adapter.rs
 ```
 
@@ -46,7 +52,9 @@ crates/lib/agent-harness-adapter-core/src/
 - CURSOR DETECTION IN CLAUDE: Claude's parser hands a payload with `cursor_version` to Cursor's (HAR-6_AC-4), because the Cursor CLI runs Claude's hooks; Cursor accepts Claude-format answers, so answers need no hand-off. Alternatives: detection in the core (the core would know harnesses)
 - MATCHERS ONLY WHERE CONFIRMED: a hook's tool kind becomes a matcher only where the harness's tool names are confirmed (Claude, Factory, Gemini; Codex `Bash`); elsewhere no matcher, and the hook filters on `HookInput.tool.kind`
 - PI EXTENSION OWNS TRANSLATION: Pi has no command hooks; the library writes one TypeScript extension per tool that maps Pi events to the tool's command (JSON on stdin through `node:child_process`, async with the hook's timeout) and maps the library's neutral answer JSON back. Failures and bad output allow, so a broken tool never blocks Pi
-- OPENCODE PLUGIN LIKE PI'S EXTENSION: OpenCode has no command hooks either; the library writes one plugin per tool in the same way, with the same input and answer format (`common::extension`). OpenCode has no hook that can refuse the end of a turn, so a stop runs on the `session.idle` event and a continue sends a new prompt; `opencode run` exits at the first idle, so this reaches the model in OpenCode's TUI and server, not in `opencode run`. Alternatives: guessing the last step in `experimental.text.complete` (it fires for every text part, so stop would run mid-turn)
+- OPENCODE PLUGIN LIKE PI'S EXTENSION: OpenCode has no command hooks either; the library writes one plugin per tool in the same way, with the same input and answer format (`common::extension`). OpenCode has no hook that can refuse the end of a turn, so a stop runs on the `session.idle` event and a continue sends a new prompt; `opencode run` exits at the first idle, so this reaches the model in OpenCode's TUI and server, not in `opencode run`. A stop can be reported idle more than once (Kilo Code marks a session idle from its runner and its stream processor): the plugin decides each stop once, ignoring idle events while a stop is decided or its continuation has not arrived. Alternatives: guessing the last step in `experimental.text.complete` (it fires for every text part, so stop would run mid-turn)
+- FORKS SHARE THEIR PARENT'S RENDERING: Kilo Code (an OpenCode fork) and OpenCode differ only in paths, names and the types package: `common::plugin::Layout` renders both. Qwen Code (a Gemini CLI fork) shares Gemini's context-file choice and `httpUrl` MCP entries (`common::settings`), with Claude Code's hook names and answers (`common::protocol`)
+- DEVIN READS CLAUDE CODE'S FILES: Devin loads `CLAUDE.md`, `.claude/skills` and `.mcp.json` by default, so its `reads` list them (always) and those items are shared with Claude Code; Claude Code's hooks would also run in Devin, with a different tool vocabulary, so `.claude/settings.json` is a maybe-read and a set with both warns
 - UNCONFIRMED FACTS ARE UNSUPPORTED: an item or answer resting on an unconfirmed fact (REQ-HAR notes) is not rendered, or is `Error::Unsupported`, until confirmed (PLAN-010 D10-11)
 
 ## Components and Interfaces
@@ -55,7 +63,7 @@ Common shape of every module:
 
 ```rust
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Claude;              // likewise Codex, Factory, Gemini, Copilot, Cursor, Pi, OpenCode, AgentsMd
+pub struct Claude;              // likewise Codex, Factory, Gemini, Copilot, Cursor, Pi, OpenCode, Kilo, Qwen, Devin, AgentsMd
 impl Harness for Claude { /* KIT-Adapter */ }
 ```
 
@@ -70,7 +78,9 @@ Tool kinds (`ToolKind` from the tool name; unlisted names are `Other`):
 | copilot | `bash`, `powershell` | `view` | `edit`, `create` | `*/*` (unconfirmed) |
 | cursor | `Shell` | `Read` | `Write`, `Edit` | `MCP:*` (unconfirmed) |
 | pi | `bash` | `read`, `grep`, `find`, `ls` | `edit`, `write` | — |
-| opencode | `bash` | `read`, `glob`, `grep`, `list` | `edit`, `write`, `apply_patch` | — (`<server>_<tool>`, not told from its own) |
+| opencode, kilo | `bash` | `read`, `glob`, `grep`, `list` | `edit`, `write`, `apply_patch` | — (`<server>_<tool>`, not told from its own) |
+| qwen | `run_shell_command` | `read_file`, `grep_search`, `glob`, `list_directory` | `write_file`, `edit`, `notebook_edit` | `mcp__*` |
+| devin | `exec` | `read`, `grep`, `glob`, `notebook_read` | `write`, `edit`, `apply_patch`, `notebook_edit` | `mcp__*` |
 
 ### HAR-Common
 
@@ -131,6 +141,24 @@ Scopes project, user (OpenCode's own paths under `.config/opencode`). Instructio
 
 IMPLEMENTS: HAR-10_AC-1, HAR-10_AC-2, HAR-10_AC-3, HAR-10_AC-4, HAR-10_AC-5, HAR-10_AC-6, HAR-10_AC-7, HAR-10_AC-8, AHA-2_AC-3
 
+### HAR-Kilo
+
+`common::plugin::Layout { harness: "kilo", agent: "Kilo Code", types: "@kilocode/plugin", project_dir: ".kilo", user_dir: ".config/kilo", config: "kilo.json", also_config: ["opencode.json"] }`: everything as HAR-OpenCode under Kilo's paths. `reads(Mcp | Permissions)` always `kilo.json` and `opencode.json`, so with OpenCode in the set they are shared in OpenCode's `opencode.json`; Kilo does not read `.opencode`, so the plugin is written for each. Notes: restart.
+
+IMPLEMENTS: HAR-12_AC-1, HAR-12_AC-2, HAR-12_AC-3, HAR-12_AC-4, HAR-12_AC-5, HAR-12_AC-6, AHA-2_AC-3
+
+### HAR-Qwen
+
+Scopes project, user (paths under `.qwen`). Instructions: `common::settings::context_files` with `.qwen/settings.json`, default `QWEN.md`, `AGENTS.md`; `reads` always all of them. Hooks: group hooks under `["hooks", Event]` of `.qwen/settings.json`, Claude names, `timeout` in seconds, matchers from the table; the Claude-family protocol. MCP `mcpServers` with `common::settings::mcp_entry`; permissions `array_entry(["permissions","allow"], "Bash(<prefix> *)" | "mcp__<server>__<tool>")`, all in `.qwen/settings.json`. Skills `.agents/skills` (`reads` always also `.qwen/skills`); agents `.qwen/agents` (`to_markdown(&[])`); commands `.qwen/commands/<name>.md` (`Command::to_markdown` with `$ARGUMENTS` → `{{args}}`). Notes: folder trust, MCP approval, restart.
+
+IMPLEMENTS: HAR-13_AC-1, HAR-13_AC-2, HAR-13_AC-3, HAR-13_AC-4, HAR-13_AC-5, HAR-13_AC-6, HAR-13_AC-7, HAR-13_AC-8
+
+### HAR-Devin
+
+Scopes project, user (Devin's paths under `.config/devin`). Instructions `AGENTS.md` / `.config/devin/AGENTS.md`; `reads` always `AGENTS.md`, `CLAUDE.md` (maybe `.claude/CLAUDE.md` at user scope). Hooks: group hooks under `[Event]` of `.devin/hooks.v1.json` (`["hooks", Event]` of `.config/devin/config.json`), Claude names without `PreCompact`, `timeout` in seconds, matchers from the table (unanchored regular expressions, so anchored); `reads(Hooks)` maybe `.claude/settings.json`. Input: `protocol::parse`, `cwd` from `DEVIN_PROJECT_DIR` when absent. Answers: allow `{}`; deny (tool, prompt) and continue `{"decision":"block","reason"}` (Devin's documented form); context `hookSpecificOutput.additionalContext`. Skills `.agents/skills` (`reads` always also `.devin/skills`, `.claude/skills`, `.github/skills`; user `.config/devin/skills`, `.claude/skills`); agents `.devin/agents` (`to_markdown(&[])`; `reads` maybe `.agents/agents`, `.claude/agents`); MCP `mcpServers` in `.devin/mcp_config.json` (`reads` always also `.mcp.json` at project scope); permissions `array_entry(["permissions","allow"], "Exec(<prefix>)" | "mcp__<server>__<tool>")` in `.devin/config.json`. Commands unsupported. Notes: trust, new session.
+
+IMPLEMENTS: HAR-11_AC-1, HAR-11_AC-2, HAR-11_AC-3, HAR-11_AC-4, HAR-11_AC-5, HAR-11_AC-6, HAR-11_AC-7, HAR-11_AC-8, HAR-11_AC-9
+
 ### HAR-AgentsMd
 
 Id `agents`. Scopes project, user. Instructions `AGENTS.md` at project scope; skills `.agents/skills`; nothing else. `parse_hook` and `answer` give `Unsupported` (it installs no hooks).
@@ -146,7 +174,7 @@ IMPLEMENTS: HAR-8_AC-1, HAR-8_AC-2, HAR-8_AC-3
 ## Correctness Properties
 
 - HAR_P-1 [Answers well formed]: for every built-in harness, event and answer, `answer` is `Unsupported` or exit 0 with stdout that parses as one JSON object
-  VALIDATES: KIT-11_AC-4, HAR-1_AC-5, HAR-4_AC-5, HAR-5_AC-5, HAR-6_AC-5, HAR-7_AC-4, HAR-10_AC-4
+  VALIDATES: KIT-11_AC-4, HAR-1_AC-5, HAR-4_AC-5, HAR-5_AC-5, HAR-6_AC-5, HAR-7_AC-4, HAR-10_AC-4, HAR-11_AC-5, HAR-12_AC-4, HAR-13_AC-4
 - HAR_P-2 [Shared renders equal]: for any integration and scope, every harness that renders an item at the same location renders an equal part
   VALIDATES: HAR-9_AC-1
 - HAR_P-3 [Parse total]: for every harness and event, any JSON object parses without error, and unknown fields are ignored
@@ -181,7 +209,7 @@ Per module: rendered parts of a full integration on an empty tree, per scope (`i
 
 ### Integration Testing
 
-`crates/lib/agent-harness-adapter-core/tests/` installs a full integration into each harness and into the sets {claude, codex}, {claude, cursor}, {codex, gemini, pi, agents}, {claude, codex, copilot}, {claude, opencode}, checking shared parts and warnings. The Pi extension is type-checked against `@earendil-works/pi-coding-agent` once by hand (PLAN-010 P6), the OpenCode plugin against `@opencode-ai/plugin` 1.18.35 the same way; both run in Node against stand-ins for their APIs (`tests/extensions/`). Each harness is smoke-tested by hand (PLAN-010 N4), and the real-agent checks (`tests/agents`) drive Claude Code, Codex, Gemini CLI, Copilot CLI, Pi and OpenCode.
+`crates/lib/agent-harness-adapter-core/tests/` installs a full integration into each harness and into the sets {claude, codex}, {claude, cursor}, {codex, gemini, pi, agents}, {claude, codex, copilot}, {claude, opencode}, {opencode, kilo}, {claude, devin}, {codex, qwen}, checking shared parts and warnings. The Pi extension is type-checked against `@earendil-works/pi-coding-agent` once by hand (PLAN-010 P6), the OpenCode / Kilo plugin against `@opencode-ai/plugin` 1.18.35 and `@kilocode/plugin` 7.8.7 the same way; both run in Node against stand-ins for their APIs (`tests/extensions/`). Each harness is smoke-tested by hand (PLAN-010 N4), and the real-agent checks (`tests/agents`) drive Claude Code, Codex, Gemini CLI, Copilot CLI, Pi, OpenCode, Kilo Code, Qwen Code and Devin CLI.
 - SCENARIOS: each harness alone; sets sharing `AGENTS.md`, `.agents/skills` and `.mcp.json`; Cursor's cross-reads warn; Copilot double-loads `AGENTS.md` and `CLAUDE.md` warn; OpenCode shares Claude Code's skills
 
 ## Requirements Traceability
@@ -196,6 +224,9 @@ SOURCE: .zen/specs/REQ-HAR-harnesses.md
 - HAR-6_AC-1..AC-8 → HAR-Cursor (HAR_P-1 for AC-5)
 - HAR-7_AC-1..AC-7 → HAR-Pi (HAR_P-1 for AC-4)
 - HAR-10_AC-1..AC-8 → HAR-OpenCode (HAR_P-1 for AC-4)
+- HAR-11_AC-1..AC-9 → HAR-Devin (HAR_P-1 for AC-5)
+- HAR-12_AC-1..AC-6 → HAR-Kilo (HAR_P-1 for AC-4)
+- HAR-13_AC-1..AC-8 → HAR-Qwen (HAR_P-1 for AC-4)
 - HAR-8_AC-1..AC-3 → HAR-AgentsMd
 - HAR-9_AC-1 → HAR-Common (HAR_P-2)
 - HAR-9_AC-2 → HAR-Claude
@@ -204,3 +235,4 @@ SOURCE: .zen/specs/REQ-HAR-harnesses.md
 
 - 0.1.0 (2026-10-06): Initial design (PLAN-010)
 - 0.1.0 (2026-10-07): HAR-OpenCode; the extension format shared as `common::extension`
+- 0.1.0 (2026-10-07): HAR-Kilo, HAR-Qwen, HAR-Devin (PLAN-015); `common::plugin` and `common::settings` for the forks

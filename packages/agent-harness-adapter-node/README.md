@@ -2,7 +2,7 @@
 
 Node binding of [agent-harness-adapter](https://github.com/six5536/agent-harness-adapter):
 plug your tool into LLM agent harnesses (Claude Code, OpenAI Codex, Gemini
-CLI, GitHub Copilot, Cursor, Factory Droid, Pi, OpenCode, and any agent that reads
+CLI, GitHub Copilot, Cursor, Factory Droid, Pi, OpenCode, Kilo Code, Qwen Code, Devin, and any agent that reads
 `AGENTS.md`).
 
 ```sh

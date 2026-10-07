@@ -17,7 +17,7 @@ export default {
   // `opencode run` exits when the session first goes idle, before a stop
   // hook can continue it: ask through OpenCode's server instead.
   ask: (a, text, cwd) =>
-    run(process.execPath, [join(here, "opencode-ask.mjs"), a.binPath, text, ...(a.model ? [a.model] : [])], {
+    run(process.execPath, [join(here, "serve-ask.mjs"), a.binPath, text, ...(a.model ? [a.model] : [])], {
       cwd,
       env: a.env,
     }),

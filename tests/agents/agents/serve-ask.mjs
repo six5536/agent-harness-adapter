@@ -1,9 +1,10 @@
-// One prompt to OpenCode through its server, printing every assistant text
-// and error of the session. `opencode run` exits as soon as the session
-// first goes idle, before a stop hook can continue it; the server keeps
-// running, so the session is followed until it stays idle.
+// One prompt to OpenCode or Kilo Code through its server (`serve`), printing
+// every assistant text and error of the session. `opencode run` exits as
+// soon as the session first goes idle, before a stop hook can continue it;
+// the server keeps running, so the session is followed until it stays idle.
+// Permission requests are approved once, as `run --auto` does.
 //
-//   node opencode-ask.mjs <opencode> <prompt> [provider/model]
+//   node serve-ask.mjs <opencode|kilo> <prompt> [provider/model]
 //
 // Runs in the project (the server serves its working directory) with the
 // environment it is given.
@@ -21,7 +22,7 @@ const stop = (code) => {
   process.exit(code);
 };
 setTimeout(() => {
-  console.error("opencode-ask: timed out");
+  console.error("serve-ask: timed out");
   stop(1);
 }, LIMIT_MS).unref();
 
@@ -57,6 +58,9 @@ try {
   let quietSince;
   for (;;) {
     await new Promise((r) => setTimeout(r, 1000));
+    for (const p of (await call("GET", "/permission")) ?? []) {
+      await call("POST", `/permission/${p.id}/reply`, { reply: "once" }).catch(() => {});
+    }
     const status = (await call("GET", "/session/status"))?.[session.id];
     const messages = await call("GET", `/session/${session.id}/message`);
     const answered = messages.some((m) => m.info.role === "assistant" && m.info.time?.completed);
@@ -71,6 +75,6 @@ try {
   }
   stop(0);
 } catch (e) {
-  console.error(`opencode-ask: ${e.message}`);
+  console.error(`serve-ask: ${e.message}`);
   stop(1);
 }

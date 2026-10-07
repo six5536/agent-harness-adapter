@@ -73,7 +73,7 @@ function agent(id, opts) {
   const def = AGENTS[id];
   const home = join(opts.work, "home");
   mkdirSync(home, { recursive: true });
-  const binPath = join(opts.work, "agents", "node_modules", ".bin", `${def.bin}${exe}`);
+  const binPath = join(opts.work, "agents", ...(def.binDir ?? ["node_modules", ".bin"]), `${def.bin}${exe}`);
   if (!existsSync(binPath)) fail(`${id} is not set up: node tests/agents/run.mjs setup --agents ${id}`);
   return {
     def,
@@ -88,14 +88,21 @@ function agent(id, opts) {
 function setup(opts) {
   const dir = join(opts.work, "agents");
   mkdirSync(dir, { recursive: true });
-  const specs = opts.agents.map((id) => `${AGENTS[id].pkg}@${AGENTS[id].version}`);
-  console.log(`installing ${specs.join(", ")} into ${dir}`);
-  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-  const r = run(npm, ["install", "--no-audit", "--no-fund", "--prefix", dir, ...specs], {
-    stdio: "inherit",
-    shell: process.platform === "win32",
-  });
-  if (r.status !== 0) fail("npm install failed");
+  const defs = opts.agents.map((id) => AGENTS[id]);
+  const specs = defs.filter((d) => !d.install).map((d) => `${d.pkg}@${d.version}`);
+  if (specs.length > 0) {
+    console.log(`installing ${specs.join(", ")} into ${dir}`);
+    const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+    const r = run(npm, ["install", "--no-audit", "--no-fund", "--prefix", dir, ...specs], {
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    });
+    if (r.status !== 0) fail("npm install failed");
+  }
+  for (const d of defs.filter((d) => d.install)) {
+    console.log(`installing ${d.name} ${d.version} into ${dir}`);
+    d.install(dir);
+  }
 }
 
 function runChecks(opts) {

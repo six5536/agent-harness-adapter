@@ -1,11 +1,11 @@
 // Written by __TOOL_COMMENT__ harness install (agent-harness-adapter). Do not edit: install again instead.
-// Runs the tool's hook commands on OpenCode's events: the event as JSON on
+// Runs the tool's hook commands on __AGENT__'s events: the event as JSON on
 // stdin, the answer as JSON on stdout ({"answer": "allow" | "deny" |
 // "continue" | "context", "reason"?, "text"?}). A command that fails, times
 // out or answers something else allows.
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import type { Plugin } from "@opencode-ai/plugin";
+import type { Plugin } from "__PLUGIN_TYPES__";
 
 type Answer = { answer?: string; reason?: string; text?: string };
 type Spec = { event: string; command: string; timeout?: number };
@@ -62,7 +62,7 @@ async function first(event: string, kind: string, payload: Record<string, unknow
 let lastTime = 0;
 let counter = 0;
 
-/** A part id as OpenCode makes them ("prt_", the time, random), so the part sorts after the message's own. */
+/** A part id as __AGENT__ makes them ("prt_", the time, random), so the part sorts after the message's own. */
 function partId(): string {
 	const now = Date.now();
 	counter = now === lastTime ? counter + 1 : 0;
@@ -80,8 +80,10 @@ export default (async ({ client, directory }) => {
 	// Sessions whose last stop asked to go on (`continuing`); a new prompt
 	// starts over.
 	const continued = new Set<string>();
-	// Sessions whose next message is the plugin's own continuation.
-	const own = new Set<string>();
+	// Sessions whose stop is being decided, or whose continuation (the
+	// plugin's own next message) has not arrived yet: a stop can be reported
+	// as idle more than once, and is decided once.
+	const pending = new Set<string>();
 	const last = new Map<string, { agent?: string; model?: { providerID: string; modelID: string } }>();
 
 	return {
@@ -91,31 +93,32 @@ export default (async ({ client, directory }) => {
 			}
 			if (event.type !== "session.idle") return;
 			const id = event.properties.sessionID;
-			if (children.has(id)) return;
+			if (children.has(id) || pending.has(id)) return;
+			pending.add(id);
 			const a = await first("stop", "continue", { session_id: id, continuing: continued.has(id) }, directory);
 			if (!a) {
 				continued.delete(id);
+				pending.delete(id);
 				return;
 			}
 			continued.add(id);
-			own.add(id);
 			try {
 				await client.session.promptAsync({
 					path: { id },
 					body: { ...last.get(id), parts: [{ type: "text", text: a.reason ?? "" }] },
 				});
 			} catch {
-				own.delete(id);
+				pending.delete(id);
 			}
 		},
 
-		// The session starts with its first prompt: OpenCode takes context
+		// The session starts with its first prompt: __AGENT__ takes context
 		// only with a prompt.
 		"chat.message": async (input, output) => {
 			const id = input.sessionID;
 			if (children.has(id)) return;
 			last.set(id, { agent: input.agent, model: input.model });
-			if (own.delete(id)) return;
+			if (pending.delete(id)) return;
 			continued.delete(id);
 			const texts: string[] = [];
 			if (!started.has(id)) {

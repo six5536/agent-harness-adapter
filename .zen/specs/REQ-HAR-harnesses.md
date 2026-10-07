@@ -2,7 +2,7 @@
 
 ## Introduction
 
-What each built-in harness (KIT-18_AC-2) installs, reads and answers. Paths are relative to the scope's root (KIT-21): the project root, or the home directory at user scope. Facts were checked against each agent's documentation on 2026-10-06 (PLAN-010 §10), OpenCode's on 2026-10-07. An AC that rests on a fact not yet confirmed says so and is checked before it is coded (PLAN-010 D10-11).
+What each built-in harness (KIT-18_AC-2) installs, reads and answers. Paths are relative to the scope's root (KIT-21): the project root, or the home directory at user scope. Facts were checked against each agent's documentation on 2026-10-06 (PLAN-010 §10); OpenCode's, Devin's, Kilo Code's and Qwen Code's on 2026-10-07 (PLAN-015). An AC that rests on a fact not yet confirmed says so and is checked before it is coded (PLAN-010 D10-11).
 
 ## Glossary
 
@@ -141,6 +141,50 @@ ACCEPTANCE CRITERIA
 - [ ] HAR-10_AC-7 [ubiquitous]: Skills SHALL be skill dirs under `.agents/skills`, OpenCode being taken to load `.claude/skills` and `.opencode/skills` (`.config/opencode/skills`) too; agents markdown agents under `.opencode/agents` with `mode: subagent`; commands `<name>.md` under `.opencode/commands` with frontmatter `description`
 - [ ] HAR-10_AC-8 [ubiquitous]: After any part was written or removed, notes SHALL say that OpenCode must be restarted; no trust is needed (OpenCode loads a project's files without asking)
 
+### HAR-11: Devin CLI and Devin Local (`devin`) [MUST]
+
+AS A tool author, I WANT Devin's files and hooks (Devin CLI, and Devin Local in Devin Desktop, Windsurf's successor), SO THAT my integration works in Devin.
+
+ACCEPTANCE CRITERIA
+
+- [ ] HAR-11_AC-1 [ubiquitous]: Scopes SHALL be project and user; Devin's own user-scope paths SHALL be under `.config/devin`
+- [ ] HAR-11_AC-2 [ubiquitous]: Instructions SHALL be a region in `AGENTS.md` (`.config/devin/AGENTS.md` at user scope); Devin SHALL be taken to load `AGENTS.md` and `CLAUDE.md` both at project scope, and maybe `.claude/CLAUDE.md` at user scope
+- [ ] HAR-11_AC-3 [ubiquitous]: Hooks SHALL be group hooks under `<Event>` at the top of `.devin/hooks.v1.json` (under `hooks.<Event>` of `.config/devin/config.json` at user scope), events `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop` (no event before compaction), timeouts in seconds, matchers `^exec$`; `^(read|grep|glob|notebook_read)$`; `^(write|edit|apply_patch|notebook_edit)$`; `^mcp__`; Devin SHALL be taken to maybe run Claude Code's hooks from `.claude/settings.json` too
+- [ ] HAR-11_AC-4 [ubiquitous]: Hook input SHALL be read as the Claude family's (HAR-1_AC-4), the working directory from `DEVIN_PROJECT_DIR` when the input has no `cwd`
+- [ ] HAR-11_AC-5 [ubiquitous]: Answers SHALL be: allow `{}`; deny before a tool or a prompt, and continue at stop, `{"decision":"block","reason":…}`; context at session start, on a prompt and after a tool `{"hookSpecificOutput":{"hookEventName":…,"additionalContext":…}}`; exit 0
+- [ ] HAR-11_AC-6 [ubiquitous]: Skills SHALL be skill dirs under `.agents/skills`, Devin being taken to load `.devin/skills`, `.claude/skills` and `.github/skills` too (`.config/devin/skills` and `.claude/skills` at user scope); agents markdown agents under `.devin/agents` (`.config/devin/agents`), Devin being taken to maybe load `.claude/agents`; commands unsupported (Devin's slash commands are skills)
+- [ ] HAR-11_AC-7 [ubiquitous]: MCP servers SHALL be MCP JSON in `.devin/mcp_config.json` (`.config/devin/mcp_config.json`), Devin being taken to load `.mcp.json` too at project scope
+- [ ] HAR-11_AC-8 [ubiquitous]: An allowed command SHALL be `Exec(<prefix>)`, an allowed MCP tool `mcp__<server>__<tool>`, in `permissions.allow` of `.devin/config.json` (`.config/devin/config.json`)
+- [ ] HAR-11_AC-9 [ubiquitous]: Notes SHALL say that the folder must be trusted (when a part was written at project scope) and that a new Devin session loads the changes (when a part was written or removed)
+
+### HAR-12: Kilo Code (`kilo`) [MUST]
+
+AS A tool author, I WANT Kilo Code's files and hooks (its CLI and VS Code extension), SO THAT my integration works in Kilo Code.
+
+ACCEPTANCE CRITERIA
+
+- [ ] HAR-12_AC-1 [ubiquitous]: Scopes SHALL be project and user; Kilo's own user-scope paths SHALL be under `.config/kilo`
+- [ ] HAR-12_AC-2 [ubiquitous]: Instructions SHALL be as HAR-10_AC-2, the user-scope file `.config/kilo/AGENTS.md`
+- [ ] HAR-12_AC-3 [ubiquitous]: Hooks SHALL be the whole file `.kilo/plugins/<tool>.ts` (`.config/kilo/plugins/<tool>.ts`): the plugin of HAR-10_AC-3, typed with `@kilocode/plugin`
+- [ ] HAR-12_AC-4 [ubiquitous]: Hook input and answers SHALL be those of HAR-10_AC-4
+- [ ] HAR-12_AC-5 [ubiquitous]: MCP servers and allowed commands SHALL be as HAR-10_AC-5 and HAR-10_AC-6 in `kilo.json` (`.config/kilo/kilo.json`), Kilo being taken to load an `opencode.json` beside it too; skills, agents and commands as HAR-10_AC-7 under `.kilo` (`.config/kilo`)
+- [ ] HAR-12_AC-6 [ubiquitous]: After any part was written or removed, notes SHALL say that Kilo Code must be restarted
+
+### HAR-13: Qwen Code (`qwen`) [MUST]
+
+AS A tool author, I WANT Qwen Code's files and hooks, SO THAT my integration works in Qwen Code.
+
+ACCEPTANCE CRITERIA
+
+- [ ] HAR-13_AC-1 [ubiquitous]: Scopes SHALL be project and user
+- [ ] HAR-13_AC-2 [ubiquitous]: The context files SHALL be chosen as HAR-4_AC-2 from `.qwen/settings.json`, the default being `QWEN.md` and `AGENTS.md` (under `.qwen/` at user scope); instructions SHALL be a region in `AGENTS.md` when listed, else in the first
+- [ ] HAR-13_AC-3 [ubiquitous]: Hooks SHALL be group hooks under `hooks.<Event>` of `.qwen/settings.json`, Claude Code's event names (HAR-1_AC-3), timeouts in seconds, matchers `^run_shell_command$`; `^(read_file|grep_search|glob|list_directory)$`; `^(write_file|edit|notebook_edit)$`; `^mcp__`
+- [ ] HAR-13_AC-4 [ubiquitous]: Hook input and answers SHALL be the Claude family's (HAR-1_AC-4, HAR-1_AC-5)
+- [ ] HAR-13_AC-5 [ubiquitous]: MCP servers SHALL be MCP JSON under `mcpServers` of `.qwen/settings.json`, an http server's URL as `httpUrl`; an allowed command SHALL be `Bash(<prefix> *)`, an allowed MCP tool `mcp__<server>__<tool>`, in `permissions.allow` of that file
+- [ ] HAR-13_AC-6 [ubiquitous]: Skills SHALL be skill dirs under `.agents/skills`, Qwen Code being taken to load `.qwen/skills` too; agents markdown agents under `.qwen/agents`
+- [ ] HAR-13_AC-7 [ubiquitous]: Commands SHALL be `<name>.md` under `.qwen/commands` with frontmatter `description`, `$ARGUMENTS` written as `{{args}}`
+- [ ] HAR-13_AC-8 [ubiquitous]: Notes SHALL say, when a part was written at project scope, that a trusted folder is needed when folder trust is on, and that Qwen Code asks to approve the project's MCP servers (when they were written); after any part was written or removed, that Qwen Code must be restarted
+
 ### HAR-8: Generic `AGENTS.md` agent (`agents`) [MUST]
 
 AS A tool author, I WANT one harness for any agent that reads `AGENTS.md`, SO THAT agents without a module still get my instructions and skills.
@@ -178,3 +222,4 @@ ACCEPTANCE CRITERIA
 
 - 0.1.0 (2026-10-06): Initial requirements (PLAN-010)
 - 0.1.0 (2026-10-07): HAR-10 OpenCode (checked against OpenCode 1.18.35's docs and source)
+- 0.1.0 (2026-10-07): HAR-11 Devin (Devin CLI 3000.11.3's docs and binary), HAR-12 Kilo Code (7.8.7's source), HAR-13 Qwen Code (0.25.0's source)

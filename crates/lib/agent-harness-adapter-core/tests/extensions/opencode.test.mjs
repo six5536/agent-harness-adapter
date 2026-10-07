@@ -69,7 +69,8 @@ test("session context reaches the first prompt; stop continues once per prompt",
     // Kept only once.
     assert.strictEqual((await chat("s1", "again"))[0].text, "prompt context for again");
 
-    await idle("s1");
+    // One stop reported idle twice is decided once.
+    await Promise.all([idle("s1"), idle("s1")]);
     assert.deepStrictEqual(sent, [
       { path: { id: "s1" }, body: { agent: "build", model, parts: [{ type: "text", text: "continue once" }] } },
     ]);

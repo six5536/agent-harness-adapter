@@ -35,15 +35,18 @@ pub mod cli;
 pub mod codex;
 pub mod copilot;
 pub mod cursor;
+pub mod devin;
 pub mod factory;
 pub mod fs;
 pub mod gemini;
 pub mod harness;
 pub mod hook;
 pub mod integration;
+pub mod kilo;
 pub mod manifest;
 pub mod opencode;
 pub mod pi;
+pub mod qwen;
 pub mod report;
 
 pub use error::{Error, Result};
