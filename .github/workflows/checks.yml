@@ -38,7 +38,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2.85.6
+        uses: taiki-e/install-action@v2.87.24
         with:
           tool: cargo-nextest
 
@@ -101,7 +101,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Install cargo-llvm-cov and cargo-nextest
-        uses: taiki-e/install-action@v2.85.6
+        uses: taiki-e/install-action@v2.87.24
         with:
           tool: cargo-llvm-cov,cargo-nextest
 
@@ -166,7 +166,7 @@ jobs:
       - name: Install the pinned toolchain
         run: rustup toolchain install --profile minimal
       - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Build agent-harness-adapter and the wheel
