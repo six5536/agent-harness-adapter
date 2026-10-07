@@ -2,7 +2,7 @@
 
 | Field              | Value |
 | ------------------ | ----- |
-| Status             | in-progress: findings 1–3 fixed (`ff4d029`), uninstall done (PLAN-014); P5b (agent checks in the repo) next, then P5c retest, then P1–P2 |
+| Status             | in-progress: P3–P5c done (2026-10-07): Codex and Pi pass every check; P1–P2 (release dry run) next |
 | Workflow direction | bottom-up (CI and manual checks → fixes through the specs) |
 | Traces to          | PLAN-011 (P9, D11-11, N4), PLAN-010 (N4), REQ-HAR (HAR-2 Codex, HAR-7 Pi), REQ-AHA, `.github/workflows/release.yml` |
 
@@ -80,6 +80,10 @@ Agents: Codex CLI 0.160.1, Pi 1.0.4 (npm, in the session's scratch area), isolat
 | A10 uninstall | after PLAN-014 | after PLAN-014 |
 
 Test conditions: Codex's own sandbox cannot start in the dev container (`bwrap`), so Codex ran with `--sandbox danger-full-access`; Codex also refuses `rm -rf` itself, before any hook, so the deny test used `echo git push --force`.
+
+### Retest (P5c, 2026-10-07, `scripts/agents/run.mjs`)
+
+After the fixes (`ff4d029`) and uninstall (`5671768`): Codex 0.160.1 and Pi 1.0.4 pass A1–A10, A7b included (Codex with `--codex-full-access` in the dev container; Pi with `--pi-model openai-codex/gpt-6-luna`, as the ChatGPT account lacks Pi's default model). The first Pi run failed A2–A4 and A9 in the checker only: `pi -p` prints just the last message, so the checks now read Pi's session file.
 
 ### Findings
 

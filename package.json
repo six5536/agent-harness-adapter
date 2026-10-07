@@ -19,6 +19,7 @@
     "release": "node scripts/release.mjs",
     "test:node": "node --test packages/agent-harness-adapter-node/test/",
     "build:node": "node scripts/build-node.mjs",
-    "test:pi": "node --test crates/lib/agent-harness-adapter-core/tests/pi/"
+    "test:pi": "node --test crates/lib/agent-harness-adapter-core/tests/pi/",
+    "agents": "node scripts/agents/run.mjs"
   }
 }
