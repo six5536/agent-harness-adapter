@@ -48,17 +48,17 @@ jobs:
 
       - name: Clippy
         if: runner.os != 'Windows'
-        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
       - name: Test
-        run: cargo nextest run --all-features --locked
+        run: cargo nextest run --workspace --all-features --locked
 
       - name: Doctests
-        run: cargo test --doc --all-features --locked
+        run: cargo test --workspace --doc --all-features --locked
 
       - name: Docs (warnings as errors)
         if: runner.os != 'Windows'
-        run: cargo doc --no-deps --all-features --locked
+        run: cargo doc --workspace --no-deps --all-features --locked
         env:
           RUSTDOCFLAGS: -D warnings
 
@@ -84,7 +84,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Check on the MSRV
-        run: cargo +${{ steps.msrv.outputs.version }} check --locked --all-targets --all-features
+        run: cargo +${{ steps.msrv.outputs.version }} check --workspace --locked --all-targets --all-features
 
   coverage:
     # Runs the full test suite on ubuntu under instrumentation and enforces the
@@ -105,8 +105,34 @@ jobs:
         with:
           tool: cargo-llvm-cov,cargo-nextest
 
-      - name: Coverage gate (line >= 90%)
-        run: cargo +nightly llvm-cov nextest --all-features --locked --fail-under-lines 90
+      # One gate per crate (PLAN-011 N1): the library's lines must not carry
+      # the CLI's, nor the reverse. Tests that run the `ahk` binary count:
+      # cargo-llvm-cov instruments it too.
+      - name: Coverage gate (line >= 90%, per crate)
+        run: |
+          cargo +nightly llvm-cov nextest --workspace --all-features --locked --no-report
+          cargo +nightly llvm-cov report --summary-only --ignore-filename-regex 'crates/app/' --fail-under-lines 90
+          cargo +nightly llvm-cov report --summary-only --ignore-filename-regex 'crates/lib/' --fail-under-lines 90
+
+  node:
+    # The npm launcher's unit tests (on every OS: it resolves Windows' .exe)
+    # and one version across Cargo, packages/ and both lockfiles.
+    name: npm launcher (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      - name: Launcher tests
+        run: npm run test:launcher
+      - name: One version everywhere
+        if: runner.os == 'Linux'
+        run: npm run verify-version
 
   deny:
     # Deterministic supply-chain checks only: these fail when *we* change

@@ -13,7 +13,8 @@ agent-harness-kit is a Rust workspace: the library `agent-harness-kit-core` for 
 - Report (`report`): findings and their text and JSON forms
 - CLI conventions (`cli`): exit codes, stdout, broken pipes, the `error:` runner
 - File IO (`fs`): whole-file reads and atomic writes
-- Distribution: crates.io crate `agent-harness-kit-core` (the library), source at `github.com/six5536/agent-harness-kit`
+- `ahk` CLI (crate `agent-harness-kit`): a tool's integration from a manifest file, for tools in any language
+- Distribution: crates.io crates `agent-harness-kit-core` (the library) and `agent-harness-kit` (`ahk`); npm `@six5536/agent-harness-kit` (launcher) with one prebuilt-binary package per platform; GitHub release archives. Source at `github.com/six5536/agent-harness-kit`
 
 ## Technology Stack
 
@@ -22,6 +23,9 @@ agent-harness-kit is a Rust workspace: the library `agent-harness-kit-core` for 
 - `toml_edit 0` — the record, the declined parts and TOML merges (Codex `config.toml`), edited in place
 - `schemars 1` — optional feature: JSON Schema of the result types
 - `proptest 1`, `insta 1` — property and snapshot tests
+- `clap 4` — the `ahk` command line
+- `assert_cmd 2` — tests that run the binary
+- Node (launcher, version and smoke scripts), `cargo-zigbuild` + zig (static musl release binaries)
 - `cargo-nextest`, `cargo-llvm-cov`, `cargo-deny` — CI tooling
 
 ## High-Level Architecture
@@ -70,7 +74,12 @@ crates/lib/agent-harness-kit-core/        # the library crate (crates.io `agent-
   src/<harness>/                          # one adapter per harness: claude, codex, factory, gemini, copilot, cursor, pi, agents_md
   src/report/                             # findings, report, text form
   tests/                                  # integration tests through the public API (a test Tool over a temp dir)
-scripts/                                  # validate-consumers.sh
+crates/app/agent-harness-kit/             # the `ahk` CLI crate (crates.io `agent-harness-kit`)
+  src/                                    # main.rs
+  tests/                                  # the binary run as a user runs it
+packages/agent-harness-kit/               # npm launcher `@six5536/agent-harness-kit` (bin `ahk`)
+packages/agent-harness-kit-<platform>/    # one prebuilt-binary package per platform
+scripts/                                  # validate-consumers.sh; set / verify version, release, release and launcher smoke tests
 .zen/                                     # specs, plans, rules
 .github/workflows/                        # ci (checks), release, audit
 ```
@@ -203,6 +212,10 @@ Unreleased; 0.1.0 is published once PLAN-010 is done. The API may change in mino
 - `cargo +1.85 check --all-targets` — MSRV check
 - `cargo +nightly llvm-cov nextest --fail-under-lines 90` — coverage gate
 - `cargo publish --dry-run --workspace` — package check
+- `npm run test:launcher` — npm launcher tests
+- `npm run verify-version` / `npm run set-version <v>` — one version across Cargo, packages and lockfiles
+- `npm run smoke` / `npm run smoke:launcher` — the release binary and the packed launcher
+- `npm run release <v>` — release commit and tag (never pushes)
 - `scripts/validate-consumers.sh` — build and test smllm and sokf against this checkout (needs `SMLLM_REPO`, `SOKF_REPO`)
 
 ## Change Log

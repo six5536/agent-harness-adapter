@@ -1,0 +1,20 @@
+{
+  "name": "@six5536/agent-harness-kit-workspace",
+  "private": true,
+  "description": "agent-harness-kit: npm packages for the ahk CLI.",
+  "workspaces": [
+    "packages/agent-harness-kit"
+  ],
+  "scripts": {
+    "build:linux-x64": "rustup target add x86_64-unknown-linux-musl && mise exec -- cargo zigbuild --release --target x86_64-unknown-linux-musl -p agent-harness-kit && install -m 0755 target/x86_64-unknown-linux-musl/release/ahk packages/agent-harness-kit-linux-x64/bin/ahk",
+    "build:linux-arm64": "rustup target add aarch64-unknown-linux-musl && mise exec -- cargo zigbuild --release --target aarch64-unknown-linux-musl -p agent-harness-kit && install -m 0755 target/aarch64-unknown-linux-musl/release/ahk packages/agent-harness-kit-linux-arm64/bin/ahk",
+    "build:darwin-x64": "rustup target add x86_64-apple-darwin && mise exec -- cargo zigbuild --release --target x86_64-apple-darwin -p agent-harness-kit && install -m 0755 target/x86_64-apple-darwin/release/ahk packages/agent-harness-kit-darwin-x64/bin/ahk",
+    "build:darwin-arm64": "rustup target add aarch64-apple-darwin && mise exec -- cargo zigbuild --release --target aarch64-apple-darwin -p agent-harness-kit && install -m 0755 target/aarch64-apple-darwin/release/ahk packages/agent-harness-kit-darwin-arm64/bin/ahk",
+    "test:launcher": "node --test packages/agent-harness-kit/test/*.test.js",
+    "smoke": "node scripts/release-smoke.mjs",
+    "smoke:launcher": "node scripts/launcher-smoke.mjs",
+    "set-version": "node scripts/set-version.mjs",
+    "verify-version": "node scripts/verify-version.mjs",
+    "release": "node scripts/release.mjs"
+  }
+}

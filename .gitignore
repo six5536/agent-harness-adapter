@@ -6,8 +6,11 @@
 /.DS_Store
 /.playwright-mcp
 
-# Left by older devcontainers that mounted a volume here; the project uses no npm.
 /node_modules/
+/packages/*/node_modules/
+# Release binaries staged into the platform packages (release.yml).
+/packages/agent-harness-kit-*/bin/ahk
+/packages/agent-harness-kit-*/bin/ahk.exe
 
 # Local checkouts of the private consumers (scripts/validate-consumers.sh).
 /consumers/

@@ -7,6 +7,8 @@ python = '3.14'
 # (cargo +nightly llvm-cov), which needs `coverage(off)` markers.
 rust = ['1.98', '1.85', 'nightly']
 sccache = '0.18'
+# Cross-compiles the static musl release binaries (npm run build:linux-*).
+zig = "0.16.0"
 cargo-binstall = "1.24.0"
 
 "npm:@anthropic-ai/claude-code" = { version = "latest", npm_args = "--ignore-scripts=false" }
@@ -14,3 +16,4 @@ cargo-binstall = "1.24.0"
 
 "cargo:cargo-nextest" = "0.9.146"
 "cargo:cargo-llvm-cov" = "0.9.1"
+"cargo:cargo-zigbuild" = "0.23.4"
