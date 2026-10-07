@@ -40,6 +40,7 @@ Before the first tag (PLAN-011 P9):
 | A7 | Stop continue runs once, then the agent stops | The stop hook asks once; no loop |
 | A8 | The trust / approval notes the install printed are right | Codex: project trust and `/hooks` approval; Pi: project trust and `/reload` |
 | A9 | User scope | Repeat A1–A2 with `--scope user` under the isolated `HOME` |
+| A10 | Uninstall (PLAN-014) | After `uninstall`, the agent no longer sees the instructions or skill and the hooks no longer run |
 
 Each check is recorded pass / fail with the agent's version in §6.
 
@@ -54,9 +55,9 @@ Each check is recorded pass / fail with the agent's version in §6.
 | P5 Pi | §3 checks | Results in §6; fixes landed |
 | P6 Close | README harness table notes; PLAN-011 P9 unblocked | Committed and pushed |
 
-## 5. Open question
+## 5. Resolved
 
-- The adapter has no `uninstall`: a user removes an integration by hand. Release 0.1.0 without it (the README says how to remove by hand), or add `uninstall` first?
+- D13-6: 0.1.0 ships `uninstall` (PLAN-014). The agent checks gain A10: uninstall leaves the agent without the tool's instructions, skill and hooks.
 
 ## 6. Results
 
