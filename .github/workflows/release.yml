@@ -96,7 +96,7 @@ jobs:
 
       - name: Install cargo-zigbuild
         if: matrix.builder == 'zigbuild'
-        uses: taiki-e/install-action@v2.85.6
+        uses: taiki-e/install-action@v2.87.24
         with:
           tool: cargo-zigbuild
 
@@ -189,7 +189,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - uses: PyO3/maturin-action@v1
@@ -245,7 +245,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-zigbuild
         if: matrix.builder == 'zigbuild'
-        uses: taiki-e/install-action@v2.85.6
+        uses: taiki-e/install-action@v2.87.24
         with:
           tool: cargo-zigbuild
       - name: Read the pinned zig version
