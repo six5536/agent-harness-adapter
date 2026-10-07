@@ -4,7 +4,9 @@
 
 mod common;
 
-use agent_harness_kit::{InstallOptions, InstallResult, Scope, State, harness, install, status};
+use agent_harness_kit_core::{
+    InstallOptions, InstallResult, Scope, State, harness, install, status,
+};
 use common::{TempTree, parts, verbs};
 
 fn install_all(tree: &TempTree, ids: &[&str]) -> InstallResult {

@@ -14,7 +14,7 @@ dir="$root/consumers"
 mkdir -p "$dir"
 
 # The kit for every consumer: this checkout, without editing their manifests.
-patch="patch.crates-io.agent-harness-kit.path=\"$root\""
+patch="patch.crates-io.agent-harness-kit-core.path=\"$root/crates/lib/agent-harness-kit-core\""
 
 validate() {
   local name="$1" url="$2"

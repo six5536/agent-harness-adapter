@@ -21,7 +21,7 @@ flowchart LR
 ### Module Organization
 
 ```
-src/
+crates/lib/agent-harness-kit-core/src/
 ├── common/            crate-private
 │   ├── mod.rs
 │   ├── protocol.rs    Claude-family input fields and answers
@@ -171,7 +171,7 @@ Per module: rendered parts of a full integration on an empty tree, per scope (`i
 
 ### Integration Testing
 
-`tests/` installs a full integration into each harness and into the sets {claude, codex}, {claude, cursor}, {codex, gemini, pi, agents}, {claude, codex, copilot}, checking shared parts and warnings. The Pi extension is type-checked against `@earendil-works/pi-coding-agent` once by hand (PLAN-010 P6), and each harness is smoke-tested by hand (PLAN-010 N4).
+`crates/lib/agent-harness-kit-core/tests/` installs a full integration into each harness and into the sets {claude, codex}, {claude, cursor}, {codex, gemini, pi, agents}, {claude, codex, copilot}, checking shared parts and warnings. The Pi extension is type-checked against `@earendil-works/pi-coding-agent` once by hand (PLAN-010 P6), and each harness is smoke-tested by hand (PLAN-010 N4).
 - SCENARIOS: each harness alone; sets sharing `AGENTS.md`, `.agents/skills` and `.mcp.json`; Cursor's cross-reads warn; Copilot double-loads `AGENTS.md` and `CLAUDE.md` warn
 
 ## Requirements Traceability

@@ -3,7 +3,7 @@
 
 mod common;
 
-use agent_harness_kit::{Error, InstallOptions, Scope, State, install, status};
+use agent_harness_kit_core::{Error, InstallOptions, Scope, State, install, status};
 use common::{TempTree, parts};
 use proptest::prelude::*;
 use serde::Serialize as _;

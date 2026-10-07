@@ -29,7 +29,7 @@ flowchart LR
 ### Module Organization
 
 ```
-src/
+crates/lib/agent-harness-kit-core/src/
 ├── lib.rs              re-exports
 ├── error.rs            Error, Result (KIT-Error)
 ├── fs.rs               read_text, write_atomic (KIT-Fs)
@@ -531,7 +531,7 @@ Beside the code, in `#[cfg(test)] mod tests`, including the properties over inte
 
 ### Integration Testing
 
-`tests/` drives `install` / `status` through the public API with a test `Tool` over a temporary directory, using test harnesses (shared and cross-read locations) and the built-in ones, including KIT_P-5 and KIT_P-6.
+`crates/lib/agent-harness-kit-core/tests/` drives `install` / `status` through the public API with a test `Tool` over a temporary directory, using test harnesses (shared and cross-read locations) and the built-in ones, including KIT_P-5 and KIT_P-6.
 - SCENARIOS: as in 0.1 for one harness; two harnesses sharing `AGENTS.md` write it once; adding a harness to a recorded set keeps every part current; a cross-read gives a warning; a declined item is chosen without the declining harness; set order does not change the result; unsupported items listed; notes shown; local scope
 
 ## Requirements Traceability

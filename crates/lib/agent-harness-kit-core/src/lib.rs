@@ -1,4 +1,4 @@
-//! agent-harness-kit: shared plumbing for CLIs that plug into LLM agent
+//! agent-harness-kit-core: shared plumbing for CLIs that plug into LLM agent
 //! harnesses (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor,
 //! Factory Droid, Pi, and any agent that reads `AGENTS.md`).
 //!

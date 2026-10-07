@@ -44,7 +44,7 @@ jobs:
           fi
           echo "Releasing $version"
 
-      - name: Tag matches Cargo.toml
+      - name: Tag matches the workspace version (Cargo.toml)
         run: |
           version='${{ steps.v.outputs.version }}'
           crate="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
@@ -82,7 +82,7 @@ jobs:
         run: rustup toolchain install --profile minimal
 
       - name: Publish
-        run: cargo publish --locked
+        run: cargo publish --locked --workspace
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 

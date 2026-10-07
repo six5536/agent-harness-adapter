@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "agent-harness-kit"
+name = "agent-harness-kit-core"
 version = "0.1.0"
 dependencies = [
  "insta",

@@ -12,7 +12,7 @@ use std::{
     },
 };
 
-use agent_harness_kit::{
+use agent_harness_kit_core::{
     DeclinedStore, Error, ExternalPart, Harness, InstallResult, Integration, Part, PartResult,
     Result, Scope, TomlDeclined, Tool,
     claude::Claude,

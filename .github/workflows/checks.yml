@@ -64,7 +64,7 @@ jobs:
 
       - name: Package (what crates.io would get)
         if: runner.os != 'Windows'
-        run: cargo publish --dry-run --locked
+        run: cargo publish --dry-run --locked --workspace
 
   msrv:
     # The rust-version in Cargo.toml is a promise: build on exactly that

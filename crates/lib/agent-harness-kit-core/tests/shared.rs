@@ -6,7 +6,7 @@ mod common;
 
 use std::sync::Arc;
 
-use agent_harness_kit::{
+use agent_harness_kit_core::{
     Error, Harness, InstallOptions, Integration, Item, Part, PartResult, Result, Scope, State,
     claude::Claude,
     harness::{Context, Reads},
@@ -147,7 +147,7 @@ fn harnesses() -> Vec<Arc<dyn Harness>> {
     ]
 }
 
-fn install_set(tree: &TempTree, old: bool, ids: &[&str]) -> agent_harness_kit::InstallResult {
+fn install_set(tree: &TempTree, old: bool, ids: &[&str]) -> agent_harness_kit_core::InstallResult {
     let tool = if old { tree.old_tool() } else { tree.tool() };
     install(
         &tool.with(harnesses()),
@@ -265,7 +265,7 @@ fn refusals_from_the_set() {
     // A raw part named like an item the harness renders clashes; one named
     // like an item it does not render fills it.
     struct Clash(TempTree, &'static str);
-    impl agent_harness_kit::Tool for Clash {
+    impl agent_harness_kit_core::Tool for Clash {
         fn name(&self) -> &str {
             "tool"
         }
@@ -286,8 +286,8 @@ fn refusals_from_the_set() {
         fn declined_store(
             &self,
             _scope: Scope,
-        ) -> Result<Box<dyn agent_harness_kit::DeclinedStore + '_>> {
-            Ok(Box::new(agent_harness_kit::TomlDeclined::new(
+        ) -> Result<Box<dyn agent_harness_kit_core::DeclinedStore + '_>> {
+            Ok(Box::new(agent_harness_kit_core::TomlDeclined::new(
                 self.0.dir().join("c.toml"),
                 "c.toml",
             )))

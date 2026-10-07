@@ -2,7 +2,7 @@
 
 ## Project Purpose
 
-agent-harness-kit is a Rust library for command-line tools that plug into LLM agent harnesses (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi, and any agent that reads `AGENTS.md`). A tool declares its integration once (instructions, skills, hooks, MCP servers, allowed commands, agents, commands); each harness adapter renders it into that agent's files, the kit installs them with shared content written once, reports their state without ever overwriting what the user changed, and translates hook input and answers for every harness. It also supplies findings reports, CLI exit and output conventions, and atomic file writes. It embeds no content of its own and depends on no tool.
+agent-harness-kit is a Rust workspace: the library `agent-harness-kit-core` for command-line tools that plug into LLM agent harnesses (Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi, and any agent that reads `AGENTS.md`). A tool declares its integration once (instructions, skills, hooks, MCP servers, allowed commands, agents, commands); each harness adapter renders it into that agent's files, the kit installs them with shared content written once, reports their state without ever overwriting what the user changed, and translates hook input and answers for every harness. It also supplies findings reports, CLI exit and output conventions, and atomic file writes. It embeds no content of its own and depends on no tool.
 
 ## System Overview
 
@@ -13,7 +13,7 @@ agent-harness-kit is a Rust library for command-line tools that plug into LLM ag
 - Report (`report`): findings and their text and JSON forms
 - CLI conventions (`cli`): exit codes, stdout, broken pipes, the `error:` runner
 - File IO (`fs`): whole-file reads and atomic writes
-- Distribution: crates.io crate `agent-harness-kit`, source at `github.com/six5536/agent-harness-kit`
+- Distribution: crates.io crate `agent-harness-kit-core` (the library), source at `github.com/six5536/agent-harness-kit`
 
 ## Technology Stack
 
@@ -33,7 +33,7 @@ flowchart LR
         HookCmd[hook command]
         Cmds[other commands]
     end
-    subgraph Kit[agent-harness-kit]
+    subgraph Kit[agent-harness-kit-core]
         Integration[integration]
         Harness[harness: Harness contract, shared locations, install / status]
         Adapters[claude, codex, factory, gemini, copilot, cursor, pi, agents_md]
@@ -60,17 +60,19 @@ flowchart LR
 ## Directory Structure
 
 ```
-src/              # the crate: lib.rs, error, fs, cli
-src/integration/  # the neutral declaration: Integration and its items
-src/harness/      # Harness contract, install / status, shared locations, parts, states, merge (JSON, TOML), region, record, declined
-src/hook/         # neutral hook events, input, answers, emit, LoopGuard
-src/common/       # crate-private pieces several harnesses share: Claude-family protocol, instructions region, group hooks, skills, MCP JSON
-src/<harness>/    # one adapter per harness: claude, codex, factory, gemini, copilot, cursor, pi, agents_md
-src/report/       # findings, report, text form
-tests/            # integration tests through the public API (a test Tool over a temp dir)
-scripts/          # validate-consumers.sh
-.zen/             # specs, plans, rules
-.github/workflows/  # ci (checks), release, audit
+Cargo.toml                                # workspace: shared package fields and dependency versions
+crates/lib/agent-harness-kit-core/        # the library crate (crates.io `agent-harness-kit-core`)
+  src/                                    # lib.rs, error, fs, cli
+  src/integration/                        # the neutral declaration: Integration and its items
+  src/harness/                            # Harness contract, install / status, shared locations, parts, states, merge (JSON, TOML), region, record, declined
+  src/hook/                               # neutral hook events, input, answers, emit, LoopGuard
+  src/common/                             # crate-private pieces several harnesses share: Claude-family protocol, instructions region, group hooks, skills, MCP JSON
+  src/<harness>/                          # one adapter per harness: claude, codex, factory, gemini, copilot, cursor, pi, agents_md
+  src/report/                             # findings, report, text form
+  tests/                                  # integration tests through the public API (a test Tool over a temp dir)
+scripts/                                  # validate-consumers.sh
+.zen/                                     # specs, plans, rules
+.github/workflows/                        # ci (checks), release, audit
 ```
 
 ## Component Details
@@ -192,7 +194,7 @@ Unreleased; 0.1.0 is published once PLAN-010 is done. The API may change in mino
 
 ## Developer Commands
 
-- `cargo build` — build
+- `cargo build` — build the workspace
 - `cargo nextest run` — tests
 - `cargo test --doc` — doctests
 - `cargo clippy --all-targets -- -D warnings` — lint
@@ -200,9 +202,10 @@ Unreleased; 0.1.0 is published once PLAN-010 is done. The API may change in mino
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps` — docs
 - `cargo +1.85 check --all-targets` — MSRV check
 - `cargo +nightly llvm-cov nextest --fail-under-lines 90` — coverage gate
-- `cargo publish --dry-run` — package check
+- `cargo publish --dry-run --workspace` — package check
 - `scripts/validate-consumers.sh` — build and test smllm and sokf against this checkout (needs `SMLLM_REPO`, `SOKF_REPO`)
 
 ## Change Log
 
+- 0.1.0 (2026-10-07): a Rust workspace; the library is `agent-harness-kit-core` (PLAN-011)
 - 0.1.0 (2026-10-06): Initial architecture, extracted from smllm (PLAN-009); multi-harness: integration, harness adapters, shared locations, neutral hooks (PLAN-010)

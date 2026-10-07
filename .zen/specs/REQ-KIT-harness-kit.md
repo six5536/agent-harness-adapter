@@ -2,7 +2,7 @@
 
 ## Introduction
 
-What agent-harness-kit guarantees to the tools that use it: a tool's integration declared once and installed into any number of harnesses with shared content deduplicated, hook input and answers for any harness, the loop guard, findings reports, CLI conventions and file IO. What each built-in harness does is in REQ-HAR. Source: PLAN-009 (carrying over smllm's HOST-10, HOST-11, NFR-4, NFR-6 and PLAN-003 F19–F21) and PLAN-010.
+What agent-harness-kit-core (the library crate) guarantees to the tools that use it: a tool's integration declared once and installed into any number of harnesses with shared content deduplicated, hook input and answers for any harness, the loop guard, findings reports, CLI conventions and file IO. What each built-in harness does is in REQ-HAR. Source: PLAN-009 (carrying over smllm's HOST-10, HOST-11, NFR-4, NFR-6 and PLAN-003 F19–F21) and PLAN-010.
 
 ## Glossary
 

@@ -57,7 +57,7 @@ Tests run under `cargo-nextest`.
 
 - **Unit and property tests** sit beside the code they cover, in `#[cfg(test)] mod tests`,
   including the `proptest` properties of the internals.
-- **Integration tests** (`tests/`) drive `install` / `status` through the public API with a
+- **Integration tests** (`crates/lib/agent-harness-kit-core/tests/`) drive `install` / `status` through the public API with a
   test `Tool` over a temporary directory.
 
 ## Consumers

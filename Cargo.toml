@@ -1,33 +1,21 @@
-[package]
-name = "agent-harness-kit"
-description = "Plug a CLI into LLM agent harnesses (Claude Code, Codex, Gemini CLI, Copilot, Cursor, Factory, Pi, AGENTS.md): declare the integration once, install it everywhere with shared files written once, and speak every harness's hook protocol."
+[workspace]
+resolver = "3"
+members = ["crates/lib/agent-harness-kit-core"]
+
+[workspace.package]
 version = "0.1.0"
 authors = ["six5536 <10079653+six5536@users.noreply.github.com>"]
 edition = "2024"
 rust-version = "1.85"
-readme = "README.md"
 license = "MIT"
 repository = "https://github.com/six5536/agent-harness-kit"
 homepage = "https://github.com/six5536/agent-harness-kit"
-documentation = "https://docs.rs/agent-harness-kit"
-keywords = ["llm", "agent", "claude-code", "hooks", "cli"]
-categories = ["command-line-utilities", "development-tools"]
-include = ["/src", "/README.md", "/LICENSE", "/CHANGELOG.md"]
 
-[dependencies]
+[workspace.dependencies]
+agent-harness-kit-core = { version = "0.1.0", path = "crates/lib/agent-harness-kit-core" }
 serde = { version = "1", features = ["derive", "std"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 toml_edit = "0.25"
-schemars = { version = "1.2", optional = true }
-
-[features]
-# `JsonSchema` on the serialised result types, for tools that publish a
-# schema of their JSON output.
-schemars = ["dep:schemars"]
-
-[package.metadata.docs.rs]
-all-features = true
-
-[dev-dependencies]
+schemars = "1.2"
 insta = "1.47"
 proptest = "1.11"

@@ -4,7 +4,7 @@
 
 mod common;
 
-use agent_harness_kit::{
+use agent_harness_kit_core::{
     Action, Error, InstallOptions, InstallResult, Result, Scope, State, install, status,
 };
 use common::{INSTRUCTIONS, SKILL, TempTree, parts, verbs};
@@ -361,7 +361,7 @@ fn the_user_scope_has_its_own_root_record_and_external_part() {
     // Claude Code keeps the user's MCP servers in its own state file.
     assert_eq!(
         out.harness("claude").unwrap().unsupported,
-        [agent_harness_kit::Item::Mcp]
+        [agent_harness_kit_core::Item::Mcp]
     );
     assert!(tree.exists("home/.claude/CLAUDE.md"));
     assert!(tree.exists("home/claude-mcp-user.json"));
@@ -528,17 +528,17 @@ fn a_new_skill_beside_an_edited_one_is_not_written_without_force() {
     tree.write(".claude/skills/tool/SKILL.md", "edited\n");
     // A second skill in the tool's integration is missing on disk.
     struct Two(common::TestTool);
-    impl agent_harness_kit::Tool for Two {
+    impl agent_harness_kit_core::Tool for Two {
         fn name(&self) -> &str {
             self.0.name()
         }
-        fn harnesses(&self) -> Vec<std::sync::Arc<dyn agent_harness_kit::Harness>> {
+        fn harnesses(&self) -> Vec<std::sync::Arc<dyn agent_harness_kit_core::Harness>> {
             self.0.harnesses()
         }
-        fn integration(&self, scope: Scope) -> agent_harness_kit::Integration {
+        fn integration(&self, scope: Scope) -> agent_harness_kit_core::Integration {
             self.0
                 .integration(scope)
-                .skill(agent_harness_kit::integration::Skill::new(
+                .skill(agent_harness_kit_core::integration::Skill::new(
                     "two", "Second.", "# Two\n",
                 ))
         }
@@ -551,7 +551,7 @@ fn a_new_skill_beside_an_edited_one_is_not_written_without_force() {
         fn declined_store(
             &self,
             scope: Scope,
-        ) -> Result<Box<dyn agent_harness_kit::DeclinedStore + '_>> {
+        ) -> Result<Box<dyn agent_harness_kit_core::DeclinedStore + '_>> {
             self.0.declined_store(scope)
         }
     }

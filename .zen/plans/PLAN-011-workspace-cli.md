@@ -2,7 +2,7 @@
 
 | Field              | Value |
 | ------------------ | ----- |
-| Status             | in-progress (planned 2026-10-07; P1 next) |
+| Status             | in-progress: P1 done (2026-10-07) |
 | Workflow direction | top-down (layout → architecture → requirements → design → code → docs → release) |
 | Traces to          | ARCHITECTURE, REQ-KIT, REQ-HAR, DESIGN-KIT, DESIGN-HAR, PLAN-009 (D9-4, D9-5, F8, F9), PLAN-010 P9 |
 
