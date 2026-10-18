@@ -68,6 +68,10 @@ pub struct PartResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(with = "String"))]
     pub by: Option<String>,
+    /// A shared part IN PLACE: its harness loads the item's SOURCE, `path`,
+    /// where it is (KIT-19_AC-8). Left out of the JSON when false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub in_place: bool,
 }
 
 impl PartResult {
@@ -94,6 +98,9 @@ impl PartResult {
     /// columns; a shared part names its writer: `(<part>, by <harness>)`,
     /// a part uninstall kept its users: `(<part>, used by <harnesses>)`.
     pub fn to_line(&self) -> String {
+        if self.in_place {
+            return format!("{:<7} {} ({}, in place)", self.verb(), self.path, self.part);
+        }
         match (&self.by, self.action) {
             (Some(by), Some(Action::Kept)) => {
                 format!(
@@ -135,8 +142,23 @@ pub struct InstallResult {
     pub root: PathBuf,
     /// One entry per harness named, in the tool's order.
     pub harnesses: Vec<HarnessResult>,
-    /// Content an agent may load twice.
+    /// Content an agent may load twice, and hooks that do not run.
     pub warnings: Vec<String>,
+    /// The SOURCES that do not exist (KIT-17_AC-8). Left out of the JSON
+    /// when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub missing: Vec<MissingSource>,
+}
+
+/// A SOURCE that does not exist: its item gets nothing.
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct MissingSource {
+    /// The item.
+    pub item: Item,
+    /// Its path, relative to the root when under it.
+    pub path: String,
 }
 
 impl InstallResult {
@@ -176,7 +198,20 @@ impl InstallResult {
         for w in &self.warnings {
             out.push_str(&format!("warning: {w}\n"));
         }
+        for m in &self.missing {
+            out.push_str(&format!("missing source: {} ({})\n", m.path, m.item));
+        }
         out
+    }
+
+    /// Whether every part reported is current, shared, in place or skipped:
+    /// nothing for `install` to do (KIT-5_AC-3).
+    // @zen-impl: KIT-5_AC-3
+    pub fn in_sync(&self) -> bool {
+        self.harnesses
+            .iter()
+            .flat_map(|h| &h.parts)
+            .all(|p| matches!(p.state, State::Current | State::Shared | State::Skipped))
     }
 }
 
@@ -191,6 +226,7 @@ mod tests {
             action,
             path: path.into(),
             by: None,
+            in_place: false,
         }
     }
 
@@ -199,6 +235,7 @@ mod tests {
     #[test]
     fn text_and_json_carry_the_same_content() {
         let r = InstallResult {
+            missing: Vec::new(),
             scope: Scope::Project,
             root: "/r".into(),
             harnesses: vec![

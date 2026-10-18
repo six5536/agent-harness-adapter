@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AHA hooks file",
+  "description": "A hooks file: Claude Code's `hooks` object, event name to groups.",
+  "type": "object",
+  "properties": {
+    "hooks": {
+      "description": "Claude Code's event names (`PreToolUse`, …) to their groups.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Group"
+        }
+      },
+      "default": {}
+    }
+  },
+  "$defs": {
+    "Group": {
+      "description": "A group: a matcher on Claude Code's tool name, and its entries.",
+      "type": "object",
+      "properties": {
+        "matcher": {
+          "description": "A regular expression matching the whole tool name; absent, empty or\n`*` matches every call.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hooks": {
+          "description": "The entries, run in order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Entry"
+          }
+        }
+      },
+      "required": [
+        "hooks"
+      ]
+    },
+    "Entry": {
+      "description": "One hook entry.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "`command`: a shell command line. Claude Code's other types (e.g.\n`prompt`) are kept but not run.",
+          "type": "string",
+          "default": "command"
+        },
+        "command": {
+          "description": "The shell command line.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout": {
+          "description": "Seconds before the command is stopped (60 when absent).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "tool": {
+          "description": "The tool that wrote the entry; such entries are installed by that\ntool into every harness itself, so dispatch skips them.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

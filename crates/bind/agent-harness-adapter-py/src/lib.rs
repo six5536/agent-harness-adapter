@@ -14,7 +14,8 @@ fn source(path: Option<String>, json: Option<String>) -> PyResult<Source> {
     match (path, json) {
         (Some(p), None) => Ok(Source::Path(p.into())),
         (None, Some(j)) => serde_json_value(&j).map(Source::Json),
-        _ => Err(err("give a manifest path or a manifest".into())),
+        (None, None) => Ok(Source::Config),
+        _ => Err(err("give a manifest path or a manifest, not both".into())),
     }
 }
 
@@ -53,7 +54,7 @@ fn status(path: Option<String>, json: Option<String>, options: &str) -> PyResult
         .map_err(err)
 }
 
-/// The hook contract's input, as JSON.
+/// The hook contract's input (Claude Code's), as JSON.
 #[pyfunction]
 fn parse_hook(harness: &str, event: &str, text: &str) -> PyResult<String> {
     bind::parse_hook(harness, event, text)
@@ -61,7 +62,7 @@ fn parse_hook(harness: &str, event: &str, text: &str) -> PyResult<String> {
         .map_err(err)
 }
 
-/// What the hook writes for `answer` (JSON), as JSON.
+/// What the hook writes for `answer` (Claude Code's answer JSON), as JSON.
 #[pyfunction]
 fn answer_hook(harness: &str, event: &str, answer: &str) -> PyResult<String> {
     bind::answer_hook(harness, event, answer)
@@ -85,6 +86,5 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(schema, m)?)?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("MANIFEST_VERSION", bind::MANIFEST_VERSION)?;
-    m.add("HOOK_VERSION", bind::HOOK_VERSION)?;
     Ok(())
 }

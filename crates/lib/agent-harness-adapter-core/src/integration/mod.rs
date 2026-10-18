@@ -6,7 +6,9 @@
 mod declaration;
 mod items;
 mod skill;
+mod source;
 
-pub use declaration::{Integration, Item};
+pub use declaration::{ADAPTER, Integration, Item};
 pub use items::{Agent, Command, Hook, McpServer, Transport};
 pub use skill::Skill;
+pub use source::Source;

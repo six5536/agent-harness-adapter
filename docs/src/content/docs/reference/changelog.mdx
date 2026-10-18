@@ -1,0 +1,17 @@
+---
+title: Changelog
+description: Every release's changes.
+tableOfContents:
+  maxHeadingLevel: 2
+---
+
+import Markdown from "../../../components/Markdown.astro";
+
+{/* The export writes CHANGELOG.md into the public repository at each release,
+    from the release notes. A tree without it, such as the private repository
+    that the export reads, shows a pointer to the releases instead. */}
+export const changelog =
+  Object.values(import.meta.glob("../../../../../CHANGELOG.md", { query: "?raw", import: "default", eager: true }))[0] ??
+  "# Changelog\n\nThe notes of every release are on the [releases page](https://github.com/six5536/agent-harness-adapter/releases).\n";
+
+<Markdown text={changelog} dropTitle />

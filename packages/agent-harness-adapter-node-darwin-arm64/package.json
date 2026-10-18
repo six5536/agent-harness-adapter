@@ -1,6 +1,6 @@
 {
   "name": "@six5536/agent-harness-adapter-node-darwin-arm64",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Prebuilt agent-harness-adapter Node addon for darwin-arm64.",
   "homepage": "https://github.com/six5536/agent-harness-adapter#readme",
   "repository": {

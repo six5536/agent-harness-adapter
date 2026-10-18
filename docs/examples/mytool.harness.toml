@@ -1,0 +1,15 @@
+# mytool's integration as a manifest, for the agent-harness-adapter command.
+version = 1
+name = "mytool"
+instructions = "Run `mytool check` before you finish.\n"
+allow_commands = ["mytool"]
+
+[[skills]]
+name = "mytool"
+description = "Check the project with mytool."
+body = "Run `mytool check`; fix what it reports.\n"
+
+[[hooks]]
+event = "pre-tool"
+tools = "shell"
+run = "mytool hook"   # bridged: mytool answers in Claude Code's protocol

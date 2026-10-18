@@ -1,0 +1,38 @@
+---
+title: Node
+description: The Node binding, with TypeScript types.
+---
+
+import Snippet from "../../../components/Snippet.astro";
+import install from "../../../../examples/install.mjs?raw";
+import hook from "../../../../examples/hook.mjs?raw";
+
+```sh
+npm install @six5536/agent-harness-adapter-node
+```
+
+Prebuilt for Linux (glibc; x64, arm64), macOS (x64, arm64) and Windows (x64).
+[API reference](/agent-harness-adapter/api/node/readme/).
+
+## Install an integration
+
+A manifest is a file's path, an object, or `null` for the repository's
+[config](/agent-harness-adapter/reference/config/).
+
+<Snippet code={install} region="install" lang="js" title="install.mjs" />
+
+The third argument takes options: `scope` (`"project"`, `"user"` or
+`"local"`), `root` (the project directory), `home`, and for `install` `force`
+and `without` ([InstallOptions](/agent-harness-adapter/api/node/interfaces/installoptions/)).
+`uninstall` and `status` take the same arguments. Results are the JSON of
+`agent-harness-adapter install --json`.
+
+## Answer a hook
+
+With `command = "mytool hook {harness} {event}"`, `runHook` reads the
+harness's input as Claude Code's and writes your answer in the harness's form.
+
+<Snippet code={hook} region="hook" lang="js" title="hook.mjs" />
+
+`parseHook` and `answerHook` do the two halves separately. Errors throw with
+the library's message.

@@ -1,25 +1,30 @@
 "use strict";
 // @zen-component: BND-Node
 
-// agent-harness-adapter for Node: plug a tool into LLM agent harnesses (Claude
-// Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi, any
-// agent that reads AGENTS.md) from a manifest, and speak every harness's
-// hook protocol through one format. Errors throw with the library's message.
+// agent-harness-adapter for Node: one agent setup, every coding agent.
+// Install instructions, skills and hooks, kept once in AGENTS.md and .agents/
+// (the config) or declared in a tool's manifest, into Claude Code, Codex,
+// Gemini CLI, GitHub Copilot, Cursor, Factory Droid, Pi, OpenCode, Kilo Code,
+// Qwen Code, Devin and any agent that reads AGENTS.md. Hooks speak one format
+// in every harness, Claude Code's. Errors throw with the library's message.
 
 const { loadAddon } = require("./addon");
 
 const native = loadAddon();
 const versions = JSON.parse(native.versions());
 
-/** [path, json] for the addon: a manifest file's path, or a manifest object. */
+/** [path, json] for the addon: a manifest file's path, a manifest object, or neither (the config). */
 function source(manifest) {
+  if (manifest === null || manifest === undefined) {
+    return [null, null];
+  }
   if (typeof manifest === "string") {
     return [manifest, null];
   }
   if (manifest && typeof manifest === "object") {
     return [null, JSON.stringify(manifest)];
   }
-  throw new TypeError("manifest: give a manifest file's path or a manifest object");
+  throw new TypeError("manifest: give a manifest file's path, a manifest object, or null for the config");
 }
 
 function options(harnesses, opts = {}) {
@@ -33,7 +38,7 @@ function options(harnesses, opts = {}) {
   });
 }
 
-/** Install the manifest's integration for `harnesses` (ids, or "all"). */
+/** Install the manifest's integration (null: the config's) for `harnesses` (ids, or "all"). */
 function install(manifest, harnesses, opts) {
   return JSON.parse(native.install(...source(manifest), options(harnesses, opts)));
 }
@@ -52,20 +57,20 @@ function status(manifest, harnesses, opts) {
   return JSON.parse(native.status(...source(manifest), options(harnesses, opts)));
 }
 
-/** The hook contract's input for what `harness` sent at `event`. */
+/** The hook contract's input for what `harness` sent at `event`: Claude Code's input, with `harness` and `tool_kind`. */
 function parseHook(harness, event, text) {
   return JSON.parse(native.parseHook(harness, event, text));
 }
 
-/** What the hook command writes for a contract answer: {stdout, stderr, exit}. */
+/** What the hook command writes for Claude Code's answer JSON, as `harness` expects it: {stdout, stderr, exit}. */
 function answerHook(harness, event, answer) {
   return JSON.parse(native.answerHook(harness, event, JSON.stringify(answer)));
 }
 
 /**
  * Be a hook command: read the harness's input on stdin, call
- * `decide(input)` (an answer, or a promise of one), write what the harness
- * expects, and resolve to the exit code.
+ * `decide(input)` (Claude Code's answer JSON, null to allow, or a promise of
+ * either), write what the harness expects, and resolve to the exit code.
  */
 // @zen-impl: BND-2_AC-4
 async function runHook(harness, event, decide, io = process) {
@@ -73,7 +78,7 @@ async function runHook(harness, event, decide, io = process) {
   for await (const chunk of io.stdin) {
     text += chunk;
   }
-  const out = answerHook(harness, event, await decide(parseHook(harness, event, text)));
+  const out = answerHook(harness, event, (await decide(parseHook(harness, event, text))) ?? {});
   if (out.stderr) {
     io.stderr.write(out.stderr);
   }
@@ -81,7 +86,7 @@ async function runHook(harness, event, decide, io = process) {
   return out.exit;
 }
 
-/** The JSON Schema of "manifest", "hook-input", "hook-answer" or "result". */
+/** The JSON Schema of "manifest", "hooks", "hook-input", "hook-answer" or "result". */
 function schema(contract) {
   return JSON.parse(native.schema(contract));
 }
@@ -96,5 +101,4 @@ module.exports = {
   schema,
   version: versions.version,
   MANIFEST_VERSION: versions.manifest,
-  HOOK_VERSION: versions.hook,
 };

@@ -311,6 +311,8 @@ pub struct Agent {
     name: String,
     description: String,
     prompt: String,
+    /// The markdown file it was read from, kept as written (KIT-17_AC-10).
+    source_md: Option<String>,
 }
 
 impl Agent {
@@ -324,7 +326,44 @@ impl Agent {
             name: name.into(),
             description: description.into(),
             prompt: prompt.into(),
+            source_md: None,
         }
+    }
+
+    /// The markdown agent `text`, read from `path` (for messages):
+    /// frontmatter `name` (else the file's stem) and `description`, the
+    /// body as the prompt; the text is kept as written.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::File`](crate::Error::File) when it has no frontmatter.
+    // @zen-impl: KIT-17_AC-10
+    pub fn from_markdown(text: &str, path: &std::path::Path) -> crate::Result<Self> {
+        let (front, body) = super::skill::split_frontmatter(text).ok_or_else(|| {
+            crate::Error::file(
+                path.display().to_string(),
+                "no frontmatter between `---` lines at the top",
+            )
+        })?;
+        let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned());
+        let name = super::skill::field(front, "name")
+            .or(stem)
+            .unwrap_or_default();
+        let body = body
+            .strip_prefix("\r\n")
+            .or_else(|| body.strip_prefix('\n'))
+            .unwrap_or(body);
+        Ok(Agent {
+            name,
+            description: super::skill::field(front, "description").unwrap_or_default(),
+            prompt: body.to_string(),
+            source_md: Some(text.to_string()),
+        })
+    }
+
+    /// The markdown file it was read from, when it was.
+    pub fn source_markdown(&self) -> Option<&str> {
+        self.source_md.as_deref()
     }
 
     /// The agent's name.
@@ -343,8 +382,29 @@ impl Agent {
     }
 
     /// The common Markdown agent: frontmatter `name`, `description`, then
-    /// `extra` (key, value), then the prompt as the body.
+    /// `extra` (key, value), then the prompt as the body. An agent read from
+    /// a file is that file, with each `extra` key it lacks added at the end
+    /// of its frontmatter (HAR-14_AC-5).
+    // @zen-impl: HAR-14_AC-5
     pub fn to_markdown(&self, extra: &[(&str, &str)]) -> String {
+        let source = self.source_md.as_deref();
+        if let Some((text, (front, _))) =
+            source.and_then(|t| super::skill::split_frontmatter(t).map(|f| (t, f)))
+        {
+            // `front` is a slice of `text`: the frontmatter ends where it does.
+            let end = front.as_ptr() as usize - text.as_ptr() as usize + front.len();
+            let mut out = text[..end].to_string();
+            if !out.ends_with('\n') {
+                out.push('\n');
+            }
+            for (k, v) in extra {
+                if super::skill::field(front, k).is_none() {
+                    out.push_str(&format!("{k}: {}\n", yaml_scalar(v)));
+                }
+            }
+            out.push_str(&text[end..]);
+            return out;
+        }
         let mut out = format!(
             "---\nname: {}\ndescription: {}\n",
             self.name,

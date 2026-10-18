@@ -1,0 +1,93 @@
+---
+title: MCP servers and subagents
+description: MCP servers in .mcp.json and subagents in .agents/agents, written into each agent's own format.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+## MCP servers
+
+**Where they go.** `.mcp.json` at the repository's root (`~/.agents/mcp.json`
+at user scope), in the common `mcpServers` format:
+
+```json title=".mcp.json"
+{ "mcpServers": { "docs": { "command": "npx", "args": ["-y", "docs-mcp"] } } }
+```
+
+| Agent | Gets |
+| --- | --- |
+| Claude Code, Copilot, Devin | nothing written: they read `.mcp.json` where it is |
+| Codex | `[mcp_servers.<name>]` in `.codex/config.toml` |
+| Gemini CLI, Qwen Code | `mcpServers` in their `settings.json` |
+| Cursor, Factory Droid, Pi | `.cursor/mcp.json`, `.factory/mcp.json`, `.pi/mcp.json` |
+| OpenCode, Kilo Code | `mcp` in `opencode.json` / `kilo.json` |
+
+Each copy is merged into the agent's file beside your own servers, and taken
+back out on uninstall.
+
+Claude Code has no MCP file of its own at user scope (`~/.claude.json` is its
+state file), so `~/.agents/mcp.json` does not reach it.
+
+## Subagents
+
+**Where they go.** `.agents/agents/<name>.md` (`~/.agents/agents` at user
+scope), in Claude Code's format: frontmatter `name` and `description`, then
+the prompt.
+
+```md title=".agents/agents/reviewer.md"
+---
+name: reviewer
+description: Reviews a change.
+---
+Review the diff for bugs.
+```
+
+No agent reads `.agents/agents` yet, so each gets a copy in its own folder
+(`.claude/agents`, `.cursor/agents`, `.opencode/agents`, …), with every
+frontmatter key kept. Codex gets `.codex/agents/<name>.toml`. Pi has no
+subagents.
+
+Run `install` again after you add or change an MCP server or a subagent.
+
+## As a tool
+
+<Tabs syncKey="lang">
+  <TabItem label="Command">
+    ```toml
+    [[mcp_servers]]
+    name = "mytool"
+    command = "mytool"
+    args = ["mcp"]
+
+    [[agents]]
+    name = "mytool-fixer"
+    description = "Fixes what mytool reports."
+    prompt = "Run `mytool check` and fix each finding."
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    Integration::new()
+        .mcp_server(McpServer::stdio("mytool", "mytool", ["mcp"]))
+        .agent(Agent::new("mytool-fixer", "Fixes what mytool reports.", "Run `mytool check`."))
+    ```
+  </TabItem>
+  <TabItem label="Node">
+    ```js
+    {
+      mcp_servers: [{ name: "mytool", command: "mytool", args: ["mcp"] }],
+      agents: [{ name: "mytool-fixer", description: "Fixes what mytool reports.", prompt: "Run `mytool check`." }],
+    }
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    {
+        "mcp_servers": [{"name": "mytool", "command": "mytool", "args": ["mcp"]}],
+        "agents": [{"name": "mytool-fixer", "description": "Fixes what mytool reports.", "prompt": "Run `mytool check`."}],
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+An HTTP server takes `url` (and `headers`) in place of `command`.

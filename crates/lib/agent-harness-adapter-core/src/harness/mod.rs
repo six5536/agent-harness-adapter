@@ -28,7 +28,7 @@ pub use merge::{EntryMatch, MergeOp};
 pub(crate) use part::Profile;
 pub use part::{ExternalPart, Part};
 pub use region::Markers;
-pub use result::{Action, HarnessResult, InstallResult, PartResult};
+pub use result::{Action, HarnessResult, InstallResult, MissingSource, PartResult};
 pub use state::State;
 pub use tool::{Scope, Tool};
 pub use uninstall::{UninstallOptions, uninstall};

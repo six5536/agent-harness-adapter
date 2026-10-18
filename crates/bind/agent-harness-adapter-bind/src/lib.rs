@@ -12,7 +12,7 @@ use agent_harness_adapter_core::{
         uninstall as kit_uninstall,
     },
     hook::{Answer, Event, HookInput, wire},
-    manifest::{self, Manifest, ManifestTool},
+    manifest::{self, Manifest, ManifestTool, find_config},
 };
 use serde::Deserialize;
 pub use serde_json::Value;
@@ -20,17 +20,17 @@ use serde_json::json;
 
 /// The manifest format's version the bindings read.
 pub const MANIFEST_VERSION: u64 = manifest::VERSION;
-/// The hook contract's version the bindings speak.
-pub const HOOK_VERSION: u64 = wire::VERSION;
 
 /// Where a manifest comes from.
 #[derive(Debug, Clone)]
 pub enum Source {
     /// A file: TOML, or JSON when it ends in `.json`.
     Path(PathBuf),
-    /// A manifest as JSON; its TEXT files resolve against the working
-    /// directory.
+    /// A manifest as JSON; its TEXT files and SOURCES resolve against the
+    /// working directory.
     Json(Value),
+    /// The CONFIG, found as `agent-harness-adapter` finds it (AHA-7).
+    Config,
 }
 
 /// The options of [`install`] and [`status`], as the bindings pass them.
@@ -70,26 +70,38 @@ fn msg(e: impl std::fmt::Display) -> String {
 }
 
 /// The manifest as a tool, and the scope.
+// @zen-impl: BND-1_AC-1
 fn tool(source: Source, o: &Options) -> Result<(ManifestTool, Scope)> {
     let cwd = std::env::current_dir().map_err(msg)?;
-    let manifest = match source {
-        Source::Path(p) => Manifest::load(&p),
-        Source::Json(v) => Manifest::from_json(v, &cwd, "manifest"),
-    }
-    .map_err(msg)?;
     let scope: Scope = o
         .scope
         .as_deref()
         .unwrap_or("project")
         .parse()
         .map_err(msg)?;
-    let root = o.root.clone().unwrap_or(cwd);
     let home = o
         .home
         .clone()
         .or_else(fs::home_dir)
         .ok_or("no home directory: set HOME or pass home")?;
-    Ok((ManifestTool::new(manifest, root, home), scope))
+    let (manifest, root) = match source {
+        Source::Path(p) => (Manifest::load(&p), o.root.clone().unwrap_or(cwd)),
+        Source::Json(v) => (
+            Manifest::from_json(v, &cwd, "manifest"),
+            o.root.clone().unwrap_or(cwd),
+        ),
+        Source::Config => {
+            let found = find_config(scope, o.root.as_deref(), &cwd, &home)
+                .map_err(msg)?
+                .ok_or("no config: run agent-harness-adapter install")?;
+            let root = match scope {
+                Scope::User => o.root.clone().unwrap_or(cwd),
+                _ => found.root.clone(),
+            };
+            (Manifest::load_in(&found.path, &found.root), root)
+        }
+    };
+    Ok((ManifestTool::new(manifest.map_err(msg)?, root, home), scope))
 }
 
 fn to_json(result: &InstallResult) -> Result<Value> {
@@ -146,20 +158,42 @@ pub fn parse_hook(harness: &str, event: &str, text: &str) -> Result<Value> {
     let (h, e) = harness_event(harness, event)?;
     let input = HookInput::parse(h.as_ref(), e, text)
         .unwrap_or_else(|_| HookInput::new(h.id(), e, Value::Null));
-    Ok(wire::input_json(&input))
+    Ok(wire::input_json(h.as_ref(), &input))
 }
 
-/// What a hook command writes for `answer` (a contract answer, as JSON
-/// text): `{stdout, stderr, exit}`.
+/// What a hook command writes for `answer` (Claude Code's answer JSON, as
+/// text, read as exit 0): `{stdout, stderr, exit}`. Claude Code gets it as
+/// it is; another harness its own form, with a note for what it cannot say.
 // @zen-impl: BND-2_AC-2
 // @zen-impl: BND-2_AC-3
 pub fn answer_hook(harness: &str, event: &str, answer: &str) -> Result<Value> {
     let (h, e) = harness_event(harness, event)?;
-    let answer: Answer = wire::parse_answer(answer).map_err(msg)?;
-    let out = h.answer(e, &answer).map_err(msg)?;
+    let value: Value = serde_json::from_str(answer).map_err(|e| format!("hook answer: {e}"))?;
+    if !value.is_object() {
+        return Err("hook answer: not a JSON object".into());
+    }
+    if h.id() == "claude" {
+        return Ok(json!({ "stdout": format!("{value}\n"), "stderr": null, "exit": 0 }));
+    }
+    let reply = wire::parse_answer(e, 0, &value.to_string(), "");
+    let mut notes: Vec<String> = reply
+        .dropped
+        .iter()
+        .map(|d| format!("{d} is not supported by {}\n", h.id()))
+        .collect();
+    let out = h.answer(e, &reply.answer).or_else(|_| {
+        notes.push(format!(
+            "{} at {e} is not supported by {}\n",
+            reply.answer.as_str(),
+            h.id()
+        ));
+        h.answer(e, &Answer::Allow { stderr: None })
+    });
+    let out = out.map_err(msg)?;
+    let stderr: String = notes.concat() + out.stderr.as_deref().unwrap_or_default();
     Ok(json!({
         "stdout": format!("{}\n", out.stdout),
-        "stderr": out.stderr,
+        "stderr": (!stderr.is_empty()).then_some(stderr),
         "exit": out.exit,
     }))
 }
@@ -170,12 +204,13 @@ pub fn answer_hook(harness: &str, event: &str, answer: &str) -> Result<Value> {
 pub fn schema(contract: &str) -> Result<Value> {
     Ok(match contract {
         "manifest" => Manifest::schema(),
+        "hooks" => agent_harness_adapter_core::hook::file::schema(),
         "hook-input" => wire::input_schema(),
         "hook-answer" => wire::answer_schema(),
         "result" => InstallResult::schema(),
         other => {
             return Err(format!(
-                "no contract `{other}`: manifest, hook-input, hook-answer or result"
+                "no contract `{other}`: manifest, hooks, hook-input, hook-answer or result"
             ));
         }
     })

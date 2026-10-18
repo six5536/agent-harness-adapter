@@ -3,5 +3,5 @@
 
 mod adapter;
 
-pub(crate) use adapter::tool_kind;
 pub use adapter::{Claude, instructions_file};
+pub(crate) use adapter::{matcher, tool_kind};

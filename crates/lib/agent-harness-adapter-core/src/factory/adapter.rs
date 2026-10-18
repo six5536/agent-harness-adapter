@@ -19,7 +19,7 @@ use crate::{
     },
     fs::read_text,
     harness::{Context, Harness, Part, Reads, Scope},
-    hook::{Answer, Event, HookInput, Output, ToolKind},
+    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
     integration::{Integration, Item, McpServer, Transport},
 };
 
@@ -125,9 +125,33 @@ fn location(item: Item, cx: &Context) -> Result<Option<&'static str>> {
     }))
 }
 
+/// Claude Code's name for one of its tools (HAR-15_AC-2).
+// @zen-impl: HAR-15_AC-2
+fn claude_name(name: &str) -> Option<&'static str> {
+    match name {
+        "Execute" => Some("Bash"),
+        "Read" => Some("Read"),
+        "Grep" => Some("Grep"),
+        "Glob" => Some("Glob"),
+        "LS" => Some("LS"),
+        "Edit" | "ApplyPatch" => Some("Edit"),
+        "Create" => Some("Write"),
+        _ => None,
+    }
+}
+
 impl Harness for Factory {
     fn id(&self) -> &str {
         ID
+    }
+
+    // @zen-impl: HAR-15_AC-1
+    fn program(&self) -> Option<&str> {
+        Some("droid")
+    }
+
+    fn claude_tool(&self, call: &ToolCall) -> ToolCall {
+        claude_names::named(call, claude_name(&call.name))
     }
 
     // @zen-impl: HAR-3_AC-1

@@ -1,0 +1,20 @@
+---
+title: "Example: a Python tool"
+description: A Python tool plugged into Claude Code, Codex and Gemini CLI through the command.
+---
+
+import { Code } from "@astrojs/starlight/components";
+import readme from "../../../../../examples/python-tool/README.md?raw";
+import manifest from "../../../../../examples/python-tool/mytool.harness.toml?raw";
+import tool from "../../../../../examples/python-tool/mytool.py?raw";
+import Markdown from "../../../components/Markdown.astro";
+
+<Markdown text={readme} dropTitle />
+
+## The manifest
+
+<Code code={manifest} lang="toml" title="examples/python-tool/mytool.harness.toml" />
+
+## The tool
+
+<Code code={tool} lang="python" title="examples/python-tool/mytool.py" />

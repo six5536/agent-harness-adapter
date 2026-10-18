@@ -8,7 +8,7 @@ name = "mytool"
 description = "Check a shell command with mytool before running it."
 body = { file = "agent/skill.md" }
 
-# Bridged hooks: `agent-harness-adapter hook` gives mytool.py the hook contract's JSON.
+# Bridged hooks: `agent-harness-adapter hook` gives mytool.py Claude Code's hook input in every harness.
 [[hooks]]
 event = "session-start"
 run = "python3 mytool.py hook"

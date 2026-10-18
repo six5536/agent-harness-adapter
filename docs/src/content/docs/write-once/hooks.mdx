@@ -1,0 +1,156 @@
+---
+title: Hooks
+description: Write hooks once, in .agents/hooks.json in Claude Code's format; one script runs in every agent.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+**What it is.** A command an agent runs at a point in its loop: when a session
+starts, before a tool runs, when it is about to stop. The command can block
+the tool, keep the agent going or add to its context.
+
+**Where it goes.** `.agents/hooks.json` (`~/.agents/hooks.json` at user scope),
+in [Claude Code's hooks format](https://docs.claude.com/en/docs/claude-code/hooks):
+
+```json title=".agents/hooks.json"
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/guard.sh" }]
+      }
+    ]
+  }
+}
+```
+
+```sh title="scripts/guard.sh"
+#!/bin/sh
+# Block rm -rf, in every agent.
+if grep -q 'rm -rf'; then
+  echo "guard: no rm -rf here" >&2
+  exit 2
+fi
+```
+
+The script gets Claude Code's hook input as JSON on stdin (this one just
+searches it for `rm -rf`) and answers the way Claude Code reads an answer:
+here `exit 2` with a reason blocks the tool. It does so in every agent; see
+[the hook contract](/agent-harness-adapter/reference/hook-contract/) for the
+input and the answers.
+
+## How it runs
+
+Each agent gets one entry per event in its own hooks file, for example in
+`.codex/hooks.json`:
+
+```text
+agent-harness-adapter hook --hooks .agents/hooks.json codex pre-tool
+```
+
+At hook time, that dispatcher:
+
+1. reads the agent's input and turns it into Claude Code's (`shell` with
+   `["bash", "-lc", "rm -rf build"]` becomes `Bash` with `"rm -rf build"`);
+2. runs the matching entries of `.agents/hooks.json` in order, through the
+   shell, with `CLAUDE_PROJECT_DIR` set and each entry's `timeout` (60 seconds
+   by default);
+3. combines the answers: if a hook blocks, the agent is blocked with that
+   hook's reason (later hooks do not run); otherwise any context the hooks
+   add is joined. It then gives the agent the answer in its own form.
+
+The dispatcher reads `.agents/hooks.json` each time, so an edit applies at
+once. Run `install` again only when you use an event for the first time.
+
+`matcher` is a regular expression that must match Claude Code's whole tool
+name (`Bash`, `Read`, `Edit|Write`, `mcp__.*`); empty or `*` matches every
+tool.
+
+### On Windows
+
+Hook commands run through `cmd /C`, so `sh` scripts need Git Bash or WSL.
+For a hooks file shared by Windows and other machines, run a script in a
+language every machine has, with no shell-specific syntax, for example
+`node scripts/guard.mjs`. Hooks run in the agent's working directory, usually
+the project's root.
+
+## What each agent can do
+
+The seven events, and what a hook's answer can do in each agent. "Filters"
+means the agent cannot match tools itself: the hook runs for every tool and
+the dispatcher skips entries whose matcher does not match.
+
+| Agent | Events | Tool matching | Block a tool | Block a prompt | Continue at stop | Add context |
+| --- | --- | --- | --- | --- | --- | --- |
+| Claude Code | all 7 | native | yes | yes | yes | yes |
+| Codex | all 7 | native for shell, else filters | yes | yes | yes | yes |
+| Factory Droid | all 7 | native | yes | yes | yes | yes |
+| Gemini CLI | all 7 | native | yes | yes | yes | yes |
+| Qwen Code | all 7 | native | yes | yes | yes | yes |
+| Devin | no pre-compact | native | yes | yes | yes | yes |
+| Copilot | all 7 | filters | yes | – | yes | – |
+| Cursor | all 7 | filters | yes | yes | yes | at session start |
+| Pi | all 7 | filters | yes | – | yes | session start, prompt, after a tool |
+| OpenCode, Kilo Code | no session end | filters | yes | – | yes | session start, prompt, after a tool |
+| any `AGENTS.md` agent | none | – | – | – | – | – |
+
+A hook on an event an agent does not have is noted at install
+(`<agent> has no <event> event: those hooks do not run there`). What an agent cannot do is left out of the
+answer, with a note on stderr; the tool call or prompt is then allowed.
+
+## Failure allows
+
+A hook command that cannot start, fails, or runs past its timeout allows,
+with a note on stderr. A broken or missing `.agents/hooks.json` allows too.
+Your hook failing never blocks the agent.
+
+## As a tool
+
+A tool declares its hooks; each runs a command of the tool's.
+
+<Tabs syncKey="lang">
+  <TabItem label="Command">
+    ```toml
+    [[hooks]]
+    event = "pre-tool"
+    tools = "shell"            # shell, read, write or mcp
+    run = "mytool hook"        # bridged: speaks Claude Code's protocol
+
+    [[hooks]]
+    event = "stop"
+    command = "mytool hook {harness} {event}"   # speaks each agent's own
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    Integration::new()
+        .hook(Hook::new(Event::PreTool, "mytool hook {harness} {event}").tools(ToolKind::Shell))
+    ```
+  </TabItem>
+  <TabItem label="Node">
+    ```js
+    { hooks: [{ event: "pre-tool", tools: "shell", command: "mytool hook {harness} {event}" }] }
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    {"hooks": [{"event": "pre-tool", "tools": "shell", "command": "mytool hook {harness} {event}"}]}
+    ```
+  </TabItem>
+</Tabs>
+
+Two ways to run a tool's hook:
+
+| | `run` (bridged) | `command` |
+| --- | --- | --- |
+| The agent runs | `agent-harness-adapter hook --tool mytool <harness> <event> -- mytool hook` | `mytool hook <harness> <event>` (`{harness}` and `{event}` filled in) |
+| Your command speaks | Claude Code's protocol, like a hook in `.agents/hooks.json` | the agent's own protocol: the Rust library's `emit`, Node's `runHook` and Python's `run_hook` write it for you |
+| Needs on the user's machine | the `agent-harness-adapter` command | only your tool |
+| Pick it when | your tool is a script, or you use the command | you use a library and ship one binary |
+
+Both work from a manifest and from the Node and Python libraries (they take
+the same keys); in Rust, write the command template.
+
+The events are `session-start`, `session-end`, `prompt-submit`, `pre-tool`,
+`post-tool`, `stop` and `pre-compact`.

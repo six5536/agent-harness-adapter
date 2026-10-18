@@ -31,3 +31,5 @@ __pycache__/
 .venv/
 # Node addons built locally or staged by release.yml
 *.node
+
+# The docs site keeps its own ignores in docs/.gitignore.

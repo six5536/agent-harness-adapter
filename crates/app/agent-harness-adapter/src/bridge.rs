@@ -1,5 +1,7 @@
-//! `agent-harness-adapter hook`: a harness's hook, bridged to a command that speaks the hook
-//! contract (AHA-2) on stdin and stdout.
+//! `agent-harness-adapter hook`: a harness's hook, bridged to a command that
+//! speaks the hook contract (AHA-2), Claude Code's protocol: Claude Code's
+//! input on stdin, its answer as exit code, stdout and stderr. With
+//! `--hooks`, the hooks file's entries are dispatched instead (dispatch.rs).
 // @zen-component: AHA-Bridge
 
 use std::{
@@ -8,6 +10,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
     thread,
+    time::{Duration, Instant},
 };
 
 use agent_harness_adapter_core::{
@@ -19,6 +22,8 @@ use agent_harness_adapter_core::{
 use clap::Args;
 use serde_json::Value;
 
+use crate::dispatch;
+
 /// `agent-harness-adapter hook`.
 #[derive(Debug, Args)]
 pub struct HookArgs {
@@ -29,60 +34,165 @@ pub struct HookArgs {
     /// write, mcp, other); allow the others without running it.
     #[arg(long, value_name = "KIND", value_parser = parse_kind)]
     pub tools: Option<ToolKind>,
+    /// Run the matching entries of this hooks file (Claude Code's format)
+    /// instead of a command: relative paths are looked for upwards from the
+    /// hook's working directory, `~/` is the home directory.
+    #[arg(long, value_name = "PATH", conflicts_with_all = ["tool", "tools"])]
+    pub hooks: Option<String>,
     /// The harness that runs the hook, e.g. claude.
     pub harness: String,
     /// The event, e.g. pre-tool.
     pub event: String,
     /// The command and its arguments, after `--`.
-    #[arg(last = true, required = true, value_name = "COMMAND")]
+    #[arg(last = true, required_unless_present = "hooks", value_name = "COMMAND")]
     pub command: Vec<OsString>,
 }
 
-/// Bridge one hook run: the process's stdin to the command and its answer
-/// back through the harness. Returns the exit code.
+/// Bridge or dispatch one hook run: the process's stdin to the command(s)
+/// and the answer back through the harness. Returns the exit code.
 pub fn run(args: &HookArgs) -> io::Result<u8> {
     let mut input = String::new();
     // A harness that sends nothing, or something unreadable, gets the
     // input with no fields from it (AHA-4_AC-3).
     let _ = io::stdin().read_to_string(&mut input);
-    bridge(
-        args,
-        &input,
-        &mut io::stdout().lock(),
-        &mut io::stderr().lock(),
-    )
+    let (mut out, mut err) = (io::stdout().lock(), io::stderr().lock());
+    let Some((h, event)) = target(args, &mut err)? else {
+        return Ok(EXIT_ERRORS);
+    };
+    match &args.hooks {
+        Some(hooks) => dispatch::dispatch(hooks, h.as_ref(), event, &input, &mut out, &mut err),
+        None => bridge(args, h.as_ref(), event, &input, &mut out, &mut err),
+    }
+}
+
+/// The harness and event named, or `error:` on stderr when either is
+/// unknown.
+// @zen-impl: AHA-4_AC-4
+fn target(
+    args: &HookArgs,
+    stderr: &mut impl Write,
+) -> io::Result<Option<(std::sync::Arc<dyn Harness>, Event)>> {
+    let Some(h) = harness::find(&args.harness) else {
+        writeln!(stderr, "error: no harness named `{}`", args.harness)?;
+        return Ok(None);
+    };
+    match args.event.parse() {
+        Ok(e) => Ok(Some((h, e))),
+        Err(e) => {
+            writeln!(stderr, "error: {e}")?;
+            Ok(None)
+        }
+    }
 }
 
 // @zen-impl: AHA-4_AC-1
-// @zen-impl: AHA-4_AC-4
 fn bridge(
     args: &HookArgs,
+    h: &dyn Harness,
+    event: Event,
     text: &str,
     stdout: &mut impl Write,
     stderr: &mut impl Write,
 ) -> io::Result<u8> {
-    let Some(h) = harness::find(&args.harness) else {
-        writeln!(stderr, "error: no harness named `{}`", args.harness)?;
-        return Ok(EXIT_ERRORS);
-    };
-    let event: Event = match args.event.parse() {
-        Ok(e) => e,
-        Err(e) => {
-            writeln!(stderr, "error: {e}")?;
-            return Ok(EXIT_ERRORS);
-        }
-    };
-    let input = parse(h.as_ref(), event, text);
+    let input = parse(h, event, text);
     let tool = args.tool.clone().unwrap_or_else(|| name(&args.command[0]));
-    let answer = if other_kind(args.tools, &input) {
+    if other_kind(args.tools, &input) {
+        return answer(
+            h,
+            event,
+            &tool,
+            Answer::Allow { stderr: None },
+            stdout,
+            stderr,
+        );
+    }
+    let program = &args.command[0];
+    let mut cmd = Command::new(resolve(program));
+    cmd.args(&args.command[1..]);
+    match run_child(&mut cmd, &stdin_text(h, &input), None) {
+        Err(reason) => {
+            let reason = format!(
+                "{tool}: could not run `{}`: {reason}\n",
+                program.to_string_lossy()
+            );
+            answer(
+                h,
+                event,
+                &tool,
+                Answer::Allow {
+                    stderr: Some(reason),
+                },
+                stdout,
+                stderr,
+            )
+        }
+        Ok(ran) if h.id() == "claude" => pass_through(&ran, stdout, stderr),
+        Ok(ran) => {
+            let reply = read(event, &tool, &ran);
+            for d in &reply.dropped {
+                writeln!(stderr, "{tool}: {d} is not supported by {}", h.id())?;
+            }
+            answer(h, event, &tool, reply.answer, stdout, stderr)
+        }
+    }
+}
+
+/// The contract's input for `input`, as one JSON line.
+pub(crate) fn stdin_text(h: &dyn Harness, input: &HookInput) -> String {
+    let mut json = wire::input_json(h, input).to_string();
+    json.push('\n');
+    json
+}
+
+/// A command's answer as the contract reads it; a failing command with
+/// nothing on stderr is named, so the user sees why it allowed.
+pub(crate) fn read(event: Event, tool: &str, ran: &Ran) -> wire::Reply {
+    let mut reply = wire::parse_answer(event, ran.exit, &ran.stdout, &ran.stderr);
+    if !matches!(ran.exit, 0 | 2) && ran.stderr.trim().is_empty() {
+        if let Answer::Allow { stderr } = &mut reply.answer {
+            *stderr = Some(format!("{tool}: exited with {}\n", ran.exit));
+        }
+    }
+    reply
+}
+
+/// The command's output as it wrote it, for Claude Code (AHA-2_AC-5).
+// @zen-impl: AHA-2_AC-5
+pub(crate) fn pass_through(
+    ran: &Ran,
+    stdout: &mut impl Write,
+    stderr: &mut impl Write,
+) -> io::Result<u8> {
+    stderr.write_all(ran.stderr.as_bytes())?;
+    stdout.write_all(ran.stdout.as_bytes())?;
+    stdout.flush()?;
+    Ok(u8::try_from(ran.exit).unwrap_or(1))
+}
+
+/// `answer` emitted through the harness; one it cannot express for the
+/// event is left out, with a note, and allows (AHA-2_AC-4).
+// @zen-impl: AHA-2_AC-4
+pub(crate) fn answer(
+    h: &dyn Harness,
+    event: Event,
+    tool: &str,
+    answer: Answer,
+    stdout: &mut impl Write,
+    stderr: &mut impl Write,
+) -> io::Result<u8> {
+    let answer = if h.answer(event, &answer).is_err() {
+        writeln!(
+            stderr,
+            "{tool}: {} at {event} is not supported by {}",
+            answer.as_str(),
+            h.id()
+        )?;
         Answer::Allow { stderr: None }
     } else {
-        ask(&args.command, &input).unwrap_or_else(|reason| Answer::Allow {
-            stderr: Some(format!("{tool}: {reason}\n")),
-        })
+        answer
     };
     emit(
-        h.as_ref(),
+        h,
         event,
         Ok::<_, std::convert::Infallible>(answer),
         stdout,
@@ -104,41 +214,68 @@ fn parse_kind(s: &str) -> Result<ToolKind, String> {
 
 /// The harness's input; with only `harness` and `event` when it is not JSON.
 // @zen-impl: AHA-4_AC-3
-fn parse(h: &dyn Harness, event: Event, text: &str) -> HookInput {
+pub(crate) fn parse(h: &dyn Harness, event: Event, text: &str) -> HookInput {
     HookInput::parse(h, event, text).unwrap_or_else(|_| HookInput::new(h.id(), event, Value::Null))
 }
 
-/// The command's answer to `input`, or why there is none.
+/// What a command did: its exit code (1 when killed) and its output.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Ran {
+    pub exit: i32,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+/// Run `cmd` with `input` on its stdin; past `timeout`, kill it.
 // @zen-impl: AHA-4_AC-2
-fn ask(command: &[OsString], input: &HookInput) -> Result<Answer, String> {
-    let program = &command[0];
-    let mut child = Command::new(resolve(program))
-        .args(&command[1..])
+pub(crate) fn run_child(
+    cmd: &mut Command,
+    input: &str,
+    timeout: Option<Duration>,
+) -> Result<Ran, String> {
+    let mut child = cmd
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
+        .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("could not run `{}`: {e}", program.to_string_lossy()))?;
-    let mut json = wire::input_json(input).to_string();
-    json.push('\n');
+        .map_err(|e| e.to_string())?;
     let mut stdin = child.stdin.take().expect("piped");
-    // Written beside the read, so a command that answers before it reads
-    // all its input cannot dead-lock on a full pipe.
+    let input = input.to_string();
+    // Written and read beside each other, so a command that answers before
+    // it reads all its input cannot dead-lock on a full pipe.
     let writer = thread::spawn(move || {
-        let _ = stdin.write_all(json.as_bytes());
+        let _ = stdin.write_all(input.as_bytes());
     });
-    let out = child
-        .wait_with_output()
-        .map_err(|e| format!("could not run `{}`: {e}", program.to_string_lossy()))?;
+    let drain = |mut r: Box<dyn Read + Send>| {
+        thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = r.read_to_end(&mut buf);
+            String::from_utf8_lossy(&buf).into_owned()
+        })
+    };
+    let out = drain(Box::new(child.stdout.take().expect("piped")));
+    let err = drain(Box::new(child.stderr.take().expect("piped")));
+    let deadline = timeout.map(|t| Instant::now() + t);
+    let status = loop {
+        if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
+            break status;
+        }
+        if deadline.is_some_and(|d| Instant::now() >= d) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(format!(
+                "timed out after {}s",
+                timeout.unwrap_or_default().as_secs()
+            ));
+        }
+        thread::sleep(Duration::from_millis(5));
+    };
     let _ = writer.join();
-    if !out.status.success() {
-        return Err(match out.status.code() {
-            Some(code) => format!("exited with {code}"),
-            None => "was killed".into(),
-        });
-    }
-    let text = String::from_utf8_lossy(&out.stdout);
-    wire::parse_answer(&text).map_err(|e| e.to_string())
+    Ok(Ran {
+        exit: status.code().unwrap_or(1),
+        stdout: out.join().unwrap_or_default(),
+        stderr: err.join().unwrap_or_default(),
+    })
 }
 
 /// The command's name, for messages: its file name without extension.

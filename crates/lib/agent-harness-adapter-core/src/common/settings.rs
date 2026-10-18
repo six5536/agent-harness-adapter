@@ -7,8 +7,8 @@ use serde_json::{Value, json};
 use crate::{
     Error, Result,
     fs::read_text,
-    harness::{Context, Scope},
-    integration::{McpServer, Transport},
+    harness::{Context, MergeOp, Part, Scope},
+    integration::{Integration, Item, McpServer, Transport},
 };
 
 /// Where an agent's context files are set and found.
@@ -66,6 +66,34 @@ pub(crate) fn context_files(cx: &Context, layout: &ContextLayout) -> Result<(Str
         .position(|n| n == "AGENTS.md")
         .map_or_else(|| all[0].clone(), |i| all[i].clone());
     Ok((chosen, all))
+}
+
+/// The REFERENCE to the instructions' SOURCE (HAR-14_AC-2): at project
+/// scope, when the SOURCE is a file at the root that is not one of the
+/// agent's default context files, its name and the defaults as entries of
+/// `context.fileName`. The entries are always the same, so the choice never
+/// depends on what an earlier install wrote.
+// @zen-impl: HAR-14_AC-2
+pub(crate) fn context_reference(
+    integration: &Integration,
+    cx: &Context,
+    layout: &ContextLayout,
+) -> Option<Part> {
+    if cx.scope != Scope::Project {
+        return None;
+    }
+    let rel = cx.relative(&integration.source(Item::Instructions)?.path)?;
+    if rel.contains('/') || layout.default.contains(&rel.as_str()) {
+        return None;
+    }
+    let ops = layout
+        .default
+        .iter()
+        .map(|n| (*n).to_string())
+        .chain([rel])
+        .map(|n| MergeOp::array_entry(["context", "fileName"], n))
+        .collect();
+    Some(Part::merge(Item::Instructions.as_str(), layout.settings, ops).reference())
 }
 
 /// An MCP server with an http server's URL as `httpUrl`.

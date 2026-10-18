@@ -1,0 +1,624 @@
+{
+  "scenes": [
+    {
+      "id": "install",
+      "title": "install",
+      "lines": [
+        {
+          "kind": "note",
+          "text": "# A repository set up for Claude Code"
+        },
+        {
+          "kind": "cmd",
+          "text": "agent-harness-adapter install --migrate --harness claude,codex,opencode"
+        },
+        {
+          "kind": "out",
+          "text": "Claude Code's setup to move into the standard places:"
+        },
+        {
+          "kind": "out",
+          "text": "  instructions: CLAUDE.md -> AGENTS.md"
+        },
+        {
+          "kind": "out",
+          "text": "  skill review: .claude/skills/review -> .agents/skills/review"
+        },
+        {
+          "kind": "out",
+          "text": "  agent reviewer: .claude/agents/reviewer.md -> .agents/agents/reviewer.md"
+        },
+        {
+          "kind": "out",
+          "text": "  1 hook group: .claude/settings.json -> .agents/hooks.json"
+        },
+        {
+          "kind": "out",
+          "text": "  not migrated: .mcp.json (already a standard place)"
+        },
+        {
+          "kind": "out",
+          "text": "wrote .agents/agent-harness-adapter.toml"
+        },
+        {
+          "kind": "out",
+          "text": "migrated Claude Code's setup; edit AGENTS.md and .agents/ from now on"
+        },
+        {
+          "kind": "out",
+          "text": "claude:"
+        },
+        {
+          "kind": "out",
+          "text": "  updated CLAUDE.md (instructions)"
+        },
+        {
+          "kind": "out",
+          "text": "  created .claude/skills (skills)"
+        },
+        {
+          "kind": "out",
+          "text": "  created .claude/settings.json (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .mcp.json (mcp, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  created .claude/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "codex:"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  AGENTS.md (instructions, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .agents/skills (skills, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  created .codex/hooks.json (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  created .codex/config.toml (mcp)"
+        },
+        {
+          "kind": "out",
+          "text": "  created .codex/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "  note: Codex reads the project's .codex files only once you trust the project"
+        },
+        {
+          "kind": "out",
+          "text": "  note: new hooks run only once approved in Codex's /hooks"
+        },
+        {
+          "kind": "out",
+          "text": "  note: restart Codex to load the changes"
+        },
+        {
+          "kind": "out",
+          "text": "opencode:"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  AGENTS.md (instructions, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .agents/skills (skills, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  created .opencode/plugins (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  created opencode.json (mcp)"
+        },
+        {
+          "kind": "out",
+          "text": "  created .opencode/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "  note: restart OpenCode to load the changes"
+        },
+        {
+          "kind": "out",
+          "text": "warning: opencode may load the skills twice: .agents/skills, .claude/skills"
+        }
+      ]
+    },
+    {
+      "id": "hooks",
+      "title": "one hook, three agents",
+      "lines": [
+        {
+          "kind": "note",
+          "text": "# .agents/hooks.json runs scripts/guard.sh before Bash"
+        },
+        {
+          "kind": "note",
+          "text": "# Each agent asks to run `rm -rf build`, in its own words"
+        },
+        {
+          "kind": "note",
+          "text": "# Claude Code: {\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"rm -rf build\"}}"
+        },
+        {
+          "kind": "cmd",
+          "text": "agent-harness-adapter hook --hooks .agents/hooks.json claude pre-tool"
+        },
+        {
+          "kind": "out",
+          "text": "guard: no rm -rf here"
+        },
+        {
+          "kind": "exit",
+          "text": "exit 2"
+        },
+        {
+          "kind": "note",
+          "text": "# Codex: {\"tool_name\":\"shell\",\"tool_input\":{\"command\":[\"bash\",\"-lc\",\"rm -rf build\"]}}"
+        },
+        {
+          "kind": "cmd",
+          "text": "agent-harness-adapter hook --hooks .agents/hooks.json codex pre-tool"
+        },
+        {
+          "kind": "out",
+          "text": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"guard: no rm -rf here\"}}"
+        },
+        {
+          "kind": "exit",
+          "text": "exit 0"
+        },
+        {
+          "kind": "note",
+          "text": "# OpenCode: {\"tool_name\":\"bash\",\"tool_input\":{\"command\":\"rm -rf build\"}}"
+        },
+        {
+          "kind": "cmd",
+          "text": "agent-harness-adapter hook --hooks .agents/hooks.json opencode pre-tool"
+        },
+        {
+          "kind": "out",
+          "text": "{\"answer\":\"deny\",\"reason\":\"guard: no rm -rf here\"}"
+        },
+        {
+          "kind": "exit",
+          "text": "exit 0"
+        }
+      ]
+    },
+    {
+      "id": "status",
+      "title": "status",
+      "lines": [
+        {
+          "kind": "cmd",
+          "text": "agent-harness-adapter status"
+        },
+        {
+          "kind": "out",
+          "text": "claude:"
+        },
+        {
+          "kind": "out",
+          "text": "  current CLAUDE.md (instructions)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .claude/skills (skills)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .claude/settings.json (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .mcp.json (mcp, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .claude/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "codex:"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  AGENTS.md (instructions, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .agents/skills (skills, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .codex/hooks.json (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .codex/config.toml (mcp)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .codex/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "opencode:"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  AGENTS.md (instructions, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .agents/skills (skills, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .opencode/plugins (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  current opencode.json (mcp)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .opencode/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "warning: opencode may load the skills twice: .agents/skills, .claude/skills"
+        },
+        {
+          "kind": "exit",
+          "text": "exit 0"
+        },
+        {
+          "kind": "note",
+          "text": "# Someone edits Codex's hooks by hand"
+        },
+        {
+          "kind": "cmd",
+          "text": "agent-harness-adapter install"
+        },
+        {
+          "kind": "out",
+          "text": "updating claude, codex, opencode"
+        },
+        {
+          "kind": "out",
+          "text": "claude:"
+        },
+        {
+          "kind": "out",
+          "text": "  current CLAUDE.md (instructions)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .claude/skills (skills)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .claude/settings.json (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .mcp.json (mcp, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .claude/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "codex:"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  AGENTS.md (instructions, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .agents/skills (skills, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  edited  .codex/hooks.json (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .codex/config.toml (mcp)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .codex/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "opencode:"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  AGENTS.md (instructions, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .agents/skills (skills, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .opencode/plugins (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  current opencode.json (mcp)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .opencode/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "warning: opencode may load the skills twice: .agents/skills, .claude/skills"
+        },
+        {
+          "kind": "out",
+          "text": "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter install --force` overwrites them"
+        },
+        {
+          "kind": "cmd",
+          "text": "agent-harness-adapter status"
+        },
+        {
+          "kind": "out",
+          "text": "claude:"
+        },
+        {
+          "kind": "out",
+          "text": "  current CLAUDE.md (instructions)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .claude/skills (skills)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .claude/settings.json (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .mcp.json (mcp, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .claude/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "codex:"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  AGENTS.md (instructions, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .agents/skills (skills, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  edited  .codex/hooks.json (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .codex/config.toml (mcp)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .codex/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "opencode:"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  AGENTS.md (instructions, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .agents/skills (skills, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .opencode/plugins (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  current opencode.json (mcp)"
+        },
+        {
+          "kind": "out",
+          "text": "  current .opencode/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "warning: opencode may load the skills twice: .agents/skills, .claude/skills"
+        },
+        {
+          "kind": "out",
+          "text": "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter install --force` overwrites them"
+        },
+        {
+          "kind": "exit",
+          "text": "exit 1"
+        }
+      ]
+    },
+    {
+      "id": "uninstall",
+      "title": "uninstall",
+      "lines": [
+        {
+          "kind": "cmd",
+          "text": "agent-harness-adapter uninstall"
+        },
+        {
+          "kind": "out",
+          "text": "claude:"
+        },
+        {
+          "kind": "out",
+          "text": "  removed CLAUDE.md (instructions)"
+        },
+        {
+          "kind": "out",
+          "text": "  removed .claude/skills (skills)"
+        },
+        {
+          "kind": "out",
+          "text": "  removed .claude/settings.json (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .mcp.json (mcp, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  removed .claude/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "codex:"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  AGENTS.md (instructions, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .agents/skills (skills, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  removed .codex/hooks.json (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  removed .codex/config.toml (mcp)"
+        },
+        {
+          "kind": "out",
+          "text": "  removed .codex/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "  note: restart Codex to load the changes"
+        },
+        {
+          "kind": "out",
+          "text": "opencode:"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  AGENTS.md (instructions, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  shared  .agents/skills (skills, in place)"
+        },
+        {
+          "kind": "out",
+          "text": "  removed .opencode/plugins (hooks)"
+        },
+        {
+          "kind": "out",
+          "text": "  removed opencode.json (mcp)"
+        },
+        {
+          "kind": "out",
+          "text": "  removed .opencode/agents (agents)"
+        },
+        {
+          "kind": "out",
+          "text": "  note: restart OpenCode to load the changes"
+        },
+        {
+          "kind": "note",
+          "text": "# It took out only what it wrote: CLAUDE.md held just its @AGENTS.md line"
+        },
+        {
+          "kind": "note",
+          "text": "# Your sources stay"
+        },
+        {
+          "kind": "cmd",
+          "text": "ls -A . .agents"
+        },
+        {
+          "kind": "out",
+          "text": ".:"
+        },
+        {
+          "kind": "out",
+          "text": ".agents"
+        },
+        {
+          "kind": "out",
+          "text": "AGENTS.md"
+        },
+        {
+          "kind": "out",
+          "text": ".git"
+        },
+        {
+          "kind": "out",
+          "text": ".mcp.json"
+        },
+        {
+          "kind": "out",
+          "text": "scripts"
+        },
+        {
+          "kind": "out",
+          "text": ""
+        },
+        {
+          "kind": "out",
+          "text": ".agents:"
+        },
+        {
+          "kind": "out",
+          "text": "agent-harness-adapter.toml"
+        },
+        {
+          "kind": "out",
+          "text": "agents"
+        },
+        {
+          "kind": "out",
+          "text": "hooks.json"
+        },
+        {
+          "kind": "out",
+          "text": "skills"
+        }
+      ]
+    }
+  ]
+}

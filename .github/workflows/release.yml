@@ -1,0 +1,509 @@
+name: Release
+
+# This repository is the public mirror of agent-harness-adapter. The export in
+# the internal repository pushes one commit and one annotated tag for each
+# release, with the release notes in the tag's message, and the tag starts
+# this workflow. It builds the binaries, the Node addons, and the Python
+# wheels from the exported tree, publishes the crates to crates.io and the
+# packages to npm, and to PyPI when PUBLISH_PYPI is true, creates the GitHub
+# release, and deploys the documentation site. The internal repository ran
+# the tests before the export, so this workflow runs none. Its file name,
+# release.yml, is the one that the trusted publishers on crates.io and npm
+# name.
+
+on:
+  push:
+    tags: ["v*"]
+
+# Bypass sccache in CI.
+env:
+  CARGO_BUILD_RUSTC_WRAPPER: ""
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+# Never run two releases at once, and never cancel one in flight: a half-done
+# publish is the worst outcome.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Is the tag coherent? Cheap checks first, so a typo fails in seconds.
+  # ---------------------------------------------------------------------------
+  meta:
+    name: verify tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+      npm_tag: ${{ steps.v.outputs.npm_tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Derive version from tag
+        id: v
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # A semver prerelease has a hyphen after the patch component.
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "npm_tag=next" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Releasing $version"
+
+      - name: Tag matches every version in the tree
+        run: node scripts/release/verify-version.mjs "${{ steps.v.outputs.version }}"
+
+      # The export writes the release notes into the tag's message. A tag
+      # without notes didn't come from the export.
+      - name: The tag carries the release notes
+        run: |
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          if [ "$(git cat-file -t "$GITHUB_REF_NAME")" != tag ]; then
+            echo "::error::$GITHUB_REF_NAME is no annotated tag, so it has no release notes"
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 3. Build each platform binary.
+  # ---------------------------------------------------------------------------
+  build:
+    name: build ${{ matrix.pkg }}
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux ships static musl: no glibc floor, and it runs on Alpine.
+          # zigbuild supplies the C cross-compiler and sysroot.
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, pkg: linux-x64, builder: zigbuild }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-musl, pkg: linux-arm64, builder: zigbuild }
+          - { os: macos-latest, target: x86_64-apple-darwin, pkg: darwin-x64, builder: cargo }
+          - { os: macos-latest, target: aarch64-apple-darwin, pkg: darwin-arm64, builder: cargo }
+          # x64 only: we never ship a binary no CI has executed.
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, pkg: win32-x64, builder: cargo }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the pinned toolchain and cross target
+        run: |
+          rustup toolchain install --profile minimal
+          rustup target add ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-zigbuild
+        if: matrix.builder == 'zigbuild'
+        uses: taiki-e/install-action@v2.85.6
+        with:
+          tool: cargo-zigbuild
+
+      # The zig version comes from .mise.toml, so CI and local builds agree.
+      - name: Read the pinned zig version
+        if: matrix.builder == 'zigbuild'
+        id: zig
+        run: |
+          version="$(grep -oE '^zig = "[^"]+"' .mise.toml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+          if [ -z "$version" ]; then
+            echo "::error::could not read the zig version from .mise.toml"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install zig
+        if: matrix.builder == 'zigbuild'
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ steps.zig.outputs.version }}
+          cache-key: ${{ matrix.target }}
+
+      - name: Build (zigbuild)
+        if: matrix.builder == 'zigbuild'
+        run: cargo zigbuild --release --locked --target ${{ matrix.target }} -p agent-harness-adapter
+
+      - name: Build (cargo)
+        if: matrix.builder == 'cargo'
+        run: cargo build --release --locked --target ${{ matrix.target }} -p agent-harness-adapter
+
+      - name: Stage binary into platform package
+        shell: bash
+        run: |
+          bin="agent-harness-adapter"
+          case "${{ matrix.target }}" in *windows*) bin="agent-harness-adapter.exe" ;; esac
+          install -m 0755 "target/${{ matrix.target }}/release/$bin" \
+            "packages/agent-harness-adapter-${{ matrix.pkg }}/bin/$bin"
+
+      - name: Assert Linux binaries are statically linked
+        if: matrix.builder == 'zigbuild'
+        run: |
+          bin="packages/agent-harness-adapter-${{ matrix.pkg }}/bin/agent-harness-adapter"
+          if readelf -l "$bin" | grep -q "program interpreter"; then
+            echo "::error::$bin is dynamically linked; expected a static musl build"
+            exit 1
+          fi
+
+      # The aarch64 musl binary cannot run on the x64 runner; darwin-x64 runs
+      # on the arm64 runner through Rosetta.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+
+      - name: Smoke-test the release binary
+        if: matrix.pkg != 'linux-arm64'
+        shell: bash
+        run: |
+          bin="packages/agent-harness-adapter-${{ matrix.pkg }}/bin/agent-harness-adapter"
+          case "${{ matrix.target }}" in *windows*) bin="$bin.exe" ;; esac
+          node tests/smoke/release-smoke.mjs "$bin"
+
+      # The launcher selects by the host's platform, so this runs only where
+      # the built package matches the runner.
+      - name: Smoke-test the npm launcher with the packed binary
+        if: matrix.pkg == 'linux-x64' || matrix.pkg == 'darwin-arm64' || matrix.pkg == 'win32-x64'
+        shell: bash
+        run: node tests/smoke/launcher-smoke.mjs
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: agent-harness-adapter-${{ matrix.pkg }}
+          path: packages/agent-harness-adapter-${{ matrix.pkg }}/bin/agent-harness-adapter*
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 3b. Python wheels (abi3: one per platform serves CPython 3.9+) and sdist.
+  # ---------------------------------------------------------------------------
+  python-wheels:
+    name: wheel ${{ matrix.os }} ${{ matrix.target }}
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64 }
+          - { os: ubuntu-latest, target: aarch64 }
+          - { os: macos-latest, target: x86_64 }
+          - { os: macos-latest, target: aarch64 }
+          - { os: windows-latest, target: x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: auto
+          args: --release --locked --out dist --manifest-path crates/bind/agent-harness-adapter-py/Cargo.toml
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-wheel-${{ matrix.os }}-${{ matrix.target }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  python-sdist:
+    name: sdist
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist --manifest-path crates/bind/agent-harness-adapter-py/Cargo.toml
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 3c. Node addons. Linux builds against glibc 2.17 (zigbuild), so one
+  # addon serves every glibc distribution of the last decade.
+  # ---------------------------------------------------------------------------
+  node-addons:
+    name: node addon ${{ matrix.pkg }}
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, glibc: .2.17, pkg: linux-x64-gnu, builder: zigbuild }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, glibc: .2.17, pkg: linux-arm64-gnu, builder: zigbuild }
+          - { os: macos-latest, target: x86_64-apple-darwin, pkg: darwin-x64, builder: cargo }
+          - { os: macos-latest, target: aarch64-apple-darwin, pkg: darwin-arm64, builder: cargo }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, pkg: win32-x64, builder: cargo }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned toolchain and target
+        run: |
+          rustup toolchain install --profile minimal
+          rustup target add ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-zigbuild
+        if: matrix.builder == 'zigbuild'
+        uses: taiki-e/install-action@v2.85.6
+        with:
+          tool: cargo-zigbuild
+      - name: Read the pinned zig version
+        if: matrix.builder == 'zigbuild'
+        id: zig
+        run: echo "version=$(grep -oE '^zig = "[^"]+"' .mise.toml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" >> "$GITHUB_OUTPUT"
+      - name: Install zig
+        if: matrix.builder == 'zigbuild'
+        uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ steps.zig.outputs.version }}
+          cache-key: node-${{ matrix.target }}
+      - name: Build (zigbuild)
+        if: matrix.builder == 'zigbuild'
+        run: |
+          cargo zigbuild --release --locked --target ${{ matrix.target }}${{ matrix.glibc }} -p agent-harness-adapter-node
+          cp target/${{ matrix.target }}/release/libagent_harness_adapter_node.so packages/agent-harness-adapter-node-${{ matrix.pkg }}/index.node
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      - name: Build (cargo)
+        if: matrix.builder == 'cargo'
+        shell: bash
+        run: node scripts/build/build-node.mjs --release --target ${{ matrix.target }} --out packages/agent-harness-adapter-node-${{ matrix.pkg }}/index.node
+      - uses: actions/upload-artifact@v7
+        with:
+          name: node-addon-${{ matrix.pkg }}
+          path: packages/agent-harness-adapter-node-${{ matrix.pkg }}/index.node
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 4. Publish. Nothing here runs until the tag, the gate and the builds agree.
+  # ---------------------------------------------------------------------------
+  publish:
+    name: publish
+    needs: [meta, build, python-wheels, python-sdist, node-addons]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The OpenID Connect token authenticates trusted publishing on crates.io
+      # and npm, and signs the npm provenance.
+      id-token: write
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      NPM_TAG: ${{ needs.meta.outputs.npm_tag }}
+      # A crates.io token is a fallback for a crate whose trusted publisher
+      # isn't set up yet; without the secret, the job uses trusted publishing.
+      HAS_CARGO_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          registry-url: https://registry.npmjs.org
+
+      # npm publishes through its trusted publisher (OIDC): each package names
+      # this repository and workflow on npmjs.com; no token is stored. That
+      # needs npm 11.5.1 or later.
+      - name: Check npm supports trusted publishing
+        run: |
+          npm --version
+          node -e 'const [a,b,c]=process.argv[1].split(".").map(Number); process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)' "$(npm --version)" \
+            || npm install -g npm@^11.5.1
+
+      - name: Install the pinned toolchain
+        run: rustup toolchain install --profile minimal
+
+      - name: Download platform binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: agent-harness-adapter-*
+          path: artifacts
+
+      - name: Place binaries into platform packages
+        run: |
+          for pkg in linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
+            install -m 0755 "artifacts/agent-harness-adapter-$pkg/agent-harness-adapter" "packages/agent-harness-adapter-$pkg/bin/agent-harness-adapter"
+          done
+          install -m 0755 "artifacts/agent-harness-adapter-win32-x64/agent-harness-adapter.exe" "packages/agent-harness-adapter-win32-x64/bin/agent-harness-adapter.exe"
+
+      - name: Download the Node addons
+        uses: actions/download-artifact@v8
+        with:
+          pattern: node-addon-*
+          path: addons
+
+      - name: Place the addons into their platform packages
+        run: |
+          for pkg in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64; do
+            cp "addons/node-addon-$pkg/index.node" "packages/agent-harness-adapter-node-$pkg/index.node"
+          done
+
+      - name: Smoke-test the built binary
+        run: |
+          actual="$(./packages/agent-harness-adapter-linux-x64/bin/agent-harness-adapter --version)"
+          if [ "$actual" != "agent-harness-adapter $VERSION" ]; then
+            echo "::error::binary reports '$actual', expected 'agent-harness-adapter $VERSION'"
+            exit 1
+          fi
+
+      - name: Dry-run every publish before doing any of them
+        run: |
+          cargo publish --workspace --locked --dry-run
+          for pkg in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
+            npm publish "./packages/agent-harness-adapter-$pkg" --dry-run --tag "$NPM_TAG"
+          done
+          npm publish ./packages/agent-harness-adapter --dry-run --tag "$NPM_TAG"
+          for pkg in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64; do
+            npm publish "./packages/agent-harness-adapter-node-$pkg" --dry-run --tag "$NPM_TAG"
+          done
+          npm publish ./packages/agent-harness-adapter-node --dry-run --tag "$NPM_TAG"
+
+      - name: Authenticate to crates.io with trusted publishing
+        if: env.HAS_CARGO_TOKEN != 'true'
+        id: crates-auth
+        uses: rust-lang/crates-io-auth-action@v1
+
+      # The core goes before the CLI that depends on it, and cargo waits until
+      # it is in the index. A crate or a package whose version is already on
+      # its registry is skipped, so a run again after a half-failed release
+      # publishes only what is missing.
+      - name: Publish the crates to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN || steps.crates-auth.outputs.token }}
+        run: |
+          for crate in agent-harness-adapter-core agent-harness-adapter; do
+            status="$(curl -s -o /dev/null -w '%{http_code}' -A 'agent-harness-adapter-publish (github.com/six5536/agent-harness-adapter)' \
+              "https://crates.io/api/v1/crates/$crate/$VERSION")"
+            if [ "$status" = 200 ]; then
+              echo "$crate $VERSION is already published"
+              continue
+            fi
+            cargo publish --locked -p "$crate"
+          done
+
+      # The platform packages go before the launcher, and the addon packages
+      # before the binding, because each names the others as
+      # optionalDependencies, and publishing it first would briefly point
+      # users at versions that do not exist yet.
+      - name: Publish the packages to npm
+        run: |
+          publish() {
+            name="$(node -p "require('./$1/package.json').name")"
+            if npm view "$name@$VERSION" version >/dev/null 2>&1; then
+              echo "$name@$VERSION is already published"
+            else
+              npm publish "./$1" --provenance --tag "$NPM_TAG"
+            fi
+          }
+          for pkg in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
+            publish "packages/agent-harness-adapter-$pkg"
+          done
+          publish packages/agent-harness-adapter
+          for pkg in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64; do
+            publish "packages/agent-harness-adapter-node-$pkg"
+          done
+          publish packages/agent-harness-adapter-node
+
+  # PyPI by trusted publishing: the project's publisher names this workflow
+  # and the `pypi` environment; no token is stored. Off until the repository
+  # variable PUBLISH_PYPI is `true` (the publisher awaits PyPI's approval).
+  # The wheels stay a workflow artefact of the run.
+  publish-pypi:
+    name: publish to PyPI
+    needs: [meta, publish]
+    if: vars.PUBLISH_PYPI == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: python-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # ---------------------------------------------------------------------------
+  # 5. GitHub Release: archives, checksums, notes.
+  # ---------------------------------------------------------------------------
+  github-release:
+    name: github release
+    needs: [meta, publish, publish-pypi]
+    # PyPI may be skipped (PUBLISH_PYPI), never failed.
+    if: ${{ !cancelled() && needs.publish.result == 'success' && contains(fromJSON('["success","skipped"]'), needs.publish-pypi.result) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download platform binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: agent-harness-adapter-*
+          path: artifacts
+
+      - name: Build archives and checksums
+        run: |
+          mkdir -p dist/out
+          for pkg in linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
+            stage="dist/stage/agent-harness-adapter-$VERSION-$pkg"
+            mkdir -p "$stage"
+            install -m 0755 "artifacts/agent-harness-adapter-$pkg/agent-harness-adapter" "$stage/agent-harness-adapter"
+            cp README.md LICENSE CHANGELOG.md "$stage/"
+            tar -czf "dist/out/agent-harness-adapter-$VERSION-$pkg.tar.gz" -C dist/stage "agent-harness-adapter-$VERSION-$pkg"
+          done
+          stage="dist/stage/agent-harness-adapter-$VERSION-win32-x64"
+          mkdir -p "$stage"
+          install -m 0755 "artifacts/agent-harness-adapter-win32-x64/agent-harness-adapter.exe" "$stage/agent-harness-adapter.exe"
+          cp README.md LICENSE CHANGELOG.md "$stage/"
+          (cd dist/stage && zip -qr "../out/agent-harness-adapter-$VERSION-win32-x64.zip" "agent-harness-adapter-$VERSION-win32-x64")
+          cd dist/out && sha256sum ./*.tar.gz ./*.zip > SHA256SUMS && cat SHA256SUMS
+
+      # The notes are the body of the tag's message, which the export wrote.
+      - name: Read the release notes from the tag
+        run: |
+          git fetch --force origin "refs/tags/v${VERSION}:refs/tags/v${VERSION}"
+          git for-each-ref "refs/tags/v${VERSION}" --format='%(contents:body)' > dist/notes.md
+          if [ ! -s dist/notes.md ]; then
+            echo "::error::the tag v${VERSION} carries no release notes"
+            exit 1
+          fi
+          cat dist/notes.md
+
+      - name: Create the release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: v${{ env.VERSION }}
+          body_path: dist/notes.md
+          prerelease: ${{ needs.meta.outputs.prerelease == 'true' }}
+          files: |
+            dist/out/*.tar.gz
+            dist/out/*.zip
+            dist/out/SHA256SUMS
+
+  # ---------------------------------------------------------------------------
+  # 6. The documentation site, built from this tag. A prerelease leaves the
+  #    site at the last release.
+  # ---------------------------------------------------------------------------
+  docs:
+    name: docs
+    needs: [meta, github-release]
+    if: ${{ !cancelled() && needs.github-release.result == 'success' && needs.meta.outputs.prerelease != 'true' }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/docs.yml
+    with:
+      ref: ${{ github.ref_name }}

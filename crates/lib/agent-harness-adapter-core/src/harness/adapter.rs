@@ -10,7 +10,7 @@ use std::{
 use crate::{
     Result,
     harness::{Part, PartResult, Scope},
-    hook::{Answer, Event, HookInput, Output},
+    hook::{Answer, Event, HookInput, Output, ToolCall, claude_names},
     integration::{Integration, Item},
 };
 
@@ -59,6 +59,19 @@ pub trait Harness: Debug + Send + Sync {
         let _ = (cx, parts);
         Vec::new()
     }
+
+    /// The program that runs the harness, e.g. `claude`, looked for on
+    /// `PATH` to tell whether the user has it; `None` when it has none.
+    // @zen-impl: KIT-18_AC-1
+    fn program(&self) -> Option<&str> {
+        None
+    }
+
+    /// `call`, one of its tool calls, as Claude Code would name it and give
+    /// its input (KIT-11_AC-9). By default, named by its kind.
+    fn claude_tool(&self, call: &ToolCall) -> ToolCall {
+        claude_names::by_kind(call)
+    }
 }
 
 /// What a harness renders for and reads at: the tool, the scope and its
@@ -95,6 +108,26 @@ impl Context {
     /// `rel` (relative to the root, `/`-separated) as a path.
     pub fn path(&self, rel: &str) -> PathBuf {
         self.root.join(rel)
+    }
+
+    /// `path` relative to the root, `/`-separated, when it is under it (and
+    /// not the root itself).
+    pub fn relative(&self, path: &Path) -> Option<String> {
+        let abs = |p: &Path| std::path::absolute(p).unwrap_or_else(|_| p.to_path_buf());
+        let (path, root) = (abs(path), abs(&self.root));
+        let rel = path
+            .strip_prefix(&root)
+            .ok()
+            .map(Path::to_path_buf)
+            .or_else(|| {
+                let (p, r) = (path.canonicalize().ok()?, root.canonicalize().ok()?);
+                p.strip_prefix(r).ok().map(Path::to_path_buf)
+            })?;
+        let parts: Vec<String> = rel
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy().into_owned())
+            .collect();
+        (!parts.is_empty()).then(|| parts.join("/"))
     }
 
     /// Whether `rel` is a file under the root.

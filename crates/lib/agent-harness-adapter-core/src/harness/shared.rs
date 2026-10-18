@@ -30,6 +30,8 @@ pub(crate) enum Role {
     Write,
     /// Its content is in `location`, which `by` writes.
     Shared { location: String, by: String },
+    /// It loads the item's SOURCE, `location`, where it is: nothing to write.
+    InPlace { location: String },
 }
 
 /// The choice for one item: a role per candidate (in input order) and the
@@ -46,13 +48,96 @@ pub(crate) struct Choice {
 const MAX_SEARCH: usize = 16;
 
 /// Choose the locations for `item` among `candidates`, given in the tool's
-/// harness order. See DESIGN-KIT KIT-Shared.
+/// harness order, when the item was read from `source` (its root-relative
+/// location): the SOURCE is chosen already and written by nobody, a
+/// REFERENCE part is always written, and the rest are covered as without
+/// one. See DESIGN-KIT-sources KIT-SharedSources.
+// @zen-impl: KIT-19_AC-8
+// @zen-impl: KIT-23_AC-1
+pub(crate) fn choose(
+    item: &str,
+    candidates: &[Candidate<'_>],
+    source: Option<&str>,
+) -> Result<Choice> {
+    let Some(src) = source else {
+        return cover(item, candidates);
+    };
+    let mut roles: Vec<Option<Role>> = vec![None; candidates.len()];
+    let mut rest = Vec::new();
+    for (i, c) in candidates.iter().enumerate() {
+        if c.part.is_reference() {
+            // A REFERENCE or a copy is a file the core writes: never a link.
+            // @zen-impl: KIT-23_AC-3
+            roles[i] = Some(Role::Write);
+        } else if c.reads.loads(src) || c.part.location() == src {
+            // @zen-impl: HAR-14_AC-4
+            // @zen-impl: KIT-24_AC-3
+            roles[i] = Some(Role::InPlace {
+                location: src.to_string(),
+            });
+        } else {
+            rest.push(i);
+        }
+    }
+    let others: Vec<Candidate<'_>> = rest.iter().map(|&i| candidates[i].clone()).collect();
+    let sub = cover(item, &others)?;
+    let mut warnings = sub.warnings;
+    for (k, role) in sub.roles.into_iter().enumerate() {
+        roles[rest[k]] = Some(role);
+    }
+    let written: BTreeSet<String> = others
+        .iter()
+        .zip(&roles_of(&rest, &roles))
+        .filter(|(_, r)| matches!(r, Role::Write))
+        .map(|(c, _)| c.part.location())
+        .collect();
+    // A harness IN PLACE that may also load a written copy, or one covered
+    // elsewhere that may also load the SOURCE, loads the item twice.
+    for (i, c) in candidates.iter().enumerate() {
+        if !c.named || c.part.is_reference() {
+            continue;
+        }
+        let twice: Vec<String> = match &roles[i] {
+            Some(Role::InPlace { .. }) => written
+                .iter()
+                .filter(|l| c.reads.may_load(l))
+                .cloned()
+                .collect(),
+            Some(Role::Shared { location, .. }) if c.reads.may_load(src) => vec![location.clone()],
+            Some(Role::Write) if c.reads.may_load(src) => vec![c.part.location()],
+            _ => Vec::new(),
+        };
+        if !twice.is_empty() {
+            warnings.push(format!(
+                "{} may load the {item} twice: {src}, {}",
+                c.harness,
+                twice.join(", ")
+            ));
+        }
+    }
+    Ok(Choice {
+        roles: roles
+            .into_iter()
+            .map(|r| r.expect("every candidate has a role"))
+            .collect(),
+        warnings,
+    })
+}
+
+/// The roles of the candidates at `idx`.
+fn roles_of(idx: &[usize], roles: &[Option<Role>]) -> Vec<Role> {
+    idx.iter()
+        .map(|&i| roles[i].clone().expect("covered"))
+        .collect()
+}
+
+/// The set cover of DESIGN-KIT KIT-Shared.
 // @zen-impl: KIT-19_AC-2
 // @zen-impl: KIT-19_AC-3
 // @zen-impl: KIT-19_AC-4
 // @zen-impl: KIT-19_AC-5
 // @zen-impl: KIT-19_AC-7
-pub(crate) fn choose(item: &str, candidates: &[Candidate<'_>]) -> Result<Choice> {
+fn cover(item: &str, candidates: &[Candidate<'_>]) -> Result<Choice> {
     // Distinct locations in first-seen order; equal locations, equal parts.
     let mut locations: Vec<String> = Vec::new();
     for (i, c) in candidates.iter().enumerate() {
@@ -178,6 +263,7 @@ mod tests {
         let c = choose(
             "instructions",
             &[cand("codex", &agents, &r), cand("pi", &agents, &r)],
+            None,
         )
         .unwrap();
         assert_eq!(
@@ -207,6 +293,7 @@ mod tests {
                 cand("claude", &claude_md, &claude),
                 cand("copilot", &agents, &copilot),
             ],
+            None,
         )
         .unwrap();
         assert_eq!(c.roles[0], Role::Write);
@@ -226,6 +313,7 @@ mod tests {
                 cand("codex", &agents, &codex),
                 cand("copilot", &agents, &copilot),
             ],
+            None,
         )
         .unwrap();
         assert_eq!(c.roles[..2], [Role::Write, Role::Write]);
@@ -251,6 +339,7 @@ mod tests {
         let c = choose(
             "hooks",
             &[cand("claude", &claude, &rc), cand("cursor", &cursor, &ru)],
+            None,
         )
         .unwrap();
         assert_eq!(c.roles, [Role::Write, Role::Write]);
@@ -266,7 +355,12 @@ mod tests {
         let a = Part::region("instructions", "AGENTS.md", "a\n");
         let b = Part::region("instructions", "AGENTS.md", "b\n");
         let r = Reads::always(["AGENTS.md"]);
-        let e = choose("instructions", &[cand("codex", &a, &r), cand("pi", &b, &r)]).unwrap_err();
+        let e = choose(
+            "instructions",
+            &[cand("codex", &a, &r), cand("pi", &b, &r)],
+            None,
+        )
+        .unwrap_err();
         assert!(matches!(e, Error::Internal(_)), "{e}");
     }
 
@@ -278,7 +372,7 @@ mod tests {
         let ru = Reads::always([".cursor/hooks.json"]).maybe([".claude/settings.json"]);
         let mut unnamed = cand("cursor", &cursor, &ru);
         unnamed.named = false;
-        let c = choose("hooks", &[cand("claude", &claude, &rc), unnamed]).unwrap();
+        let c = choose("hooks", &[cand("claude", &claude, &rc), unnamed], None).unwrap();
         assert!(c.warnings.is_empty());
     }
 
@@ -289,7 +383,7 @@ mod tests {
         let r = Reads::always(["AGENTS.md"]);
         let mut first = cand("codex", &agents, &r);
         first.named = false;
-        let c = choose("instructions", &[first, cand("pi", &agents, &r)]).unwrap();
+        let c = choose("instructions", &[first, cand("pi", &agents, &r)], None).unwrap();
         assert_eq!(
             c.roles,
             [
@@ -314,7 +408,7 @@ mod tests {
         let cands: Vec<Candidate<'_>> = (0..=MAX_SEARCH)
             .map(|i| cand(&names[i], &parts[i], &reads[i]))
             .collect();
-        let c = choose("instructions", &cands).unwrap();
+        let c = choose("instructions", &cands, None).unwrap();
         assert!(c.roles.iter().all(|r| *r == Role::Write));
     }
 
@@ -351,10 +445,10 @@ mod tests {
                 })
                 .collect();
             let cands: Vec<Candidate<'_>> = (0..world.len()).map(|i| cand(&names[i], &parts[i], &reads[i])).collect();
-            let c = choose("instructions", &cands).unwrap();
+            let c = choose("instructions", &cands, None).unwrap();
             let chosen: BTreeSet<String> = c.roles.iter().zip(&cands).map(|(r, cd)| match r {
                 Role::Write => cd.part.location(),
-                Role::Shared { location, .. } => location.clone(),
+                Role::Shared { location, .. } | Role::InPlace { location } => location.clone(),
             }).collect();
             // Every harness is covered, and each chosen location has one writer.
             for (r, cd) in c.roles.iter().zip(&cands) {

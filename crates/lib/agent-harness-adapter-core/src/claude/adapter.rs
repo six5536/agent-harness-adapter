@@ -16,7 +16,7 @@ use crate::{
         protocol,
     },
     harness::{Context, Harness, MergeOp, Part, Reads, Scope},
-    hook::{Answer, Event, HookInput, Output, ToolKind},
+    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind},
     integration::{Integration, Item},
 };
 
@@ -47,6 +47,22 @@ pub fn instructions_file(root: &Path) -> Result<&'static str> {
     })
 }
 
+/// The REFERENCE to the instructions' SOURCE (HAR-14_AC-1): the file
+/// Claude Code reads (`CLAUDE.md`, `.claude/CLAUDE.md` at user scope) and
+/// its import line, `@<path>` (`@~/<path>` at user scope); `None` when the
+/// SOURCE is that file or outside the root.
+// @zen-impl: HAR-14_AC-1
+fn reference(integration: &Integration, cx: &Context) -> Option<(&'static str, String)> {
+    let rel = cx.relative(&integration.source(Item::Instructions)?.path)?;
+    match cx.scope {
+        Scope::Project if rel != "CLAUDE.md" => Some(("CLAUDE.md", format!("@{rel}"))),
+        Scope::User if rel != ".claude/CLAUDE.md" => {
+            Some((".claude/CLAUDE.md", format!("@~/{rel}")))
+        }
+        _ => None,
+    }
+}
+
 /// Claude Code's name for `event`.
 // @zen-impl: HAR-1_AC-3
 fn event_name(event: Event) -> Option<&'static str> {
@@ -61,7 +77,8 @@ fn event_name(event: Event) -> Option<&'static str> {
     })
 }
 
-fn matcher(kind: ToolKind) -> Option<&'static str> {
+/// Claude Code's matcher for a tool kind.
+pub(crate) fn matcher(kind: ToolKind) -> Option<&'static str> {
     match kind {
         ToolKind::Shell => Some("Bash"),
         ToolKind::Read => Some("Read|Grep|Glob|LS"),
@@ -123,6 +140,16 @@ impl Harness for Claude {
         ID
     }
 
+    // @zen-impl: HAR-15_AC-1
+    fn program(&self) -> Option<&str> {
+        Some("claude")
+    }
+
+    /// Claude Code's own calls are already in its terms.
+    fn claude_tool(&self, call: &ToolCall) -> ToolCall {
+        call.clone()
+    }
+
     // @zen-impl: HAR-1_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User, Scope::Local]
@@ -138,9 +165,17 @@ impl Harness for Claude {
                 continue;
             };
             out.push(match item {
-                Item::Instructions => {
-                    parts::instructions(&at, integration.instructions_block().unwrap_or_default())
-                }
+                Item::Instructions => match reference(integration, cx) {
+                    Some((file, line)) => {
+                        parts::instructions(file, &format!("{line}\n")).reference()
+                    }
+                    // A copy where there is no reference to make.
+                    // @zen-impl: HAR-14_AC-3
+                    None => parts::instructions(
+                        &at,
+                        integration.instructions_block().unwrap_or_default(),
+                    ),
+                },
                 Item::Skills => parts::skills(&at, integration),
                 Item::Hooks => {
                     Part::merge(item.as_str(), at, parts::group_hooks(&LAYOUT, integration)?)

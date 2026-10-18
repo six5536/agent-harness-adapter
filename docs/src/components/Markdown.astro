@@ -1,0 +1,17 @@
+---
+// A Markdown file from elsewhere in the repository (the changelog, an
+// example's README), rendered at build time, so the page never needs copying.
+import { createMarkdownProcessor } from "@astrojs/markdown-remark";
+
+interface Props {
+  text: string;
+  /** Leave out the file's `# Title`: the page has its own. */
+  dropTitle?: boolean;
+}
+
+const { text, dropTitle = false } = Astro.props;
+const processor = await createMarkdownProcessor();
+const { code } = await processor.render(dropTitle ? text.replace(/^# .*\n+/, "") : text);
+---
+
+<Fragment set:html={code} />

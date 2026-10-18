@@ -1,6 +1,6 @@
 [package]
 name = "agent-harness-adapter-core"
-description = "Plug a CLI into LLM agent harnesses (Claude Code, Codex, Gemini CLI, Copilot, Cursor, Factory, Pi, AGENTS.md): declare the integration once, install it everywhere with shared files written once, and speak every harness's hook protocol."
+description = "One agent setup, every coding agent: install instructions, skills and hooks, declared once or read from AGENTS.md and .agents/, into Claude Code, Codex, Gemini CLI, Copilot, Cursor, OpenCode and more; hooks speak Claude Code's protocol everywhere."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -12,7 +12,7 @@ readme = "README.md"
 documentation = "https://docs.rs/agent-harness-adapter-core"
 keywords = ["llm", "agent", "claude-code", "hooks", "cli"]
 categories = ["command-line-utilities", "development-tools"]
-include = ["/src", "/README.md", "/LICENSE", "/CHANGELOG.md"]
+include = ["/src", "/README.md", "/LICENSE"]
 
 [dependencies]
 serde.workspace = true

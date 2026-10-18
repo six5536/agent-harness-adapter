@@ -1,0 +1,63 @@
+---
+title: Scopes, sharing and edits
+description: Project, user and local scope; content shared between agents; hand edits; uninstall.
+---
+
+## Scopes
+
+Every command takes `--scope`:
+
+| Scope | Your sources | Each agent's files | Config |
+| --- | --- | --- | --- |
+| `project` (default) | `AGENTS.md`, `.agents/` and `.mcp.json` in the repository | in the repository | `.agents/agent-harness-adapter.toml` |
+| `user` | `~/.agents/AGENTS.md`, `~/.agents/skills`, `~/.agents/hooks.json`, `~/.agents/mcp.json`, `~/.agents/agents` | under your home directory (`~/.claude`, `~/.codex`, `~/.config/opencode`, …) | `~/.agents/agent-harness-adapter.toml` |
+| `local` | as `project` | each agent's git-ignored settings file; only Claude Code and Copilot have one, and naming another agent is refused | as `project` |
+
+```sh
+agent-harness-adapter install --scope user --harness claude,codex
+```
+
+The project config is found from the working directory upwards, to the
+repository's root (outside git, to the first `.agents`), never at or above
+your home directory.
+
+## Shared content
+
+When several agents read one location (`AGENTS.md`, `.agents/skills`,
+`.mcp.json`, `opencode.json` for Kilo Code), it is written once and the others
+report it `shared … (…, by <agent>)`; a source an agent reads where it is
+shows as `shared … (…, in place)` (see [How it works](/agent-harness-adapter/how-it-works/)). When an agent could load something twice, the
+install warns.
+
+## States
+
+`install` and `status` report each part's state:
+
+| State | Means |
+| --- | --- |
+| `current` | as the install would write it |
+| `stale` | out of date: `install` rewrites it |
+| `absent` | not there yet |
+| `edited` | changed by hand: left alone unless `--force` |
+| `shared` | another agent's copy, or the source itself, serves it |
+| `skipped` | declined with `--without` |
+
+`status` exits 1 when any part is not `current`, `shared` or `skipped`: a
+copy out of date, a part missing, or a file edited by hand. CI can use it to
+check that every agent's copy is current.
+
+## Edits and uninstall
+
+- The adapter writes only its own region of an instructions file, its own
+  entries in a settings file, and its own files; your text, settings and
+  hooks beside them stay.
+- A part changed by hand is `edited`. `install --force` overwrites it;
+  `uninstall --force` removes it.
+- `uninstall` takes out what it wrote, then removes files and folders left
+  empty. Content another installed agent still reads stays
+  (`kept … used by <agent>`). `AGENTS.md`, `.agents/` and the config are
+  never removed.
+- A refused install writes nothing, and every write is atomic and only made
+  when the content changes.
+- `--without hooks,mcp` leaves parts out. The choice is remembered, per agent,
+  in `.agents/config.toml`; giving `--without` again replaces it.

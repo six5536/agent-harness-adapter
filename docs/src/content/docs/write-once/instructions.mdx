@@ -1,0 +1,68 @@
+---
+title: Instructions
+description: Write the agent's instructions once, in AGENTS.md; every agent reads them.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+**What it is.** The text an agent reads at the start of every session: how to
+build, test and work in your repository.
+
+**Where it goes.** `AGENTS.md` at the repository's root (`~/.agents/AGENTS.md`
+for your own, at [user scope](/agent-harness-adapter/write-once/scopes/)).
+
+## What each agent gets
+
+| Agent | Gets |
+| --- | --- |
+| Codex, Factory Droid, Copilot, Cursor, Devin, any `AGENTS.md` agent | nothing written: it reads `AGENTS.md` where it is (`shared … in place`) |
+| Pi, OpenCode, Kilo Code, Qwen Code | the same, when `AGENTS.md` is the file they choose; else a copy in the file they read |
+| Claude Code | `@AGENTS.md` in `CLAUDE.md`, so it always loads it |
+| Gemini CLI | `AGENTS.md` added to `context.fileName` in `.gemini/settings.json` |
+
+Because Claude Code and Gemini CLI are pointed at the file, an edit to
+`AGENTS.md` reaches every agent at once, without installing again.
+
+## As a tool
+
+A tool's instructions are text placed between its own markers in each
+agent's instructions file, so they sit beside the user's text without
+touching it:
+
+```md
+<!-- mytool:harness -->
+Run `mytool check` before you finish.
+<!-- /mytool:harness -->
+```
+
+<Tabs syncKey="lang">
+  <TabItem label="Command">
+    ```toml
+    instructions = "Run `mytool check` before you finish.\n"
+    # or a file, copied:      instructions = { file = "agent/instructions.md" }
+    # or a source, read where it is: instructions = { from = "AGENTS.md" }
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    Integration::new().instructions("Run `mytool check` before you finish.\n")
+    // or Integration::new().instructions_from("AGENTS.md")
+    ```
+  </TabItem>
+  <TabItem label="Node">
+    ```js
+    { instructions: "Run `mytool check` before you finish.\n" }
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    {"instructions": "Run `mytool check` before you finish.\n"}
+    ```
+  </TabItem>
+</Tabs>
+
+## Limits
+
+- Cursor has no instructions file at user scope (its user rules are not files).
+- An agent that loads `AGENTS.md` and `CLAUDE.md` both (Copilot, Devin) reads
+  text in both; the install warns when it could read something twice.

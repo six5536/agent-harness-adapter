@@ -25,8 +25,50 @@ pub(crate) struct VersionOnly {
 pub(crate) enum Text {
     /// The text itself.
     Inline(String),
-    /// A file's contents.
+    /// A file's contents, copied.
     File(FileRef),
+    /// A SOURCE the item is read from (instructions only).
+    From(FromRef),
+}
+
+/// `{ from = "<path>" }`: an item's SOURCE, relative to the manifest's
+/// directory (AHA-1_AC-11).
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct FromRef {
+    /// The path, relative to the manifest's directory.
+    pub from: String,
+}
+
+/// A list of items, or `{ from = "<path>" }`, their SOURCE.
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(untagged))]
+#[derive(Debug, Clone)]
+pub(crate) enum Many<T> {
+    /// The items.
+    List(Vec<T>),
+    /// Read from a SOURCE.
+    From(FromRef),
+}
+
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for Many<T> {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct V<T>(PhantomData<T>);
+        impl<'de, T: Deserialize<'de>> Visitor<'de> for V<T> {
+            type Value = Many<T>;
+            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str("a list or { from = \"<path>\" }")
+            }
+            fn visit_seq<A: de::SeqAccess<'de>>(self, seq: A) -> Result<Many<T>, A::Error> {
+                Vec::deserialize(de::value::SeqAccessDeserializer::new(seq)).map(Many::List)
+            }
+            fn visit_map<A: MapAccess<'de>>(self, map: A) -> Result<Many<T>, A::Error> {
+                FromRef::deserialize(de::value::MapAccessDeserializer::new(map)).map(Many::From)
+            }
+        }
+        d.deserialize_any(V(PhantomData))
+    }
 }
 
 /// `{ file = "<path>" }`: a file relative to the manifest's directory.
@@ -44,13 +86,24 @@ impl<'de> Deserialize<'de> for Text {
         impl<'de> Visitor<'de> for V {
             type Value = Text;
             fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str("a string or { file = \"<path>\" }")
+                f.write_str("a string, { file = \"<path>\" } or { from = \"<path>\" }")
             }
             fn visit_str<E: de::Error>(self, s: &str) -> Result<Text, E> {
                 Ok(Text::Inline(s.to_string()))
             }
-            fn visit_map<A: MapAccess<'de>>(self, map: A) -> Result<Text, A::Error> {
-                FileRef::deserialize(de::value::MapAccessDeserializer::new(map)).map(Text::File)
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Text, A::Error> {
+                let key: String = map
+                    .next_key()?
+                    .ok_or_else(|| de::Error::custom("expected `file` or `from`"))?;
+                let path: String = map.next_value()?;
+                if let Some(other) = map.next_key::<String>()? {
+                    return Err(de::Error::custom(format!("unknown field `{other}`")));
+                }
+                match key.as_str() {
+                    "file" => Ok(Text::File(FileRef { file: path })),
+                    "from" => Ok(Text::From(FromRef { from: path })),
+                    k => Err(de::Error::unknown_field(k, &["file", "from"])),
+                }
             }
         }
         d.deserialize_any(V)
@@ -403,18 +456,18 @@ with_items! {
     instructions: Text,
     /// Which hook entries are the tool's, for hooks without `owned`.
     hook_match: Match,
-    /// Agent skills.
-    skills: Vec<SkillFile>,
-    /// Hooks.
-    hooks: Vec<HookFile>,
-    /// MCP servers.
-    mcp_servers: Vec<McpFile>,
+    /// Agent skills, or `{ from = "<dir>" }`.
+    skills: Many<SkillFile>,
+    /// Hooks, or `{ from = "<hooks file>" }`.
+    hooks: Many<HookFile>,
+    /// MCP servers, or `{ from = "<MCP JSON file>" }`.
+    mcp_servers: Many<McpFile>,
     /// Command prefixes the agent may run without asking.
     allow_commands: Vec<String>,
     /// MCP tools the agent may call without asking.
     allow_mcp_tools: Vec<McpToolFile>,
-    /// Subagents.
-    agents: Vec<PromptFile>,
+    /// Subagents, or `{ from = "<dir>" }`.
+    agents: Many<PromptFile>,
     /// Slash commands.
     commands: Vec<PromptFile>,
     /// Raw parts for one harness.

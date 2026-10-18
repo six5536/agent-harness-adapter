@@ -1,0 +1,71 @@
+---
+title: Skills
+description: Write skills once, in .agents/skills; every agent loads them.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+**What it is.** A folder with a `SKILL.md` (frontmatter `name` and
+`description`, then the instructions) and any files it uses. The agent reads
+the description, and the rest only when the skill is needed.
+
+**Where it goes.** `.agents/skills/<name>/SKILL.md` (`~/.agents/skills` at
+user scope).
+
+```md title=".agents/skills/review/SKILL.md"
+---
+name: review
+description: Review the change before you stop.
+---
+Read the diff and list problems.
+```
+
+## What each agent gets
+
+| Agent | Gets |
+| --- | --- |
+| Every agent but Claude Code | nothing written: it loads `.agents/skills` where it is |
+| Claude Code | a copy of each skill in `.claude/skills` |
+
+Run `agent-harness-adapter install` after you add or change a skill, so
+Claude Code's copy follows; `status` exits 1 while it is out of date.
+
+## As a tool
+
+<Tabs syncKey="lang">
+  <TabItem label="Command">
+    ```toml
+    [[skills]]
+    name = "mytool"
+    description = "Check the project with mytool."
+    body = "Run `mytool check`; fix what it reports.\n"
+
+    [[skills]]
+    dir = "agent/skills/review"     # an existing skill folder, as it is
+
+    # or every skill folder in a directory: skills = { from = ".agents/skills" }
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    Integration::new()
+        .skill(Skill::new("mytool", "Check the project with mytool.", "Run `mytool check`.\n"))
+    ```
+  </TabItem>
+  <TabItem label="Node">
+    ```js
+    { skills: [{ name: "mytool", description: "Check the project with mytool.", body: "Run `mytool check`.\n" }] }
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    {"skills": [{"name": "mytool", "description": "Check the project with mytool.", "body": "Run `mytool check`.\n"}]}
+    ```
+  </TabItem>
+</Tabs>
+
+## Limits
+
+- Copilot, Cursor, OpenCode, Kilo Code and Devin also load `.claude/skills`, so
+  with Claude Code installed they can see a skill twice. The install warns
+  (`may load the skills twice`); the copies are identical.

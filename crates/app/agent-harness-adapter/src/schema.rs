@@ -1,6 +1,10 @@
 //! `agent-harness-adapter schema`: the JSON Schema of each contract.
 
-use agent_harness_adapter_core::{InstallResult, cli, hook::wire, manifest::Manifest};
+use agent_harness_adapter_core::{
+    InstallResult, cli,
+    hook::{file, wire},
+    manifest::Manifest,
+};
 use clap::ValueEnum;
 use serde_json::Value;
 
@@ -9,9 +13,11 @@ use serde_json::Value;
 pub enum Contract {
     /// The manifest file.
     Manifest,
-    /// The hook input a bridged command reads.
+    /// The hooks file (`.agents/hooks.json`).
+    Hooks,
+    /// The hook input a hook command reads (Claude Code's).
     HookInput,
-    /// The answer a bridged command writes.
+    /// The answer JSON a hook command writes (Claude Code's).
     HookAnswer,
     /// `install` / `status --json`.
     Result,
@@ -22,6 +28,7 @@ impl Contract {
     pub fn schema(self) -> Value {
         match self {
             Contract::Manifest => Manifest::schema(),
+            Contract::Hooks => file::schema(),
             Contract::HookInput => wire::input_schema(),
             Contract::HookAnswer => wire::answer_schema(),
             Contract::Result => InstallResult::schema(),
@@ -30,7 +37,7 @@ impl Contract {
 }
 
 /// Print the schema of `contract`, pretty, with a final newline: the text
-/// kept in `schema/<contract>.v1.json`.
+/// kept in `schema/`.
 // @zen-impl: AHA-5_AC-1
 // @zen-impl: AHA-5_AC-2
 pub fn run(contract: Contract) -> std::io::Result<u8> {

@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "module": "nodenext",
+    "target": "es2022"
+  },
+  "files": ["../packages/agent-harness-adapter-node/index.d.ts"]
+}

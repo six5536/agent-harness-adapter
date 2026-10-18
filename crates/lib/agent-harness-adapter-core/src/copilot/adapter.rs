@@ -17,7 +17,7 @@ use crate::{
     Result,
     common::{parts, protocol},
     harness::{Context, Harness, MergeOp, Part, PartResult, Reads, Scope},
-    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind},
+    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
     integration::{Hook, Integration, Item},
 };
 
@@ -130,9 +130,32 @@ fn location(item: Item, cx: &Context) -> Option<&'static str> {
     })
 }
 
+/// Claude Code's name for one of its tools (HAR-15_AC-2).
+// @zen-impl: HAR-15_AC-2
+fn claude_name(name: &str) -> Option<&'static str> {
+    match name {
+        "bash" | "powershell" | "shell" => Some("Bash"),
+        "view" | "read" => Some("Read"),
+        "grep" => Some("Grep"),
+        "glob" => Some("Glob"),
+        "edit" => Some("Edit"),
+        "create" | "write" => Some("Write"),
+        _ => None,
+    }
+}
+
 impl Harness for Copilot {
     fn id(&self) -> &str {
         ID
+    }
+
+    // @zen-impl: HAR-15_AC-1
+    fn program(&self) -> Option<&str> {
+        Some("copilot")
+    }
+
+    fn claude_tool(&self, call: &ToolCall) -> ToolCall {
+        claude_names::named(call, claude_name(&call.name))
     }
 
     // @zen-impl: HAR-5_AC-1
@@ -406,6 +429,7 @@ mod tests {
             action,
             path: String::new(),
             by: None,
+            in_place: false,
         };
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
         assert_eq!(

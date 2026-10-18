@@ -20,7 +20,7 @@ use crate::{
         protocol,
     },
     harness::{Context, Harness, MergeOp, Part, PartResult, Reads, Scope},
-    hook::{Answer, Event, HookInput, Output, ToolKind},
+    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
     integration::{Integration, Item},
 };
 
@@ -99,9 +99,46 @@ fn location(item: Item, cx: &Context) -> Option<&'static str> {
     })
 }
 
+/// Claude Code's name for one of its tools (HAR-15_AC-2).
+// @zen-impl: HAR-15_AC-2
+fn claude_name(name: &str) -> Option<&'static str> {
+    match name {
+        "exec" => Some("Bash"),
+        "read" | "notebook_read" => Some("Read"),
+        "grep" => Some("Grep"),
+        "glob" => Some("Glob"),
+        "edit" | "apply_patch" => Some("Edit"),
+        "write" => Some("Write"),
+        "notebook_edit" => Some("NotebookEdit"),
+        _ => None,
+    }
+}
+
 impl Harness for Devin {
     fn id(&self) -> &str {
         ID
+    }
+
+    /// Every event but one: no event before compaction.
+    // @zen-impl: HAR-11_AC-3
+    fn hook_events(&self) -> &[Event] {
+        &[
+            Event::SessionStart,
+            Event::SessionEnd,
+            Event::PromptSubmit,
+            Event::PreTool,
+            Event::PostTool,
+            Event::Stop,
+        ]
+    }
+
+    // @zen-impl: HAR-15_AC-1
+    fn program(&self) -> Option<&str> {
+        Some("devin")
+    }
+
+    fn claude_tool(&self, call: &ToolCall) -> ToolCall {
+        claude_names::named(call, claude_name(&call.name))
     }
 
     // @zen-impl: HAR-11_AC-1

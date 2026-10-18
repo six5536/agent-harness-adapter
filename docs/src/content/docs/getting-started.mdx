@@ -1,0 +1,110 @@
+---
+title: Getting started
+description: Install the command, run it once, and keep your agent setup in AGENTS.md and .agents/.
+---
+
+import { Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+agent-harness-adapter keeps one agent setup in the places coding agents are
+standardising on, and makes every agent you use read it:
+
+| What | Where you write it |
+| --- | --- |
+| Instructions | `AGENTS.md` |
+| Skills | `.agents/skills/<name>/SKILL.md` |
+| Hooks | `.agents/hooks.json`, in Claude Code's format |
+| MCP servers | `.mcp.json` |
+| Subagents | `.agents/agents/<name>.md`, in Claude Code's format |
+
+An agent that already reads a file where it is gets nothing written; Claude
+Code and Gemini CLI are pointed at it; every other agent gets a copy in its
+own format. The command calls each agent a *harness* (`--harness claude,codex`).
+[How it works](/agent-harness-adapter/how-it-works/) explains the details.
+
+## Set it up
+
+<Steps>
+
+1. Install the command:
+
+   <Tabs syncKey="pm">
+     <TabItem label="npm">
+       ```sh
+       npm install -g @six5536/agent-harness-adapter
+       ```
+     </TabItem>
+     <TabItem label="cargo">
+       ```sh
+       cargo install agent-harness-adapter
+       ```
+     </TabItem>
+   </Tabs>
+
+   npm installs a prebuilt binary for Linux and macOS (x64, arm64) and Windows (x64).
+
+2. In your repository, run:
+
+   ```sh
+   agent-harness-adapter install
+   ```
+
+   In a terminal it asks which agents you use (the ones on your `PATH` are
+   picked) and, when it finds a Claude Code setup, whether to move it into the
+   standard places (see [Coming from Claude Code](/agent-harness-adapter/claude-code/)).
+   Then it writes the config, `.agents/agent-harness-adapter.toml`, and installs.
+   In CI, or to skip the questions, say it up front (without a terminal
+   nothing is migrated unless you add `--migrate`):
+
+   ```sh
+   agent-harness-adapter install --harness claude,codex,cursor
+   ```
+
+3. Do what `install`'s notes ask. Some agents load new files only after a
+   step of yours: trust the project and approve the hooks in Codex's `/hooks`,
+   trust the folder in Gemini CLI, Copilot, Pi and Devin; restart Codex,
+   OpenCode, Kilo Code and Qwen Code, run `/reload` in Pi, and start a new
+   Devin session. [Harnesses](/agent-harness-adapter/reference/harnesses/#after-installing)
+   lists them.
+
+4. From now on, edit `AGENTS.md` and `.agents/`. Instructions, and hooks on
+   events already in use, apply as soon as you save them. Run
+   `agent-harness-adapter install` again (from anywhere in the repository)
+   after you add or change a skill, a subagent or an MCP server, or add a hook
+   on a new event.
+
+</Steps>
+
+## Keep it in sync
+
+```sh
+agent-harness-adapter status                      # exit 1 when anything is not current
+agent-harness-adapter install --harness gemini    # add an agent
+agent-harness-adapter uninstall --harness cursor  # take one out
+```
+
+A file you changed by hand is reported `edited` and left alone;
+`install --force` overwrites it. `uninstall` takes out what it wrote and never
+touches `AGENTS.md`, `.agents/` or the config.
+
+## In a team, and in CI
+
+- **Commit** `AGENTS.md`, `.agents/` (with the config and the record,
+  `.agents/harness.toml`) and the files `install` wrote for each agent, so
+  everyone gets the same setup without running anything.
+- **Everyone needs the command.** Each agent's hook entries run
+  `agent-harness-adapter`. On a machine without it, the hooks cannot start,
+  and like any failing hook they allow: a guard in `.agents/hooks.json` is
+  then not enforced there. Install it on every machine that runs an agent,
+  or set `adapter` in the config to a path every machine has.
+- **Check in CI** that nobody forgot to install after a change:
+
+  ```sh
+  agent-harness-adapter status   # exit 1 when a copy is out of date or edited by hand
+  ```
+
+## Next
+
+- [How it works](/agent-harness-adapter/how-it-works/): sources, copies, the record and the hooks.
+- [Hooks](/agent-harness-adapter/write-once/hooks/): one script, every agent.
+- [Scopes, sharing and edits](/agent-harness-adapter/write-once/scopes/): your own setup in `~/.agents/`.
+- [For tool authors](/agent-harness-adapter/use/command/): ship your tool's integration the same way.

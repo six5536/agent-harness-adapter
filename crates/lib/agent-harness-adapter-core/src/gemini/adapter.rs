@@ -20,7 +20,7 @@ use crate::{
         protocol, settings, toml_out,
     },
     harness::{Context, Harness, MergeOp, Part, PartResult, Reads, Scope},
-    hook::{Answer, Event, HookInput, Output, ToolKind},
+    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
     integration::{Integration, Item},
 };
 
@@ -112,9 +112,33 @@ fn location(item: Item, cx: &Context) -> Result<Option<String>> {
     }))
 }
 
+/// Claude Code's name for one of its tools (HAR-15_AC-2).
+// @zen-impl: HAR-15_AC-2
+fn claude_name(name: &str) -> Option<&'static str> {
+    match name {
+        "run_shell_command" => Some("Bash"),
+        "read_file" | "read_many_files" => Some("Read"),
+        "search_file_content" => Some("Grep"),
+        "glob" => Some("Glob"),
+        "list_directory" => Some("LS"),
+        "replace" => Some("Edit"),
+        "write_file" => Some("Write"),
+        _ => None,
+    }
+}
+
 impl Harness for Gemini {
     fn id(&self) -> &str {
         ID
+    }
+
+    // @zen-impl: HAR-15_AC-1
+    fn program(&self) -> Option<&str> {
+        Some("gemini")
+    }
+
+    fn claude_tool(&self, call: &ToolCall) -> ToolCall {
+        claude_names::named(call, claude_name(&call.name))
     }
 
     // @zen-impl: HAR-4_AC-1
@@ -131,9 +155,13 @@ impl Harness for Gemini {
                 continue;
             };
             out.push(match item {
-                Item::Instructions => {
-                    parts::instructions(&at, integration.instructions_block().unwrap_or_default())
-                }
+                Item::Instructions => settings::context_reference(integration, cx, &CONTEXT)
+                    .unwrap_or_else(|| {
+                        parts::instructions(
+                            &at,
+                            integration.instructions_block().unwrap_or_default(),
+                        )
+                    }),
                 Item::Skills => parts::skills(&at, integration),
                 Item::Hooks => {
                     Part::merge(item.as_str(), at, parts::group_hooks(&LAYOUT, integration)?)
@@ -381,6 +409,7 @@ mod tests {
             action: Some(Action::Created),
             path: String::new(),
             by: None,
+            in_place: false,
         };
         assert_eq!(Gemini.notes(&cx, std::slice::from_ref(&written)).len(), 1);
         let user = Context::new("t", Scope::User, "/nowhere", None);

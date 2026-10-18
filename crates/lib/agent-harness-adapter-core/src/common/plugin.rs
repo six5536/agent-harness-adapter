@@ -195,6 +195,21 @@ pub(crate) fn tool_kind(name: &str) -> ToolKind {
     }
 }
 
+/// Claude Code's name for one of the OpenCode family's tools (HAR-15_AC-2).
+// @zen-impl: HAR-15_AC-2
+pub(crate) fn claude_name(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "bash" => "Bash",
+        "read" => "Read",
+        "grep" => "Grep",
+        "glob" => "Glob",
+        "list" => "LS",
+        "edit" | "apply_patch" => "Edit",
+        "write" => "Write",
+        _ => return None,
+    })
+}
+
 /// An allowed command prefix as a `permission.bash` pattern.
 fn bash_pattern(prefix: &str) -> String {
     format!("{prefix} *")

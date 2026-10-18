@@ -1,15 +1,19 @@
 //! A tool's integration, declared once without naming a harness.
 // @zen-component: KIT-Integration
 
-use std::{fmt, str::FromStr};
+use std::{fmt, path::PathBuf, str::FromStr, time::Duration};
 
 use serde::Serialize;
 
 use crate::{
     Error, Result,
-    harness::{EntryMatch, Part},
-    integration::{Agent, Command, Hook, McpServer, Skill},
+    harness::{Context, EntryMatch, Part, Scope},
+    hook::{Event, HooksFile, file::DEFAULT_TIMEOUT},
+    integration::{Agent, Command, Hook, McpServer, Skill, Source, source},
 };
+
+/// The command dispatch hooks run when the integration names none.
+pub const ADAPTER: &str = "agent-harness-adapter";
 
 /// One kind of thing in an integration. An item becomes at most one part
 /// per harness, named by the item's name (e.g. `hooks`).
@@ -91,6 +95,13 @@ pub struct Integration {
     agents: Vec<Agent>,
     commands: Vec<Command>,
     parts: Vec<(String, Part)>,
+    sources: Vec<Source>,
+    missing: Vec<Source>,
+    warnings: Vec<String>,
+    adapter: Option<String>,
+    /// The hooks file and, per event it dispatches, the sum of its entries'
+    /// timeouts in seconds.
+    dispatch: Option<(PathBuf, Vec<(Event, u64)>)>,
 }
 
 impl Integration {
@@ -171,6 +182,177 @@ impl Integration {
     pub fn part(mut self, harness: impl Into<String>, part: Part) -> Self {
         self.parts.push((harness.into(), part));
         self
+    }
+
+    /// With the instructions read from the file `file`, its SOURCE; a
+    /// missing file gives no instructions (KIT-17_AC-8).
+    ///
+    /// # Errors
+    ///
+    /// When the file exists and cannot be read as UTF-8 text.
+    // @zen-impl: KIT-17_AC-7
+    // @zen-impl: KIT-17_AC-8
+    pub fn instructions_from(mut self, file: impl Into<PathBuf>) -> Result<Self> {
+        let src = self.source_of(Item::Instructions, file.into());
+        if let Some(src) = src {
+            self.instructions = Some(super::skill::read(&src)?);
+        }
+        Ok(self)
+    }
+
+    /// With the skills of the directory `dir`, their SOURCE: each directory
+    /// in it holding a `SKILL.md`.
+    ///
+    /// # Errors
+    ///
+    /// When a skill directory cannot be read (KIT-17_AC-6).
+    // @zen-impl: KIT-17_AC-9
+    pub fn skills_from(mut self, dir: impl Into<PathBuf>) -> Result<Self> {
+        if let Some(src) = self.source_of(Item::Skills, dir.into()) {
+            self.skills.extend(source::skills(&src)?);
+        }
+        Ok(self)
+    }
+
+    /// With the hooks of the hooks file `file` (KIT-24), their SOURCE: one
+    /// dispatch hook per event it has an entry for, added for each harness
+    /// at install.
+    ///
+    /// # Errors
+    ///
+    /// When the file is not a hooks file (KIT-24_AC-4).
+    // @zen-impl: KIT-24_AC-2
+    // @zen-impl: KIT-24_AC-7
+    pub fn hooks_from(mut self, file: impl Into<PathBuf>) -> Result<Self> {
+        let Some(src) = self.source_of(Item::Hooks, file.into()) else {
+            return Ok(self);
+        };
+        let hooks = HooksFile::read(&src)?.unwrap_or_default();
+        let display = src.display();
+        for name in hooks.other_events() {
+            self.warnings.push(format!(
+                "{display}: `{name}` hooks do not run: agent-harness-adapter runs SessionStart, SessionEnd, UserPromptSubmit, PreToolUse, PostToolUse, Stop and PreCompact"
+            ));
+        }
+        if hooks.other_types() > 0 {
+            self.warnings.push(format!(
+                "{display}: hooks of another type than `command` do not run"
+            ));
+        }
+        let events = hooks
+            .events()
+            .into_iter()
+            .map(|e| {
+                let total = hooks
+                    .groups(e)
+                    .iter()
+                    .flat_map(|g| &g.hooks)
+                    .filter(|x| x.dispatched())
+                    .map(|x| x.timeout.unwrap_or(DEFAULT_TIMEOUT))
+                    .sum();
+                (e, total)
+            })
+            .collect();
+        self.dispatch = Some((src, events));
+        Ok(self)
+    }
+
+    /// With the MCP servers of the MCP JSON file `file`, their SOURCE.
+    ///
+    /// # Errors
+    ///
+    /// When the file is not MCP JSON.
+    pub fn mcp_servers_from(mut self, file: impl Into<PathBuf>) -> Result<Self> {
+        if let Some(src) = self.source_of(Item::Mcp, file.into()) {
+            self.mcp_servers.extend(source::mcp_servers(&src)?);
+        }
+        Ok(self)
+    }
+
+    /// With the agents of the directory `dir`, their SOURCE: each
+    /// `<name>.md`, kept as written.
+    ///
+    /// # Errors
+    ///
+    /// When an agent file has no frontmatter.
+    pub fn agents_from(mut self, dir: impl Into<PathBuf>) -> Result<Self> {
+        if let Some(src) = self.source_of(Item::Agents, dir.into()) {
+            self.agents.extend(source::agents(&src)?);
+        }
+        Ok(self)
+    }
+
+    /// Record `path` as `item`'s SOURCE: its absolute path when it exists,
+    /// else `None`, the SOURCE listed as missing.
+    fn source_of(&mut self, item: Item, path: PathBuf) -> Option<PathBuf> {
+        let src = Source::new(item, path);
+        if src.exists() {
+            let at = src.path.clone();
+            self.sources.retain(|s| s.item != item);
+            self.sources.push(src);
+            Some(at)
+        } else {
+            self.missing.push(src);
+            None
+        }
+    }
+
+    /// With `command` as the program dispatch hooks run (default
+    /// `agent-harness-adapter`), e.g. an absolute path.
+    #[must_use]
+    pub fn adapter(mut self, command: impl Into<String>) -> Self {
+        self.adapter = Some(command.into());
+        self
+    }
+
+    /// The SOURCE `item` was read from, when it was.
+    pub fn source(&self, item: Item) -> Option<&Source> {
+        self.sources.iter().find(|s| s.item == item)
+    }
+
+    /// The SOURCES that did not exist (KIT-17_AC-8).
+    pub fn missing(&self) -> &[Source] {
+        &self.missing
+    }
+
+    /// What reading the SOURCES found to warn about (KIT-24_AC-7).
+    pub fn warnings(&self) -> &[String] {
+        &self.warnings
+    }
+
+    /// The integration for `cx`: with a dispatch hook per event of its hooks
+    /// file, `<adapter> hook --hooks <path> {harness} {event}`, the path
+    /// relative to the root (`~/…` at user scope).
+    // @zen-impl: KIT-24_AC-2
+    // @zen-impl: HAR-14_AC-6
+    pub(crate) fn resolve(&self, cx: &Context) -> Integration {
+        let mut out = self.clone();
+        let Some((file, events)) = &self.dispatch else {
+            return out;
+        };
+        let adapter = self.adapter.as_deref().unwrap_or(ADAPTER);
+        let path = match (cx.relative(file), cx.scope) {
+            (Some(rel), Scope::User) => format!("~/{rel}"),
+            (Some(rel), _) => rel,
+            (None, _) => file.display().to_string(),
+        };
+        let path = if path.contains(|c: char| c.is_whitespace() || "\"'$`\\;&|<>()".contains(c)) {
+            format!("\"{}\"", path.replace('"', "\\\""))
+        } else {
+            path
+        };
+        let owner = EntryMatch::Prefix(format!("{adapter} hook --hooks "));
+        for (event, seconds) in events {
+            out.hooks.push(
+                Hook::new(
+                    *event,
+                    format!("{adapter} hook --hooks {path} {{harness}} {{event}}"),
+                )
+                .timeout(Duration::from_secs(*seconds))
+                .owned(owner.clone()),
+            );
+        }
+        out
     }
 
     /// The instructions block.

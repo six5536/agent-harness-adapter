@@ -3,68 +3,24 @@
 [![crates.io](https://img.shields.io/crates/v/agent-harness-adapter-core.svg)](https://crates.io/crates/agent-harness-adapter-core)
 [![docs.rs](https://img.shields.io/docsrs/agent-harness-adapter-core)](https://docs.rs/agent-harness-adapter-core)
 
-Shared plumbing for command-line tools that plug into LLM agent harnesses:
-Claude Code, OpenAI Codex, Gemini CLI, GitHub Copilot, Cursor, Factory
-Droid, Pi, OpenCode, Kilo Code, Qwen Code, Devin, and any agent that reads `AGENTS.md`. Your tool declares its
-integration once (an instructions block, skills, hooks, MCP servers,
-allowed commands, subagents, slash commands); the library writes it into each
-harness's own files, puts shared content in one place, reports what it
-found, and never overwrites what the user changed. It also turns each
-harness's hook input and answers into one shape, and gives you a findings
-report, CLI exit and output conventions, and atomic file writes. The library
-embeds no content of its own.
+One agent setup, every coding agent: the library behind
+`agent-harness-adapter`. Write instructions, skills and hooks once, or read
+them from the standard places (`AGENTS.md`, `.agents/skills`,
+`.agents/hooks.json`, `.mcp.json`, `.agents/agents`), and install them into
+Claude Code, OpenAI Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid,
+Pi, OpenCode, Kilo Code, Qwen Code, Devin and any agent that reads
+`AGENTS.md`. Shared content is written once, sources are left where agents
+read them, and what the user changed is never overwritten. Hooks speak one
+contract in every agent: Claude Code's.
 
-Tools in other languages use the same library through the `agent-harness-adapter` command
-([`agent-harness-adapter`](https://crates.io/crates/agent-harness-adapter)) and a
-manifest file.
+**Documentation:** <https://six5536.github.io/agent-harness-adapter/>: the
+[Rust guide](https://six5536.github.io/agent-harness-adapter/use/rust/), what
+[each harness](https://six5536.github.io/agent-harness-adapter/reference/harnesses/)
+gets, and [the hook contract](https://six5536.github.io/agent-harness-adapter/reference/hook-contract/).
 
-## Features
-
-- One `Integration` for every harness; each `Harness` renders it into its
-  own files, at `project`, `user` or `local` scope
-- Shared content written once: `AGENTS.md`, `.agents/skills`, `.mcp.json`
-  serve every harness that reads them; a warning when an agent could load
-  something twice
-- States per part: `skipped`, `shared`, `absent`, `current`, `stale`,
-  `edited`; an edited part is only replaced with `--force`
-- A refused install writes nothing; every write is atomic and only on change
-- Instructions in a marked region, settings merged into JSON or TOML with
-  the file's own style kept, whole files for skills, agents and commands
-- One hook model: events, input and answers the same for every harness;
-  hook commands in any shape (`{harness}` and `{event}` placeholders
-  optional), one per harness when needed (`Hook::command_for`)
-- Allowed commands and MCP tools (`allow_command`, `allow_mcp_tool`) in each
-  harness's permission list where it has one
-- Declined parts (`--without`) remembered in the tool's TOML config
-- `LoopGuard` so a stop hook blocks only once on the same text
-- Findings reports, CLI exit codes, broken-pipe handling, atomic writes
-
-## Harnesses
-
-| Harness | Id | Instructions | Hooks | Skills | MCP | Allowed commands | Agents | Commands |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Claude Code | `claude` | `CLAUDE.md` or `AGENTS.md` | `.claude/settings.json` | `.claude/skills` | `.mcp.json` | yes | yes | yes |
-| OpenAI Codex | `codex` | `AGENTS.md` | `.codex/hooks.json` | `.agents/skills` | `.codex/config.toml` | – | yes | – |
-| Factory Droid | `factory` | `AGENTS.md` | `.factory/hooks.json` | `.agents/skills` | `.factory/mcp.json` | – | yes | yes |
-| Gemini CLI | `gemini` | `GEMINI.md`, or `AGENTS.md` when configured | `.gemini/settings.json` | `.agents/skills` | `.gemini/settings.json` | yes | yes | yes |
-| GitHub Copilot | `copilot` | `AGENTS.md` | `.github/hooks/<tool>.json` | `.agents/skills` | `.mcp.json` | – | yes | – |
-| Cursor | `cursor` | `AGENTS.md` | `.cursor/hooks.json` | `.agents/skills` | `.cursor/mcp.json` | yes | yes | yes |
-| Pi | `pi` | `AGENTS.md` (first of `AGENTS.override.md`, `AGENTS.md`, `CLAUDE.md`) | a generated extension, `.pi/extensions/<tool>.ts` | `.agents/skills` | `.pi/mcp.json` | – | – | yes |
-| OpenCode | `opencode` | `AGENTS.md` (first of `AGENTS.md`, `CLAUDE.md`) | a generated plugin, `.opencode/plugins/<tool>.ts` | `.agents/skills` | `opencode.json` | yes | yes | yes |
-| Kilo Code | `kilo` | as OpenCode | a generated plugin, `.kilo/plugins/<tool>.ts` | `.agents/skills` | `kilo.json` (or a shared `opencode.json`) | yes | yes | yes |
-| Qwen Code | `qwen` | `AGENTS.md` (or what `context.fileName` names) | `.qwen/settings.json` | `.agents/skills` | `.qwen/settings.json` | yes | yes | yes |
-| Devin CLI / Devin Local | `devin` | `AGENTS.md` | `.devin/hooks.v1.json` | `.agents/skills` | `.devin/mcp_config.json` | yes | yes | – |
-| Any `AGENTS.md` agent | `agents` | `AGENTS.md` | – | `.agents/skills` | – | – | – | – |
-
-Paths are for project scope; user scope uses each harness's directory under
-the home directory, and `local` scope (Claude Code, Copilot) its git-ignored
-settings file. A dash means the harness has no file for the item, or its
-format is not yet confirmed; the item is then listed as `unsupported`. When
-several harnesses read one location (`AGENTS.md`, `.agents/skills`,
-`.mcp.json`, Claude Code's skills and agents that Cursor and Copilot also
-read, Claude Code's files that Devin also reads, OpenCode's `opencode.json`
-that Kilo Code also reads), the content is written there once and the others report it as
-`shared`.
+Tools in other languages use the same library through the
+[`agent-harness-adapter`](https://crates.io/crates/agent-harness-adapter)
+command, or the Node and Python bindings.
 
 ## Installation
 
@@ -197,9 +153,9 @@ fn main() {
 
 - `integration`: `Integration` and its items (`Skill`, `Hook`, `McpServer`, `Agent`, `Command`)
 - `harness`: the `Harness` contract, the parts, their states, `install` / `uninstall` / `status` / `installed`, the same for every harness
-- `hook`: events, `HookInput`, `Answer`, `emit`, `LoopGuard`; `wire`, the hook contract's JSON
-- `manifest`: an integration declared in a TOML or JSON file (`Manifest`, `ManifestTool`), as the `agent-harness-adapter` command reads it
-- `claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`, `pi`, `agents_md`: one harness each
+- `hook`: events, `HookInput`, `Answer`, `emit`, `LoopGuard`; `wire`, the hook contract (Claude Code's protocol); `file`, the hooks file; `claude_names`, tool calls in Claude Code's terms
+- `manifest`: an integration declared in a TOML or JSON file (`Manifest`, `ManifestTool`), as the `agent-harness-adapter` command reads it; `find_config`, the config `.agents/agent-harness-adapter.toml`
+- `claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`, `pi`, `opencode`, `kilo`, `qwen`, `devin`, `agents_md`: one harness each
 - `report`: `Finding`, `Report`, text and JSON forms
 - `cli`: exit codes (0 ok, 1 errors found, 2 usage or internal error), stdout, broken pipes, `finish`
 - `fs`: `read_text` and `write_atomic`

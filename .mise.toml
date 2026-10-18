@@ -1,0 +1,17 @@
+[tools]
+node = "26"
+
+python = '3.14'
+# 1.98 is the development toolchain; 1.85 is the MSRV (Cargo.toml
+# rust-version, checked in CI); nightly is used only by coverage
+# (cargo +nightly llvm-cov), which needs `coverage(off)` markers.
+rust = ['1.98', '1.85', 'nightly']
+sccache = '0.18'
+# Cross-compiles the static musl release binaries (npm run build:linux-*).
+zig = "0.16.0"
+cargo-binstall = "1.24.0"
+
+
+"cargo:cargo-nextest" = "0.9.146"
+"cargo:cargo-llvm-cov" = "0.9.1"
+"cargo:cargo-zigbuild" = "0.23.4"

@@ -1,8 +1,8 @@
 {
   "name": "@six5536/agent-harness-adapter-node",
-  "version": "0.1.0",
-  "description": "agent-harness-adapter for Node: plug a tool into LLM agent harnesses (Claude Code, Codex, Gemini CLI, Copilot, Cursor, Factory, Pi, AGENTS.md) from a manifest, and speak every harness's hook protocol.",
-  "homepage": "https://github.com/six5536/agent-harness-adapter#readme",
+  "version": "0.2.0",
+  "description": "One agent setup, every coding agent, from Node: install instructions, skills and hooks into Claude Code, Codex, Gemini CLI, Copilot, Cursor, OpenCode and more, and answer hooks in Claude Code's format in all of them.",
+  "homepage": "https://six5536.github.io/agent-harness-adapter/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/six5536/agent-harness-adapter.git",
@@ -33,11 +33,11 @@
     "node": ">=18"
   },
   "optionalDependencies": {
-    "@six5536/agent-harness-adapter-node-linux-x64-gnu": "0.1.0",
-    "@six5536/agent-harness-adapter-node-linux-arm64-gnu": "0.1.0",
-    "@six5536/agent-harness-adapter-node-darwin-x64": "0.1.0",
-    "@six5536/agent-harness-adapter-node-darwin-arm64": "0.1.0",
-    "@six5536/agent-harness-adapter-node-win32-x64": "0.1.0"
+    "@six5536/agent-harness-adapter-node-linux-x64-gnu": "0.2.0",
+    "@six5536/agent-harness-adapter-node-linux-arm64-gnu": "0.2.0",
+    "@six5536/agent-harness-adapter-node-darwin-x64": "0.2.0",
+    "@six5536/agent-harness-adapter-node-darwin-arm64": "0.2.0",
+    "@six5536/agent-harness-adapter-node-win32-x64": "0.2.0"
   },
   "scripts": {
     "test": "node --test test/"

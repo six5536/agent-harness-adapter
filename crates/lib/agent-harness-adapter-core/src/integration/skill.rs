@@ -132,7 +132,7 @@ impl Skill {
 }
 
 /// The text of `path`, refused when it is not UTF-8.
-fn read(path: &Path) -> Result<String> {
+pub(super) fn read(path: &Path) -> Result<String> {
     let bytes = fs::read(path).map_err(|e| Error::io(path, e))?;
     String::from_utf8(bytes).map_err(|_| Error::file(path.display().to_string(), "not UTF-8 text"))
 }
@@ -179,7 +179,7 @@ fn collect(
 
 /// The frontmatter of `text` (between a first line `---` and the next
 /// `---` line) and the text after it.
-fn split_frontmatter(text: &str) -> Option<(&str, &str)> {
+pub(super) fn split_frontmatter(text: &str) -> Option<(&str, &str)> {
     let rest = text
         .strip_prefix("---\n")
         .or_else(|| text.strip_prefix("---\r\n"))?;
@@ -196,7 +196,7 @@ fn split_frontmatter(text: &str) -> Option<(&str, &str)> {
 /// The value of the top-level frontmatter key `key`: a plain or quoted
 /// scalar, or a `|` / `>` block (its lines joined by a line break or a
 /// space).
-fn field(front: &str, key: &str) -> Option<String> {
+pub(super) fn field(front: &str, key: &str) -> Option<String> {
     let mut lines = front.lines();
     while let Some(line) = lines.next() {
         let Some(value) = line.strip_prefix(key).and_then(|r| r.strip_prefix(':')) else {

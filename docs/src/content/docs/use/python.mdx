@@ -1,0 +1,40 @@
+---
+title: Python
+description: The Python binding.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import Snippet from "../../../components/Snippet.astro";
+import install from "../../../../examples/install.py?raw";
+import hook from "../../../../examples/hook.py?raw";
+
+<Aside type="caution" title="Not yet on PyPI">
+  Build it from the repository with [maturin](https://www.maturin.rs/) until
+  the first PyPI release:
+  `maturin develop` in `crates/bind/agent-harness-adapter-py`. Once
+  published: `pip install six5536-agent-harness-adapter`.
+</Aside>
+
+[API reference](/agent-harness-adapter/api/python/).
+
+## Install an integration
+
+A manifest is a file's path, a dict, or `None` for the repository's
+[config](/agent-harness-adapter/reference/config/).
+
+<Snippet code={install} region="install" lang="python" title="install.py" />
+
+Keyword arguments take the options: `scope` (`"project"`, `"user"` or
+`"local"`), `root` (the project directory), `home`, and for `install` `force`
+and `without`. `uninstall` and `status` take the same arguments. Results are
+the JSON of `agent-harness-adapter install --json`, as dicts.
+
+## Answer a hook
+
+With `command = "mytool hook {harness} {event}"`, `run_hook` reads the
+harness's input as Claude Code's and writes your answer in the harness's form.
+
+<Snippet code={hook} region="hook" lang="python" title="hook.py" />
+
+`parse_hook` and `answer_hook` do the two halves separately. Errors raise
+`ValueError` with the library's message.

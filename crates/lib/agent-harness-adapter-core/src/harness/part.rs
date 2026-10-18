@@ -60,6 +60,7 @@ pub(crate) enum Kind {
 pub struct Part {
     name: String,
     pub(crate) kind: Kind,
+    reference: bool,
 }
 
 impl Part {
@@ -67,7 +68,23 @@ impl Part {
         Part {
             name: name.into(),
             kind,
+            reference: false,
         }
+    }
+
+    /// The part as a REFERENCE: it points its harness at the item's SOURCE
+    /// (e.g. `@AGENTS.md`), so it is always written, never shared or in
+    /// place (KIT-23).
+    // @zen-impl: KIT-23_AC-2
+    #[must_use]
+    pub fn reference(mut self) -> Self {
+        self.reference = true;
+        self
+    }
+
+    /// Whether the part is a REFERENCE.
+    pub fn is_reference(&self) -> bool {
+        self.reference
     }
 
     /// A `file` part: `files` (relative path, text) under the directory

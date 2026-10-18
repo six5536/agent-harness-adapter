@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AHA hook answer",
+  "description": "Claude Code's hook answer on stdout with exit 0. Exit 2 with a reason on stderr blocks; plain stdout at session start and prompt submit is context.",
+  "type": "object",
+  "properties": {
+    "decision": {
+      "const": "block",
+      "description": "block a prompt or a tool, or keep the agent going at stop"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "hookSpecificOutput": {
+      "type": "object",
+      "properties": {
+        "hookEventName": {
+          "enum": [
+            "SessionStart",
+            "SessionEnd",
+            "UserPromptSubmit",
+            "PreToolUse",
+            "PostToolUse",
+            "Stop",
+            "PreCompact"
+          ]
+        },
+        "permissionDecision": {
+          "enum": [
+            "allow",
+            "deny",
+            "ask"
+          ]
+        },
+        "permissionDecisionReason": {
+          "type": "string"
+        },
+        "additionalContext": {
+          "type": "string"
+        },
+        "updatedInput": {}
+      }
+    },
+    "continue": {
+      "type": "boolean"
+    },
+    "stopReason": {
+      "type": "string"
+    },
+    "suppressOutput": {
+      "type": "boolean"
+    },
+    "systemMessage": {
+      "type": "string"
+    }
+  }
+}

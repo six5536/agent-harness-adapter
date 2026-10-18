@@ -12,7 +12,7 @@ use crate::{
     Result,
     common::{extension, plugin},
     harness::{Context, Harness, Part, PartResult, Reads, Scope},
-    hook::{Answer, Event, HookInput, Output},
+    hook::{Answer, Event, HookInput, Output, ToolCall, claude_names},
     integration::{Integration, Item},
 };
 
@@ -42,6 +42,28 @@ const LAYOUT: plugin::Layout = plugin::Layout {
 impl Harness for Kilo {
     fn id(&self) -> &str {
         ID
+    }
+
+    /// Every event but one: no session end.
+    // @zen-impl: HAR-12_AC-3
+    fn hook_events(&self) -> &[Event] {
+        &[
+            Event::SessionStart,
+            Event::PromptSubmit,
+            Event::PreTool,
+            Event::PostTool,
+            Event::Stop,
+            Event::PreCompact,
+        ]
+    }
+
+    // @zen-impl: HAR-15_AC-1
+    fn program(&self) -> Option<&str> {
+        Some("kilo")
+    }
+
+    fn claude_tool(&self, call: &ToolCall) -> ToolCall {
+        claude_names::named(call, plugin::claude_name(&call.name))
     }
 
     // @zen-impl: HAR-12_AC-1
@@ -165,6 +187,7 @@ mod tests {
             action,
             path: String::new(),
             by: None,
+            in_place: false,
         };
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
         assert!(Kilo.notes(&cx, &[part(None)]).is_empty());

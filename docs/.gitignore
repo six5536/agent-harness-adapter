@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.astro/
+# Generated at build time (docs.yml): TypeDoc pages, pdoc HTML, the schemas.
+src/content/docs/api/
+public/api/
+public/schema/

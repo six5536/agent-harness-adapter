@@ -1,0 +1,28 @@
+---
+// A tested example file (docs/examples, the core crate's examples), or one
+// region of it: the lines between `region: <name>` and `endregion` comments.
+import { Code } from "@astrojs/starlight/components";
+
+interface Props {
+  code: string;
+  lang: string;
+  region?: string;
+  title?: string;
+}
+
+const { code, lang, region, title } = Astro.props;
+
+function cut(text: string, name?: string): string {
+  const lines = text.split("\n");
+  const marker = (l: string) => /^\s*(\/\/|#)\s*(end)?region\b/.test(l);
+  if (!name) return lines.filter((l) => !marker(l)).join("\n").trim();
+  const start = lines.findIndex((l) => new RegExp(`^\\s*(//|#)\\s*region: ${name}\\s*$`).test(l));
+  if (start < 0) throw new Error(`no region ${name}`);
+  const end = lines.findIndex((l, i) => i > start && new RegExp(`^\\s*(//|#)\\s*endregion: ${name}\\s*$`).test(l));
+  const body = lines.slice(start + 1, end < 0 ? undefined : end).filter((l) => !marker(l));
+  const indent = Math.min(...body.filter((l) => l.trim()).map((l) => l.match(/^ */)![0].length));
+  return body.map((l) => l.slice(indent)).join("\n").trim();
+}
+---
+
+<Code code={cut(code, region)} lang={lang} title={title} />

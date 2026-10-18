@@ -72,34 +72,37 @@
       ]
     },
     "skills": {
-      "description": "Agent skills.",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/$defs/SkillFile"
-      }
+      "description": "Agent skills, or `{ from = \"<dir>\" }`.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Many"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "hooks": {
-      "description": "Hooks.",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/$defs/HookFile"
-      }
+      "description": "Hooks, or `{ from = \"<hooks file>\" }`.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Many2"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "mcp_servers": {
-      "description": "MCP servers.",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/$defs/McpFile"
-      }
+      "description": "MCP servers, or `{ from = \"<MCP JSON file>\" }`.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Many3"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "allow_commands": {
       "description": "Command prefixes the agent may run without asking.",
@@ -123,14 +126,15 @@
       }
     },
     "agents": {
-      "description": "Subagents.",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/$defs/PromptFile"
-      }
+      "description": "Subagents, or `{ from = \"<dir>\" }`.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Many4"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "commands": {
       "description": "Slash commands.",
@@ -194,8 +198,12 @@
           "type": "string"
         },
         {
-          "description": "A file's contents.",
+          "description": "A file's contents, copied.",
           "$ref": "#/$defs/FileRef"
+        },
+        {
+          "description": "A SOURCE the item is read from (instructions only).",
+          "$ref": "#/$defs/FromRef"
         }
       ]
     },
@@ -211,6 +219,20 @@
       "additionalProperties": false,
       "required": [
         "file"
+      ]
+    },
+    "FromRef": {
+      "description": "`{ from = \"<path>\" }`: an item's SOURCE, relative to the manifest's\ndirectory (AHA-1_AC-11).",
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "The path, relative to the manifest's directory.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "from"
       ]
     },
     "Match": {
@@ -257,6 +279,22 @@
             "any"
           ],
           "additionalProperties": false
+        }
+      ]
+    },
+    "Many": {
+      "description": "A list of items, or `{ from = \"<path>\" }`, their SOURCE.",
+      "anyOf": [
+        {
+          "description": "The items.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SkillFile"
+          }
+        },
+        {
+          "description": "Read from a SOURCE.",
+          "$ref": "#/$defs/FromRef"
         }
       ]
     },
@@ -318,6 +356,22 @@
       "additionalProperties": {
         "$ref": "#/$defs/Text"
       }
+    },
+    "Many2": {
+      "description": "A list of items, or `{ from = \"<path>\" }`, their SOURCE.",
+      "anyOf": [
+        {
+          "description": "The items.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HookFile"
+          }
+        },
+        {
+          "description": "Read from a SOURCE.",
+          "$ref": "#/$defs/FromRef"
+        }
+      ]
     },
     "HookFile": {
       "description": "A hook: `command` (a template the harness runs) or `run` (a command\n`agent-harness-adapter hook` runs with the hook contract), not both.",
@@ -469,6 +523,22 @@
         "type": "string"
       }
     },
+    "Many3": {
+      "description": "A list of items, or `{ from = \"<path>\" }`, their SOURCE.",
+      "anyOf": [
+        {
+          "description": "The items.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/McpFile"
+          }
+        },
+        {
+          "description": "Read from a SOURCE.",
+          "$ref": "#/$defs/FromRef"
+        }
+      ]
+    },
     "McpFile": {
       "description": "An MCP server: `command` (with `args`, `env`) or `url` (with `headers`).",
       "type": "object",
@@ -549,6 +619,22 @@
       "required": [
         "server",
         "tool"
+      ]
+    },
+    "Many4": {
+      "description": "A list of items, or `{ from = \"<path>\" }`, their SOURCE.",
+      "anyOf": [
+        {
+          "description": "The items.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PromptFile"
+          }
+        },
+        {
+          "description": "Read from a SOURCE.",
+          "$ref": "#/$defs/FromRef"
+        }
       ]
     },
     "PromptFile": {
@@ -911,34 +997,37 @@
           ]
         },
         "skills": {
-          "description": "Agent skills.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/SkillFile"
-          }
+          "description": "Agent skills, or `{ from = \"<dir>\" }`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Many"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "hooks": {
-          "description": "Hooks.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/HookFile"
-          }
+          "description": "Hooks, or `{ from = \"<hooks file>\" }`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Many2"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "mcp_servers": {
-          "description": "MCP servers.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/McpFile"
-          }
+          "description": "MCP servers, or `{ from = \"<MCP JSON file>\" }`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Many3"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "allow_commands": {
           "description": "Command prefixes the agent may run without asking.",
@@ -962,14 +1051,15 @@
           }
         },
         "agents": {
-          "description": "Subagents.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/PromptFile"
-          }
+          "description": "Subagents, or `{ from = \"<dir>\" }`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Many4"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "commands": {
           "description": "Slash commands.",

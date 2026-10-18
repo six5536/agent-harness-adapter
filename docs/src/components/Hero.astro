@@ -1,0 +1,47 @@
+---
+// Starlight's hero, with the landing page's terminal beside it (below it on
+// narrow screens). Pages other than the landing page get the plain hero.
+import Default from "@astrojs/starlight/components/Hero.astro";
+import Terminal from "./Terminal.astro";
+
+const isHome = Astro.locals.starlightRoute.id === "";
+---
+
+{
+  isHome ? (
+    <div class="home-hero">
+      <Default />
+      <Terminal />
+    </div>
+  ) : (
+    <Default />
+  )
+}
+
+<style>
+  .home-hero {
+    display: grid;
+    gap: 2rem;
+    align-items: center;
+    padding-block-end: 2rem;
+  }
+  @media (min-width: 72rem) {
+    .home-hero {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    }
+    .home-hero :global(.hero) {
+      grid-template-columns: 100%;
+    }
+    .home-hero :global(h1) {
+      font-size: var(--sl-text-5xl);
+    }
+    .home-hero :global(.stack) {
+      text-align: start;
+    }
+    .home-hero :global(.copy),
+    .home-hero :global(.actions) {
+      align-items: flex-start;
+      justify-content: flex-start;
+    }
+  }
+</style>

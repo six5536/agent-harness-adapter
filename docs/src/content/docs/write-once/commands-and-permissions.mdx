@@ -1,0 +1,57 @@
+---
+title: Commands and permissions
+description: Slash commands and the commands an agent may run without asking, declared by a tool.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+These two have no standard place yet, so the config does not read them from
+a file. A tool declares them in its manifest or code, and you can declare
+them in the config the same way. Claude Code's own `.claude/commands` and
+permissions stay where they are.
+
+## Slash commands
+
+A prompt the user runs as `/<name>`. Each agent with commands gets it in its
+own format: `.claude/commands/<name>.md`, `.gemini/commands/<name>.toml`,
+`.cursor/commands`, `.opencode/commands`, `.pi/prompts`, … Codex, Copilot and
+Devin have none (`unsupported: commands`).
+
+## Allowed commands and MCP tools
+
+Commands (by prefix) and MCP tools the agent may run without asking, in each
+agent's permission list: `Bash(mytool *)` in Claude Code and Qwen Code,
+`run_shell_command(mytool)` in Gemini CLI, `Shell(mytool)` in Cursor,
+`"mytool *": "allow"` in OpenCode, `Exec(mytool)` in Devin. Agents with no
+such list report `unsupported: permissions`.
+
+<Tabs syncKey="lang">
+  <TabItem label="Command">
+    ```toml
+    allow_commands = ["mytool"]
+    allow_mcp_tools = [{ server = "mytool", tool = "check" }]
+
+    [[commands]]
+    name = "check"
+    description = "Run mytool check."
+    prompt = "Run `mytool check` and summarise the findings."
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    Integration::new()
+        .allow_command("mytool")
+        .command(Command::new("check", "Run mytool check.", "Run `mytool check`."))
+    ```
+  </TabItem>
+  <TabItem label="Node">
+    ```js
+    { allow_commands: ["mytool"], commands: [{ name: "check", description: "Run mytool check.", prompt: "Run `mytool check`." }] }
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    {"allow_commands": ["mytool"], "commands": [{"name": "check", "description": "Run mytool check.", "prompt": "Run `mytool check`."}]}
+    ```
+  </TabItem>
+</Tabs>

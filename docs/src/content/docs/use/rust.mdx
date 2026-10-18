@@ -1,0 +1,46 @@
+---
+title: Rust
+description: agent-harness-adapter-core, the library behind the command.
+---
+
+import Snippet from "../../../components/Snippet.astro";
+import rust from "../../../../../crates/lib/agent-harness-adapter-core/examples/mytool.rs?raw";
+
+```sh
+cargo add agent-harness-adapter-core
+```
+
+Rust 1.85 or newer. [API reference on docs.rs](https://docs.rs/agent-harness-adapter-core).
+
+## Install an integration
+
+Implement `Tool`: your name, the harnesses, the `Integration`, and where the
+record of what was installed lives.
+
+<Snippet code={rust} region="tool" lang="rust" />
+
+Then install (`status` and `uninstall` take the same arguments):
+
+<Snippet code={rust} region="install" lang="rust" />
+
+`install` returns an `InstallResult`: each harness's parts with their states,
+notes and warnings, as text (`to_text`) or JSON (serde).
+
+## Answer a hook
+
+The hook command reads the harness's input as a `HookInput` and answers with
+an `Answer`; `emit` writes it in the harness's form.
+
+<Snippet code={rust} region="hook" lang="rust" />
+
+`hook::wire` gives Claude Code's input and reads Claude Code's answers, for
+a command that speaks the contract itself.
+
+## The config, from Rust
+
+`manifest::Manifest` reads a manifest or the config
+(`manifest::find_config`) and `manifest::ManifestTool` makes it a `Tool`, as
+the command does.
+
+This page's example is `crates/lib/agent-harness-adapter-core/examples/mytool.rs`;
+CI builds and runs it.

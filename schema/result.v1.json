@@ -20,10 +20,17 @@
       }
     },
     "warnings": {
-      "description": "Content an agent may load twice.",
+      "description": "Content an agent may load twice, and hooks that do not run.",
       "type": "array",
       "items": {
         "type": "string"
+      }
+    },
+    "missing": {
+      "description": "The SOURCES that do not exist (KIT-17_AC-8). Left out of the JSON\nwhen empty.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/MissingSource"
       }
     }
   },
@@ -114,6 +121,10 @@
         "by": {
           "description": "The harness that writes a shared part, or (uninstall, `kept`) the\nharnesses that still use it. Left out of the JSON when `None`.",
           "type": "string"
+        },
+        "in_place": {
+          "description": "A shared part IN PLACE: its harness loads the item's SOURCE, `path`,\nwhere it is (KIT-19_AC-8). Left out of the JSON when false.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -225,6 +236,24 @@
           "type": "string",
           "const": "commands"
         }
+      ]
+    },
+    "MissingSource": {
+      "description": "A SOURCE that does not exist: its item gets nothing.",
+      "type": "object",
+      "properties": {
+        "item": {
+          "description": "The item.",
+          "$ref": "#/$defs/Item"
+        },
+        "path": {
+          "description": "Its path, relative to the root when under it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "item",
+        "path"
       ]
     }
   }

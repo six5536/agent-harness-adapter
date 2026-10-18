@@ -15,7 +15,7 @@ use crate::{
     Result,
     common::{parts, protocol},
     harness::{Context, Harness, MergeOp, Part, Reads, Scope},
-    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind},
+    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
     integration::{Hook, Integration, Item},
 };
 
@@ -104,9 +104,35 @@ fn location(item: Item, cx: &Context) -> Option<&'static str> {
     })
 }
 
+/// Claude Code's name for one of its tools, told by the words in the name
+/// as `tool_kind` tells its kind (HAR-15_AC-2).
+// @zen-impl: HAR-15_AC-2
+fn claude_name(name: &str) -> Option<&'static str> {
+    let n = name.to_ascii_lowercase();
+    let has = |w: &str| n.contains(w);
+    Some(match tool_kind(name) {
+        ToolKind::Shell => "Bash",
+        ToolKind::Write if has("write") || has("create") => "Write",
+        ToolKind::Write => "Edit",
+        ToolKind::Read if has("grep") || has("search") => "Grep",
+        ToolKind::Read if has("glob") => "Glob",
+        ToolKind::Read => "Read",
+        _ => return None,
+    })
+}
+
 impl Harness for Cursor {
     fn id(&self) -> &str {
         ID
+    }
+
+    // @zen-impl: HAR-15_AC-1
+    fn program(&self) -> Option<&str> {
+        Some("cursor-agent")
+    }
+
+    fn claude_tool(&self, call: &ToolCall) -> ToolCall {
+        claude_names::named(call, claude_name(&call.name))
     }
 
     // @zen-impl: HAR-6_AC-1

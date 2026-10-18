@@ -1,0 +1,91 @@
+name: Docs
+
+# The Starlight site (docs/) on GitHub Pages, built from one tag: the release
+# calls this workflow with the tag that it published, and a run by hand
+# publishes a past tag again. TypeDoc writes the Node API reference from
+# index.d.ts, pdoc the Python one from the built package, and the JSON schemas
+# are copied beside them.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: The tag to build the site from.
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: The tag to build the site from, such as v0.2.0.
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+# One deploy at a time; a newer run waits for the one deploying.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  CARGO_BUILD_RUSTC_WRAPPER: ""
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install the pinned toolchain
+        run: rustup toolchain install --profile minimal
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      # pdoc imports the package, so build and install it first (N7).
+      - name: Python API reference (pdoc)
+        run: |
+          python -m pip install "maturin>=1.9,<2" pdoc==16.0.0
+          maturin build --locked --manifest-path crates/bind/agent-harness-adapter-py/Cargo.toml -o dist
+          python -m pip install --no-index --find-links dist six5536-agent-harness-adapter
+          pdoc agent_harness_adapter -o docs/public/api/python
+
+      # TypeDoc (Node API), the schemas and the link check run in the build;
+      # TypeDoc warnings and broken links fail it.
+      - name: Build the site
+        working-directory: docs
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/dist
+
+  deploy:
+    name: deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -17,7 +17,7 @@ use crate::{
         merge::render_merge,
         part::Kind,
         record::{Record, read_record, render_record},
-        result::{Action, HarnessResult, InstallResult, PartResult},
+        result::{Action, HarnessResult, InstallResult, MissingSource, PartResult},
         shared::{Candidate, Role, choose},
         state::{Observed, expected, hash, observe, state},
         write::{Plan, apply_plan},
@@ -76,6 +76,8 @@ pub(super) struct Member {
     pub(super) reads: BTreeMap<Item, Reads>,
     pub(super) unsupported: Vec<Item>,
     pub(super) declined: Vec<String>,
+    /// The hook events of the integration the harness does not run.
+    pub(super) missed: Vec<crate::hook::Event>,
 }
 
 /// A part's role, state and what the tree held, computed before any write.
@@ -85,6 +87,15 @@ pub(super) struct Examined<'a> {
     pub(super) path: String,
     pub(super) state: State,
     pub(super) existed: bool,
+    pub(super) by: Option<String>,
+    pub(super) in_place: bool,
+}
+
+/// Where a shared part's content is: `location`, written by `by`, or the
+/// item's SOURCE (`by` none: IN PLACE).
+#[derive(Debug, Clone)]
+pub(super) struct Covered {
+    pub(super) location: String,
     pub(super) by: Option<String>,
 }
 
@@ -96,6 +107,9 @@ pub(super) struct Run {
     pub(super) record: Record,
     pub(super) members: Vec<Member>,
     pub(super) warnings: Vec<String>,
+    /// Per item read from a SOURCE under the root, its location.
+    pub(super) sources: BTreeMap<Item, String>,
+    pub(super) missing: Vec<MissingSource>,
 }
 
 /// `path` relative to `root` when it lies under it, `/`-separated.
@@ -187,7 +201,22 @@ pub(super) fn run<T: Tool + ?Sized>(
         _ => tool.root(Scope::User).ok(),
     };
     let cx = Context::new(tool.name(), scope, root, user_root);
-    let integration = tool.integration(scope);
+    let declared = tool.integration(scope);
+    let integration = declared.resolve(&cx);
+    let sources: BTreeMap<Item, String> = Item::ALL
+        .into_iter()
+        .filter_map(|i| Some((i, cx.relative(&declared.source(i)?.path)?)))
+        .collect();
+    let missing = declared
+        .missing()
+        .iter()
+        .map(|m| MissingSource {
+            item: m.item,
+            path: cx
+                .relative(&m.path)
+                .unwrap_or_else(|| m.path.display().to_string()),
+        })
+        .collect();
     let store = tool.declined_store(scope)?;
     let mut members = Vec::new();
     for h in supported {
@@ -197,6 +226,14 @@ pub(super) fn run<T: Tool + ?Sized>(
             continue;
         }
         let (profile, unsupported) = profile(h.as_ref(), &integration, &cx)?;
+        let mut missed: Vec<crate::hook::Event> = Vec::new();
+        if profile.part(Item::Hooks.as_str()).is_some() {
+            for e in integration.hooks().iter().map(|hk| hk.event()) {
+                if !h.hook_events().contains(&e) && !missed.contains(&e) {
+                    missed.push(e);
+                }
+            }
+        }
         // Read even when `--without` replaces it: a store that cannot be
         // read refuses here, before any write.
         let stored = store.declined(h.id())?;
@@ -221,6 +258,7 @@ pub(super) fn run<T: Tool + ?Sized>(
             reads,
             unsupported,
             declined,
+            missed,
         });
     }
     if let Some(part) = without.into_iter().flatten().find(|p| {
@@ -239,7 +277,9 @@ pub(super) fn run<T: Tool + ?Sized>(
         record_path,
         record,
         members,
-        warnings: Vec::new(),
+        warnings: integration.warnings().to_vec(),
+        sources,
+        missing,
     })
 }
 
@@ -265,7 +305,7 @@ impl Run {
 
     /// The shared parts: per item, the choice of KIT-Shared.
     // @zen-impl: KIT-19_AC-6
-    pub(super) fn share(&mut self) -> Result<BTreeMap<(usize, String), (String, String)>> {
+    pub(super) fn share(&mut self) -> Result<BTreeMap<(usize, String), Covered>> {
         let mut shared = BTreeMap::new();
         for item in Item::ALL {
             let mut idx = Vec::new();
@@ -285,10 +325,19 @@ impl Run {
                     reads: &m.reads[&item],
                 });
             }
-            let choice = choose(item.as_str(), &cands)?;
+            let choice = choose(
+                item.as_str(),
+                &cands,
+                self.sources.get(&item).map(String::as_str),
+            )?;
             self.warnings.extend(choice.warnings);
             for (k, role) in choice.roles.into_iter().enumerate() {
-                if let Role::Shared { location, by } = role {
+                if let Role::InPlace { location } = role {
+                    shared.insert(
+                        (idx[k], item.as_str().to_string()),
+                        Covered { location, by: None },
+                    );
+                } else if let Role::Shared { location, by } = role {
                     let m = &self.members[idx[k]];
                     let own = cands[k].part.location();
                     let has_hash = self
@@ -302,7 +351,13 @@ impl Run {
                             m.harness.id()
                         ));
                     }
-                    shared.insert((idx[k], item.as_str().to_string()), (location, by));
+                    shared.insert(
+                        (idx[k], item.as_str().to_string()),
+                        Covered {
+                            location,
+                            by: Some(by),
+                        },
+                    );
                 }
             }
         }
@@ -313,7 +368,7 @@ impl Run {
     // @zen-impl: KIT-8_AC-2
     pub(super) fn examine(
         &self,
-        shared: &BTreeMap<(usize, String), (String, String)>,
+        shared: &BTreeMap<(usize, String), Covered>,
     ) -> Result<Vec<Examined<'_>>> {
         let mut out = Vec::new();
         for (i, m) in self.members.iter().enumerate() {
@@ -329,20 +384,25 @@ impl Run {
                         state: State::Skipped,
                         existed: false,
                         by: None,
+                        in_place: false,
                     });
                     continue;
                 }
-                if let Some((location, by)) = shared.get(&(i, part.name().to_string())) {
+                if let Some(c) = shared.get(&(i, part.name().to_string())) {
                     out.push(Examined {
                         member: i,
                         part,
-                        path: location.clone(),
+                        path: c.location.clone(),
                         state: State::Shared,
                         existed: false,
-                        by: Some(by.clone()),
+                        by: c.by.clone(),
+                        in_place: c.by.is_none(),
                     });
                     continue;
                 }
+                // A copy of a SOURCE differs from its recorded hash once the
+                // SOURCE changes: stale.
+                // @zen-impl: KIT-23_AC-4
                 let observed = observe(&self.cx.root, part, &path, &self.markers)?;
                 let st = state(&observed, &expected(part), self.recorded(i, part), false);
                 let present = matches!(observed, Observed::Present(_));
@@ -363,6 +423,7 @@ impl Run {
                     state: st,
                     existed,
                     by: None,
+                    in_place: false,
                 });
             }
         }
@@ -384,7 +445,10 @@ impl Run {
                     .collect();
                 HarnessResult {
                     harness: m.harness.id().to_string(),
-                    notes: m.harness.notes(&self.cx, &parts),
+                    notes: missed_note(m)
+                        .into_iter()
+                        .chain(m.harness.notes(&self.cx, &parts))
+                        .collect(),
                     parts,
                     unsupported: m.unsupported.clone(),
                 }
@@ -395,8 +459,23 @@ impl Run {
             root: self.cx.root.clone(),
             harnesses,
             warnings: self.warnings.clone(),
+            missing: self.missing.clone(),
         }
     }
+}
+
+/// The note for hooks whose event the harness does not run (PLAN-017 F7).
+// @zen-impl: KIT-20_AC-2
+fn missed_note(m: &Member) -> Option<String> {
+    if m.missed.is_empty() {
+        return None;
+    }
+    let events: Vec<&str> = m.missed.iter().map(|e| e.as_str()).collect();
+    Some(format!(
+        "{} has no {} event: those hooks do not run there",
+        m.harness.id(),
+        events.join(", ")
+    ))
 }
 
 /// The existing text of `path`: planned already (`None` for a planned
@@ -448,6 +527,14 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
     let examined = run.examine(&shared)?;
     let mut plan = Plan::default();
     let mut record = run.record.clone();
+    // Every named harness is installed, even one with nothing to write yet
+    // (e.g. its sources are all missing), so later runs know it.
+    for m in run.members.iter().filter(|m| m.named) {
+        record
+            .harnesses
+            .entry(m.harness.id().to_string())
+            .or_default();
+    }
     let mut parts = Vec::new();
     for e in &examined {
         let m = &run.members[e.member];
@@ -494,6 +581,7 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
                 action,
                 path: e.path.clone(),
                 by: e.by.clone(),
+                in_place: e.in_place,
             },
         ));
     }
@@ -569,6 +657,7 @@ pub fn status<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
                     action: None,
                     path: e.path,
                     by: e.by,
+                    in_place: e.in_place,
                 },
             )
         })

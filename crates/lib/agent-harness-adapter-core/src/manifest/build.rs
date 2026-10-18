@@ -7,7 +7,7 @@ use crate::{
     fs::read_text,
     harness::{EntryMatch, MergeOp, Part},
     integration::{Agent, Command, Hook, Integration, McpServer, Skill},
-    manifest::file::{HookFile, Items, Match, McpFile, OpFile, PartFile, SkillFile, Text},
+    manifest::file::{HookFile, Items, Many, Match, McpFile, OpFile, PartFile, SkillFile, Text},
 };
 
 /// What items are read with: where TEXT files are, how errors name the
@@ -42,6 +42,29 @@ impl Ctx<'_> {
                     Err(e) => Err(self.err(key, e)),
                 }
             }
+            Text::From(_) => Err(self.err(
+                key,
+                "`from` names an item's SOURCE: give the text, or { file = \"<path>\" }",
+            )),
+        }
+    }
+
+    /// `many`'s items through `one`, or the SOURCE it names through `from`.
+    fn many<T>(
+        &self,
+        key: &str,
+        many: Option<&Many<T>>,
+        i: Integration,
+        from: fn(Integration, std::path::PathBuf) -> Result<Integration>,
+        mut one: impl FnMut(Integration, String, &T) -> Result<Integration>,
+    ) -> Result<Integration> {
+        match many {
+            None => Ok(i),
+            Some(Many::From(f)) => from(i, self.dir.join(&f.from)).map_err(|e| self.err(key, e)),
+            Some(Many::List(items)) => items
+                .iter()
+                .enumerate()
+                .try_fold(i, |i, (n, x)| one(i, format!("{key}[{n}]"), x)),
         }
     }
 
@@ -59,32 +82,57 @@ impl Ctx<'_> {
     /// The integration of `items`.
     // @zen-impl: AHA-1_AC-4
     pub fn integration(&self, items: Items<'_>) -> Result<Integration> {
-        let mut i = Integration::new();
-        if let Some(t) = items.instructions {
-            i = i.instructions(self.text("instructions", t)?);
+        let mut i = Integration::new().adapter(self.adapter);
+        // @zen-impl: AHA-1_AC-11
+        match items.instructions {
+            Some(Text::From(f)) => {
+                i = i
+                    .instructions_from(self.dir.join(&f.from))
+                    .map_err(|e| self.err("instructions", e))?;
+            }
+            Some(t) => i = i.instructions(self.text("instructions", t)?),
+            None => {}
         }
         if let Some(m) = items.hook_match {
             i = i.hook_match(entry_match(m));
         }
-        for (n, s) in items.skills.into_iter().flatten().enumerate() {
-            i = i.skill(self.skill(&format!("skills[{n}]"), s)?);
-        }
-        for (n, h) in items.hooks.into_iter().flatten().enumerate() {
-            i = i.hook(self.hook(&format!("hooks[{n}]"), h)?);
-        }
-        for (n, m) in items.mcp_servers.into_iter().flatten().enumerate() {
-            i = i.mcp_server(self.mcp(&format!("mcp_servers[{n}]"), m)?);
-        }
+        i = self.many(
+            "skills",
+            items.skills,
+            i,
+            Integration::skills_from,
+            |i, k, s| Ok(i.skill(self.skill(&k, s)?)),
+        )?;
+        i = self.many(
+            "hooks",
+            items.hooks,
+            i,
+            Integration::hooks_from,
+            |i, k, h| Ok(i.hook(self.hook(&k, h)?)),
+        )?;
+        i = self.many(
+            "mcp_servers",
+            items.mcp_servers,
+            i,
+            Integration::mcp_servers_from,
+            |i, k, m| Ok(i.mcp_server(self.mcp(&k, m)?)),
+        )?;
         for c in items.allow_commands.into_iter().flatten() {
             i = i.allow_command(c);
         }
         for t in items.allow_mcp_tools.into_iter().flatten() {
             i = i.allow_mcp_tool(&t.server, &t.tool);
         }
-        for (n, a) in items.agents.into_iter().flatten().enumerate() {
-            let prompt = self.text(&format!("agents[{n}].prompt"), &a.prompt)?;
-            i = i.agent(Agent::new(&a.name, &a.description, prompt));
-        }
+        i = self.many(
+            "agents",
+            items.agents,
+            i,
+            Integration::agents_from,
+            |i, k, a| {
+                let prompt = self.text(&format!("{k}.prompt"), &a.prompt)?;
+                Ok(i.agent(Agent::new(&a.name, &a.description, prompt)))
+            },
+        )?;
         for (n, c) in items.commands.into_iter().flatten().enumerate() {
             let prompt = self.text(&format!("commands[{n}].prompt"), &c.prompt)?;
             i = i.command(Command::new(&c.name, &c.description, prompt));

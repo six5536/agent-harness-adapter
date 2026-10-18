@@ -11,7 +11,7 @@ use crate::{
     Result,
     common::{extension, parts},
     harness::{Context, Harness, Part, PartResult, Reads, Scope},
-    hook::{Answer, Event, HookInput, Output, ToolKind},
+    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
     integration::{Integration, Item},
 };
 
@@ -76,9 +76,33 @@ fn location(item: Item, cx: &Context) -> Option<String> {
     })
 }
 
+/// Claude Code's name for one of its tools (HAR-15_AC-2).
+// @zen-impl: HAR-15_AC-2
+fn claude_name(name: &str) -> Option<&'static str> {
+    match name {
+        "bash" | "powershell" => Some("Bash"),
+        "read" => Some("Read"),
+        "grep" => Some("Grep"),
+        "find" => Some("Glob"),
+        "ls" => Some("LS"),
+        "edit" => Some("Edit"),
+        "write" => Some("Write"),
+        _ => None,
+    }
+}
+
 impl Harness for Pi {
     fn id(&self) -> &str {
         ID
+    }
+
+    // @zen-impl: HAR-15_AC-1
+    fn program(&self) -> Option<&str> {
+        Some("pi")
+    }
+
+    fn claude_tool(&self, call: &ToolCall) -> ToolCall {
+        claude_names::named(call, claude_name(&call.name))
     }
 
     // @zen-impl: HAR-7_AC-1
@@ -308,6 +332,7 @@ mod tests {
             action,
             path: String::new(),
             by: None,
+            in_place: false,
         };
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
         assert!(Pi.notes(&cx, &[part(None)]).is_empty());

@@ -14,7 +14,8 @@ fn source(path: Option<String>, json: Option<String>) -> Result<Source> {
     match (path, json) {
         (Some(p), None) => Ok(Source::Path(p.into())),
         (None, Some(j)) => bind::value(&j).map(Source::Json).map_err(err),
-        _ => Err(err("give a manifest path or a manifest".into())),
+        (None, None) => Ok(Source::Config),
+        _ => Err(err("give a manifest path or a manifest, not both".into())),
     }
 }
 
@@ -46,7 +47,7 @@ pub fn status(path: Option<String>, json: Option<String>, options: String) -> Re
         .map_err(err)
 }
 
-/// The hook contract's input, as JSON.
+/// The hook contract's input (Claude Code's), as JSON.
 #[napi]
 pub fn parse_hook(harness: String, event: String, text: String) -> Result<String> {
     bind::parse_hook(&harness, &event, &text)
@@ -54,7 +55,7 @@ pub fn parse_hook(harness: String, event: String, text: String) -> Result<String
         .map_err(err)
 }
 
-/// What the hook writes for `answer` (JSON), as JSON.
+/// What the hook writes for `answer` (Claude Code's answer JSON), as JSON.
 #[napi]
 pub fn answer_hook(harness: String, event: String, answer: String) -> Result<String> {
     bind::answer_hook(&harness, &event, &answer)
@@ -68,14 +69,12 @@ pub fn schema(contract: String) -> Result<String> {
     bind::schema(&contract).map(|v| v.to_string()).map_err(err)
 }
 
-/// The versions: the package's, the manifest format's and the hook
-/// contract's, as JSON.
+/// The versions: the package's and the manifest format's, as JSON.
 #[napi]
 pub fn versions() -> String {
     format!(
-        r#"{{"version":"{}","manifest":{},"hook":{}}}"#,
+        r#"{{"version":"{}","manifest":{}}}"#,
         env!("CARGO_PKG_VERSION"),
-        bind::MANIFEST_VERSION,
-        bind::HOOK_VERSION
+        bind::MANIFEST_VERSION
     )
 }

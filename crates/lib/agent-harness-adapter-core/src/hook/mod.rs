@@ -4,12 +4,15 @@
 // @zen-component: KIT-Hook
 
 mod answer;
+pub mod claude_names;
 mod event;
+pub mod file;
 mod guard;
 mod input;
 pub mod wire;
 
 pub use answer::{Answer, Output, emit};
 pub use event::{Event, ToolCall, ToolKind};
+pub use file::HooksFile;
 pub use guard::LoopGuard;
 pub use input::HookInput;

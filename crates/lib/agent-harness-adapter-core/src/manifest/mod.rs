@@ -4,6 +4,7 @@
 // @zen-component: AHA-Manifest
 
 mod build;
+mod config;
 mod file;
 
 use std::{
@@ -20,6 +21,10 @@ use crate::{
     integration::Integration,
 };
 use file::{Harnesses, ManifestFile, ScopeFile, VersionOnly};
+
+pub use config::{
+    CONFIG_DIR, CONFIG_NAME, Found, config_text, find_config, project_dirs, standard_sources,
+};
 
 /// The manifest format's version this library reads.
 pub const VERSION: u64 = 1;
@@ -48,17 +53,30 @@ impl Manifest {
     /// The manifest at `path`: TOML, or JSON when the name ends in `.json`.
     // @zen-impl: AHA-1_AC-1
     pub fn load(path: &Path) -> Result<Manifest> {
+        Self::load_in(path, path.parent().unwrap_or(Path::new(".")))
+    }
+
+    /// The manifest at `path`, its paths read from `dir` instead of its own
+    /// directory: the CONFIG's paths are the project root's (AHA-1_AC-12).
+    // @zen-impl: AHA-1_AC-12
+    pub fn load_in(path: &Path, dir: &Path) -> Result<Manifest> {
         let display = path.display().to_string();
         let text = read_text(path)?.ok_or_else(|| Error::file(&display, "no such file"))?;
-        let dir = path.parent().unwrap_or(Path::new("."));
         let json = path.extension().is_some_and(|e| e == "json");
+        Self::from_text(&text, json, dir, &display)
+    }
+
+    /// The manifest in `text` (JSON when `json`, else TOML), its paths read
+    /// from `dir`, named `display` in errors: e.g. a CONFIG not yet written.
+    pub fn from_text(text: &str, json: bool, dir: &Path, display: &str) -> Result<Manifest> {
+        let display = display.to_string();
         let manifest = if json {
-            parse(&display, serde_json::from_str(&text), || {
-                serde_json::from_str(&text)
+            parse(&display, serde_json::from_str(text), || {
+                serde_json::from_str(text)
             })?
         } else {
-            parse(&display, toml_edit::de::from_str(&text), || {
-                toml_edit::de::from_str(&text)
+            parse(&display, toml_edit::de::from_str(text), || {
+                toml_edit::de::from_str(text)
             })?
         };
         Self::build(manifest, dir, &display)

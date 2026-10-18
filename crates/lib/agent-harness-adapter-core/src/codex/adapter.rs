@@ -18,7 +18,7 @@ use crate::{
         protocol, toml_out,
     },
     harness::{Context, Harness, Part, PartResult, Reads, Scope},
-    hook::{Answer, Event, HookInput, Output, ToolKind},
+    hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
     integration::{Integration, Item, McpServer, Transport},
 };
 
@@ -94,9 +94,28 @@ fn location(item: Item, cx: &Context) -> Option<&'static str> {
     })
 }
 
+/// Claude Code's name for one of its tools (HAR-15_AC-2).
+// @zen-impl: HAR-15_AC-2
+fn claude_name(name: &str) -> Option<&'static str> {
+    match name {
+        "shell" | "local_shell" | "Bash" => Some("Bash"),
+        "apply_patch" => Some("Edit"),
+        _ => None,
+    }
+}
+
 impl Harness for Codex {
     fn id(&self) -> &str {
         ID
+    }
+
+    // @zen-impl: HAR-15_AC-1
+    fn program(&self) -> Option<&str> {
+        Some("codex")
+    }
+
+    fn claude_tool(&self, call: &ToolCall) -> ToolCall {
+        claude_names::named(call, claude_name(&call.name))
     }
 
     // @zen-impl: HAR-2_AC-1
@@ -316,6 +335,7 @@ mod tests {
             action,
             path: String::new(),
             by: None,
+            in_place: false,
         };
         assert!(Codex.notes(&cx, &[part("hooks", None)]).is_empty());
         assert_eq!(

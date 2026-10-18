@@ -1,8 +1,11 @@
 # @six5536/agent-harness-adapter
 
-`agent-harness-adapter`: plug a command-line tool, written in any language, into LLM agent
-harnesses (Claude Code, OpenAI Codex, Gemini CLI, GitHub Copilot, Cursor,
-Factory Droid, Pi, OpenCode, Kilo Code, Qwen Code, Devin, and any agent that reads `AGENTS.md`).
+`agent-harness-adapter`: one agent setup, every coding agent. Write your
+instructions, skills and hooks once, in `AGENTS.md` and `.agents/`, and
+Claude Code, OpenAI Codex, Gemini CLI, GitHub Copilot, Cursor, Factory Droid,
+Pi, OpenCode, Kilo Code, Qwen Code, Devin and any agent that reads
+`AGENTS.md` use them. Tools in any language ship their own integration the
+same way.
 
 ## Install
 
@@ -23,7 +26,7 @@ cargo install agent-harness-adapter
 
 ## Documentation
 
-<https://github.com/six5536/agent-harness-adapter#readme>
+<https://six5536.github.io/agent-harness-adapter/>
 
 ## License
 

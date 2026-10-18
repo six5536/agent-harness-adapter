@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AHA hook input",
+  "description": "Claude Code's hook input, in every harness; `harness` and `tool_kind` added.",
+  "type": "object",
+  "properties": {
+    "hook_event_name": {
+      "enum": [
+        "SessionStart",
+        "SessionEnd",
+        "UserPromptSubmit",
+        "PreToolUse",
+        "PostToolUse",
+        "Stop",
+        "PreCompact"
+      ]
+    },
+    "session_id": {
+      "type": "string"
+    },
+    "transcript_path": {
+      "type": "string"
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "prompt": {
+      "type": "string",
+      "description": "prompt submit"
+    },
+    "tool_name": {
+      "type": "string",
+      "description": "as Claude Code names it, e.g. Bash"
+    },
+    "tool_input": {
+      "description": "as Claude Code gives it: `command` for Bash, `file_path` for a file tool"
+    },
+    "tool_response": {
+      "description": "post tool"
+    },
+    "source": {
+      "type": "string",
+      "description": "session start"
+    },
+    "stop_hook_active": {
+      "type": "boolean",
+      "description": "stop: the agent is already continuing for a stop hook"
+    },
+    "last_assistant_message": {
+      "type": "string"
+    },
+    "harness": {
+      "type": "string",
+      "description": "the harness that ran the hook, e.g. codex"
+    },
+    "tool_kind": {
+      "enum": [
+        "shell",
+        "read",
+        "write",
+        "mcp",
+        "other"
+      ]
+    }
+  },
+  "required": [
+    "hook_event_name",
+    "harness"
+  ]
+}

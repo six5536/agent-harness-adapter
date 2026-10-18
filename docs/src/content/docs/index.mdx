@@ -1,0 +1,125 @@
+---
+title: agent-harness-adapter
+description: One agent setup. Every coding agent. Write instructions, skills and hooks once, in AGENTS.md and .agents/, and every coding agent uses them.
+template: splash
+hero:
+  title: One agent setup.<br />Every coding agent.
+  tagline: >-
+    Write your instructions, skills and hooks once, in <code>AGENTS.md</code> and <code>.agents/</code>.
+    Claude Code, Codex, Gemini CLI, Copilot, Cursor, OpenCode and six more use them.
+    Bring your Claude Code setup with one command. Use it from the command line, Rust, Node or Python.
+  actions:
+    - text: Get started
+      link: /agent-harness-adapter/getting-started/
+      icon: right-arrow
+    - text: GitHub
+      link: https://github.com/six5536/agent-harness-adapter
+      icon: github
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import Snippet from "../../components/Snippet.astro";
+import manifest from "../../../examples/mytool.harness.toml?raw";
+import rust from "../../../../crates/lib/agent-harness-adapter-core/examples/mytool.rs?raw";
+import nodeInstall from "../../../examples/install.mjs?raw";
+import pyInstall from "../../../examples/install.py?raw";
+
+<p class="section-label">Write once</p>
+## One place for each thing
+
+<CardGrid>
+  <LinkCard title="Instructions" description="AGENTS.md: read where it is, or pointed to from CLAUDE.md and Gemini's settings." href="/agent-harness-adapter/write-once/instructions/" />
+  <LinkCard title="Skills" description=".agents/skills: read where they are, copied for Claude Code." href="/agent-harness-adapter/write-once/skills/" />
+  <LinkCard title="Hooks" description=".agents/hooks.json, in Claude Code's format: one script runs in every agent." href="/agent-harness-adapter/write-once/hooks/" />
+  <LinkCard title="MCP servers and subagents" description=".mcp.json and .agents/agents: in each agent's own format." href="/agent-harness-adapter/write-once/mcp-and-subagents/" />
+</CardGrid>
+
+<p class="section-label">Get started</p>
+## Up and running in four steps
+
+<Steps>
+
+1. Install the command:
+
+   ```sh
+   npm install -g @six5536/agent-harness-adapter   # or: cargo install agent-harness-adapter
+   ```
+
+2. Run `agent-harness-adapter install` in your repository. It asks which agents you use,
+   offers to move your Claude Code setup into the standard places, and writes the config,
+   `.agents/agent-harness-adapter.toml`.
+
+3. Edit `AGENTS.md` and `.agents/` from now on.
+
+4. Run `agent-harness-adapter install` again after you add or change a skill, a subagent
+   or an MCP server, or add a hook on a new event. Instructions, and hooks on events
+   already in use, apply as soon as you save them.
+
+</Steps>
+
+<p class="section-label">Safe by default</p>
+## It never takes your work
+
+<CardGrid>
+  <Card title="Your edits are kept" icon="pencil">
+    A file you changed by hand is reported `edited` and left alone, unless you pass `--force`.
+  </Card>
+  <Card title="Uninstall is clean" icon="close">
+    It takes out what it wrote and nothing else. `AGENTS.md`, `.agents/` and your own settings stay.
+  </Card>
+  <Card title="Hooks fail open" icon="approve-check">
+    A hook that cannot start, crashes or times out allows. Your hook failing never blocks the agent.
+  </Card>
+  <Card title="All or nothing" icon="warning">
+    An install that is refused writes nothing; every write is atomic and only on change.
+  </Card>
+</CardGrid>
+
+<p class="section-label">Every agent</p>
+## Twelve agents, one setup
+
+<ul class="harness-list">
+  <li>Claude Code</li><li>OpenAI Codex</li><li>Gemini CLI</li><li>GitHub Copilot</li>
+  <li>Cursor</li><li>Factory Droid</li><li>Pi</li><li>OpenCode</li><li>Kilo Code</li>
+  <li>Qwen Code</li><li>Devin</li><li>any agent that reads AGENTS.md</li>
+</ul>
+
+See [what each one gets](/agent-harness-adapter/reference/harnesses/).
+
+<p class="section-label">For tool authors</p>
+## Ship your tool's integration
+
+A tool declares its instructions, skills and hooks once, as a manifest or in
+code; the adapter writes them into each agent's files, and its hook answers in
+one format, Claude Code's.
+
+<Tabs syncKey="lang">
+  <TabItem label="Manifest">
+    <Snippet code={manifest} lang="toml" title="mytool.harness.toml" />
+    ```sh
+    agent-harness-adapter install --manifest mytool.harness.toml --harness claude,codex,gemini
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```sh
+    cargo add agent-harness-adapter-core
+    ```
+    <Snippet code={rust} region="integration" lang="rust" title="impl Tool for MyTool" />
+  </TabItem>
+  <TabItem label="Node">
+    ```sh
+    npm install @six5536/agent-harness-adapter-node
+    ```
+    <Snippet code={nodeInstall} region="install" lang="js" title="install.mjs" />
+  </TabItem>
+  <TabItem label="Python">
+    Not on PyPI yet: [build it from the repository](/agent-harness-adapter/use/python/).
+    <Snippet code={pyInstall} region="install" lang="python" title="install.py" />
+  </TabItem>
+</Tabs>
+
+<CardGrid>
+  <LinkCard title="Get started" href="/agent-harness-adapter/getting-started/" />
+  <LinkCard title="Star on GitHub" href="https://github.com/six5536/agent-harness-adapter" />
+</CardGrid>

@@ -170,6 +170,7 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
                 action,
                 path: e.path.clone(),
                 by,
+                in_place: e.in_place,
             },
         ));
     }

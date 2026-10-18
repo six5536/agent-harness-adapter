@@ -75,22 +75,22 @@ try {
   }
 
   // The hook bridge, with node as the tool: it reads the contract's input
-  // and asks Claude Code to continue.
+  // (Claude Code's) and asks Codex to continue, in Claude Code's form.
   const tool = [
     "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{",
     "const i=JSON.parse(s);",
-    "console.log(JSON.stringify({answer:'continue',reason:i.v+' '+i.harness+' '+i.event}))})",
+    "console.log(JSON.stringify({decision:'block',reason:i.harness+' '+i.hook_event_name}))})",
   ].join("");
-  const hook = run(["hook", "claude", "stop", "--", process.execPath, "-e", tool], 0, {
-    input: '{"session_id":"s","hook_event_name":"Stop"}',
+  const hook = run(["hook", "codex", "stop", "--", process.execPath, "-e", tool], 0, {
+    input: '{"session_id":"s"}',
   });
   const answer = JSON.parse(hook.stdout);
-  if (answer.decision !== "block" || answer.reason !== "1 claude stop") {
+  if (answer.decision !== "block" || answer.reason !== "codex Stop") {
     fail(`hook answered ${hook.stdout}`);
   }
 
   // Each schema prints.
-  for (const contract of ["manifest", "hook-input", "hook-answer", "result"]) {
+  for (const contract of ["manifest", "hooks", "hook-input", "hook-answer", "result"]) {
     JSON.parse(run(["schema", contract], 0).stdout);
   }
 } finally {

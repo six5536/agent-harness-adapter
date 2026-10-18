@@ -1,0 +1,67 @@
+---
+title: The command
+description: agent-harness-adapter, for your own setup and for tools in any language.
+---
+
+import Snippet from "../../../components/Snippet.astro";
+import manifest from "../../../../examples/mytool.harness.toml?raw";
+import guard from "../../../../examples/mytool-hook.sh?raw";
+
+The `agent-harness-adapter` command installs your own setup (the config) or a
+tool's integration (a manifest), and runs hooks.
+
+## Install
+
+```sh
+npm install -g @six5536/agent-harness-adapter   # prebuilt: Linux, macOS (x64, arm64), Windows (x64)
+cargo install agent-harness-adapter             # from source
+```
+
+## Install a tool's integration
+
+A tool in any language ships a manifest (TOML, or JSON) and calls the command:
+
+<Snippet code={manifest} lang="toml" title="mytool.harness.toml" />
+
+```sh
+agent-harness-adapter install --manifest mytool.harness.toml --harness claude,codex,gemini
+```
+
+## Answer a hook
+
+A bridged hook (`run`) is a plain command in any language: Claude Code's hook
+input on stdin, Claude Code's answer back.
+
+<Snippet code={guard} lang="sh" title="mytool hook" />
+
+See [the hook contract](/agent-harness-adapter/reference/hook-contract/).
+
+## Commands
+
+```text
+agent-harness-adapter install   [--manifest <file>] [--harness <ids|all>] [--scope project|user|local] [--root <dir>] [--name <name>] [--force] [--without <parts>] [--migrate] [--json]
+agent-harness-adapter uninstall [--manifest <file>] [--harness <ids|all>] [--scope ..] [--root <dir>] [--force] [--json]
+agent-harness-adapter status    [--manifest <file>] [--harness <ids|all>] [--scope ..] [--root <dir>] [--json]
+agent-harness-adapter hook [--tool <name>] [--tools <kind>] <harness> <event> -- <command> [args..]
+agent-harness-adapter hook --hooks <path> <harness> <event>
+agent-harness-adapter schema <manifest|hooks|hook-input|hook-answer|result>
+```
+
+- Without `--manifest`, the commands use [the config](/agent-harness-adapter/reference/config/);
+  the first `install` writes it.
+- Harnesses: `--harness`, else the ones installed before, else (in a
+  terminal) a question with the agents found on `PATH` picked. Without a
+  terminal, the first `install` needs `--harness`. `uninstall` without it
+  removes them all.
+- Harness ids: `claude`, `codex`, `factory`, `gemini`, `copilot`, `cursor`,
+  `pi`, `opencode`, `kilo`, `qwen`, `devin`, `agents`; `all` is every one with
+  files at the scope.
+- `--json` prints the result as JSON (`schema result`).
+
+## Exit codes
+
+| Code | Means |
+| --- | --- |
+| 0 | done |
+| 1 | `status`: an install would change something |
+| 2 | refused: `error: <message>` on stderr |
