@@ -56,7 +56,6 @@ export default defineConfig({
             "reference/hook-contract",
             "reference/harnesses",
             "reference/schemas",
-            "reference/changelog",
           ],
         },
         {

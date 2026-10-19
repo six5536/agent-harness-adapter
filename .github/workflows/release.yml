@@ -475,13 +475,13 @@ jobs:
             stage="dist/stage/agent-harness-adapter-$VERSION-$pkg"
             mkdir -p "$stage"
             install -m 0755 "artifacts/agent-harness-adapter-$pkg/agent-harness-adapter" "$stage/agent-harness-adapter"
-            cp README.md LICENSE CHANGELOG.md "$stage/"
+            cp README.md LICENSE "$stage/"
             tar -czf "dist/out/agent-harness-adapter-$VERSION-$pkg.tar.gz" -C dist/stage "agent-harness-adapter-$VERSION-$pkg"
           done
           stage="dist/stage/agent-harness-adapter-$VERSION-win32-x64"
           mkdir -p "$stage"
           install -m 0755 "artifacts/agent-harness-adapter-win32-x64/agent-harness-adapter.exe" "$stage/agent-harness-adapter.exe"
-          cp README.md LICENSE CHANGELOG.md "$stage/"
+          cp README.md LICENSE "$stage/"
           (cd dist/stage && zip -qr "../out/agent-harness-adapter-$VERSION-win32-x64.zip" "agent-harness-adapter-$VERSION-win32-x64")
           cd dist/out && sha256sum ./*.tar.gz ./*.zip > SHA256SUMS && cat SHA256SUMS
 

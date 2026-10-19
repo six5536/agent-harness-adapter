@@ -57,5 +57,6 @@ directory. Run them inside the repository, or pass `--root`. Your own setup is
 Update it as you installed it (`npm install -g @six5536/agent-harness-adapter`
 or `cargo install agent-harness-adapter`), then run `install` once: it rewrites
 what a new version writes differently, and `status` tells you if anything is
-left. Pre-1.0, read the [changelog](/agent-harness-adapter/reference/changelog/)
-for breaking changes.
+left. Pre-1.0, read the notes of each
+[release](https://github.com/six5536/agent-harness-adapter/releases) for
+breaking changes.

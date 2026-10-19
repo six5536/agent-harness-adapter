@@ -20,4 +20,4 @@ cargo build --locked -p agent-harness-adapter
 
 The Node binding builds with `npm run build:node`, and the documentation site, in `docs/`, with `npm ci && npm run build` there.
 
-`.github/workflows/release.yml` is the release: it builds the CLI for five platforms, the Node addons, and the Python wheels, publishes the crates to crates.io and the packages to npm, creates the GitHub release with the notes that the tag's message carries, and deploys the documentation site. `CHANGELOG.md` holds the notes of every release.
+`.github/workflows/release.yml` is the release: it builds the CLI for five platforms, the Node addons, and the Python wheels, publishes the crates to crates.io and the packages to npm, creates the GitHub release with the notes that the tag's message carries, and deploys the documentation site. The GitHub releases hold the notes of every release: they are the project's changelog.

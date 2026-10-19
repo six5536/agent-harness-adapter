@@ -1,6 +1,6 @@
 {
   "name": "@six5536/agent-harness-adapter",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "One agent setup, every coding agent: keep instructions, skills and hooks in AGENTS.md and .agents/, and Claude Code, Codex, Gemini CLI, Copilot, Cursor, OpenCode and more use them.",
   "homepage": "https://six5536.github.io/agent-harness-adapter/",
   "repository": {
@@ -34,11 +34,11 @@
     "node": ">=18"
   },
   "optionalDependencies": {
-    "@six5536/agent-harness-adapter-linux-x64": "0.2.1",
-    "@six5536/agent-harness-adapter-linux-arm64": "0.2.1",
-    "@six5536/agent-harness-adapter-darwin-x64": "0.2.1",
-    "@six5536/agent-harness-adapter-darwin-arm64": "0.2.1",
-    "@six5536/agent-harness-adapter-win32-x64": "0.2.1"
+    "@six5536/agent-harness-adapter-linux-x64": "0.2.2",
+    "@six5536/agent-harness-adapter-linux-arm64": "0.2.2",
+    "@six5536/agent-harness-adapter-darwin-x64": "0.2.2",
+    "@six5536/agent-harness-adapter-darwin-arm64": "0.2.2",
+    "@six5536/agent-harness-adapter-win32-x64": "0.2.2"
   },
   "scripts": {
     "test": "node --test test/*.test.js"

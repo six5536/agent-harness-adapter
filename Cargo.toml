@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.1"
+version = "0.2.2"
 authors = ["six5536 <10079653+six5536@users.noreply.github.com>"]
 edition = "2024"
 rust-version = "1.85"
@@ -18,7 +18,7 @@ repository = "https://github.com/six5536/agent-harness-adapter"
 homepage = "https://six5536.github.io/agent-harness-adapter/"
 
 [workspace.dependencies]
-agent-harness-adapter-core = { version = "0.2.1", path = "crates/lib/agent-harness-adapter-core" }
+agent-harness-adapter-core = { version = "0.2.2", path = "crates/lib/agent-harness-adapter-core" }
 clap = { version = "4.6", features = ["derive"] }
 dialoguer = { version = "0.12", default-features = false }
 regex = { version = "1.13", default-features = false, features = ["std", "unicode-perl"] }
