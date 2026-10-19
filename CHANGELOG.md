@@ -2,6 +2,10 @@
 
 This file records the notable changes of each release of agent-harness-adapter. git-cliff writes the notes of each release from the commits of the release, and the notes of 0.1.0 and 0.2.0 were written by hand. While agent-harness-adapter is pre-1.0, a minor version might contain breaking changes.
 
+## [0.2.1] - 2026-10-19
+
+This release completes the publish of 0.2.0, which stopped before the Node binding and its Windows addon reached npm. It publishes every crate and package at 0.2.1, and changes nothing else.
+
 ## [0.2.0] - 2026-10-18
 
 This release is the first that the public repository publishes, from an export of the project's own repository, and it includes the fixes of 0.1.1, which was never released.

@@ -1,6 +1,6 @@
 {
   "name": "@six5536/agent-harness-adapter-node-linux-x64-gnu",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Prebuilt agent-harness-adapter Node addon for linux-x64-gnu.",
   "homepage": "https://github.com/six5536/agent-harness-adapter#readme",
   "repository": {

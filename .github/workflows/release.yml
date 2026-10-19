@@ -353,17 +353,32 @@ jobs:
             exit 1
           fi
 
+      # A crate or a package whose version is already on its registry is
+      # left out, as the publish steps skip it, because a dry run refuses a
+      # published version too, and a run again after a half-failed release
+      # would stop here.
       - name: Dry-run every publish before doing any of them
         run: |
-          cargo publish --workspace --locked --dry-run
-          for pkg in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
-            npm publish "./packages/agent-harness-adapter-$pkg" --dry-run --tag "$NPM_TAG"
+          exclude=""
+          for crate in agent-harness-adapter-core agent-harness-adapter; do
+            status="$(curl -s -o /dev/null -w '%{http_code}' -A 'agent-harness-adapter-publish (github.com/six5536/agent-harness-adapter)' \
+              "https://crates.io/api/v1/crates/$crate/$VERSION")"
+            if [ "$status" = 200 ]; then exclude="$exclude --exclude $crate"; fi
           done
-          npm publish ./packages/agent-harness-adapter --dry-run --tag "$NPM_TAG"
-          for pkg in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64; do
-            npm publish "./packages/agent-harness-adapter-node-$pkg" --dry-run --tag "$NPM_TAG"
+          if [ "$(echo $exclude | wc -w)" -lt 4 ]; then
+            cargo publish --workspace --locked --dry-run $exclude
+          fi
+          for dir in packages/agent-harness-adapter-linux-x64 packages/agent-harness-adapter-linux-arm64 packages/agent-harness-adapter-darwin-x64 \
+                     packages/agent-harness-adapter-darwin-arm64 packages/agent-harness-adapter-win32-x64 packages/agent-harness-adapter \
+                     packages/agent-harness-adapter-node-linux-x64-gnu packages/agent-harness-adapter-node-linux-arm64-gnu packages/agent-harness-adapter-node-darwin-x64 \
+                     packages/agent-harness-adapter-node-darwin-arm64 packages/agent-harness-adapter-node-win32-x64 packages/agent-harness-adapter-node; do
+            name="$(node -p "require('./$dir/package.json').name")"
+            if npm view "$name@$VERSION" version >/dev/null 2>&1; then
+              echo "$name@$VERSION is already published"
+            else
+              npm publish "./$dir" --dry-run --tag "$NPM_TAG"
+            fi
           done
-          npm publish ./packages/agent-harness-adapter-node --dry-run --tag "$NPM_TAG"
 
       - name: Authenticate to crates.io with trusted publishing
         if: env.HAS_CARGO_TOKEN != 'true'
