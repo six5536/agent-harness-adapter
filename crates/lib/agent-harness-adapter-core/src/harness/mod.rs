@@ -7,6 +7,7 @@
 
 mod adapter;
 mod declined;
+mod edits;
 mod file;
 mod install;
 mod merge;
@@ -22,7 +23,8 @@ mod write;
 
 pub use adapter::{Context, Harness, Reads, builtin, find};
 pub use declined::{DeclinedStore, TomlDeclined};
-pub use install::{InstallOptions, expand, install, installed, status};
+pub use edits::{Edit, edits};
+pub use install::{Force, InstallOptions, expand, install, installed, status};
 pub(crate) use merge::parse_toml;
 pub use merge::{EntryMatch, MergeOp};
 pub(crate) use part::Profile;

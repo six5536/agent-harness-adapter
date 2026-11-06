@@ -83,7 +83,7 @@ agent-harness-adapter uninstall --harness cursor  # take one out
 ```
 
 A file you changed by hand is reported `edited` and left alone;
-`install --force` overwrites it. `uninstall` takes out what it wrote and never
+`diff` shows how it differs, and `install --force <part>` overwrites it. `uninstall` takes out what it wrote and never
 touches `AGENTS.md`, `.agents/` or the config.
 
 ## In a team, and in CI

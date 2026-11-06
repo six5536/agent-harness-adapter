@@ -33,6 +33,50 @@ pub fn home_dir() -> Option<PathBuf> {
     home_from(|k| std::env::var_os(k))
 }
 
+/// Whether `a` and `b` name the same directory: equal, or equal once each is
+/// resolved, so a path through a symlink (macOS's `/var` is `/private/var`)
+/// or a Windows short name matches the path it stands for.
+pub fn same_dir(a: &Path, b: &Path) -> bool {
+    a == b
+        || matches!(
+            (fs::canonicalize(a), fs::canonicalize(b)),
+            (Ok(x), Ok(y)) if x == y
+        )
+}
+
+/// `path` relative to `root`, `/`-separated on every system, when it lies
+/// under `root` (and is not `root` itself). Built from the path's
+/// components, so a path that mixes `\` and `/`, as `root.join("a/b")` does on
+/// Windows, still gives `a/b`, and a `\` in a Unix file name stays. When the
+/// paths differ only through a symlink or a Windows short name, the resolved
+/// paths decide.
+///
+/// Every path shown to a user or stored in a file, relative to a root, comes
+/// from here or from [`shown`], never from `Path::display`.
+pub fn relative(root: &Path, path: &Path) -> Option<String> {
+    let abs = |p: &Path| std::path::absolute(p).unwrap_or_else(|_| p.to_path_buf());
+    let (path, root) = (abs(path), abs(root));
+    let rel = path
+        .strip_prefix(&root)
+        .ok()
+        .map(Path::to_path_buf)
+        .or_else(|| {
+            let (p, r) = (fs::canonicalize(&path).ok()?, fs::canonicalize(&root).ok()?);
+            p.strip_prefix(r).ok().map(Path::to_path_buf)
+        })?;
+    let parts: Vec<String> = rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    (!parts.is_empty()).then(|| parts.join("/"))
+}
+
+/// `path` as a user reads it: [`relative`] to `root` when it lies under it,
+/// else the whole path in the system's form.
+pub fn shown(root: &Path, path: &Path) -> String {
+    relative(root, path).unwrap_or_else(|| path.display().to_string())
+}
+
 fn home_from(var: impl Fn(&str) -> Option<std::ffi::OsString>) -> Option<PathBuf> {
     ["HOME", "USERPROFILE"]
         .into_iter()
@@ -187,6 +231,50 @@ mod tests {
         write_atomic(&secret, "{\"a\":1}").unwrap();
         let mode = fs::metadata(&secret).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_path_is_shown_relative_with_slashes() {
+        let root = Path::new("/r");
+        assert_eq!(
+            relative(root, &root.join(".tool/h.toml")).as_deref(),
+            Some(".tool/h.toml")
+        );
+        // Joined a component at a time, as the system separates them.
+        let nested = root.join(".claude").join("skills").join("review");
+        assert_eq!(
+            relative(root, &nested).as_deref(),
+            Some(".claude/skills/review")
+        );
+        assert_eq!(relative(root, root), None);
+        assert_eq!(relative(root, Path::new("/x/h.toml")), None);
+        assert_eq!(shown(root, &root.join(".tool/h.toml")), ".tool/h.toml");
+        assert_eq!(
+            shown(root, Path::new("/x/h.toml")),
+            Path::new("/x/h.toml").display().to_string()
+        );
+    }
+
+    // On Unix `\` is a character of a file name, not a separator.
+    #[cfg(unix)]
+    #[test]
+    fn a_backslash_in_a_unix_name_stays() {
+        assert_eq!(
+            relative(Path::new("/r"), Path::new("/r/a\\b")).as_deref(),
+            Some("a\\b")
+        );
+    }
+
+    #[test]
+    fn a_path_through_a_link_is_still_under_its_root() {
+        let dir = temp_dir("fs-same");
+        fs::create_dir_all(dir.join("a/b")).unwrap();
+        assert!(same_dir(&dir.join("a"), &dir.join("a/b/..")));
+        assert!(!same_dir(&dir.join("a"), &dir.join("a/b")));
+        // An absent path matches only itself.
+        assert!(same_dir(&dir.join("none"), &dir.join("none")));
+        assert!(!same_dir(&dir.join("none"), &dir.join("a")));
         fs::remove_dir_all(&dir).unwrap();
     }
 }

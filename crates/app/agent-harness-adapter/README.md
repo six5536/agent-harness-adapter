@@ -35,7 +35,7 @@ Already set up for Claude Code? The first `install` offers to move
 `CLAUDE.md`'s text, `.claude/skills`, Claude Code's hooks and
 `.claude/agents` into the standard places (`--migrate` says yes without
 asking), then points or copies them back for Claude Code. It refuses files
-with uncommitted changes (`--force` overrides), and at user scope backs up
+with uncommitted changes (`--allow-dirty` overrides), and at user scope backs up
 first.
 
 Then keep everything in the standard places:
@@ -99,8 +99,9 @@ agent-harness-adapter status  --manifest mytool.harness.toml
 ## Commands
 
 ```text
-agent-harness-adapter install    # the config, or --manifest <file>; --harness <ids|all>, --scope, --force, --migrate
+agent-harness-adapter install    # the config, or --manifest <file>; --harness <ids|all>, --scope, --force <part|all>, --migrate
 agent-harness-adapter status     # exit 1 when a copy is out of date
+agent-harness-adapter diff       # how each part you edited differs from what install writes
 agent-harness-adapter uninstall  # takes out what it wrote; your sources stay
 agent-harness-adapter hook ...   # what installed hooks run
 agent-harness-adapter schema <manifest|hooks|hook-input|hook-answer|result>

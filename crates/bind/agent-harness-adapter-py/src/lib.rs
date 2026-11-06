@@ -54,6 +54,16 @@ fn status(path: Option<String>, json: Option<String>, options: &str) -> PyResult
         .map_err(err)
 }
 
+/// Edits: `options` is JSON; returns each edited file's texts as JSON.
+#[pyfunction]
+#[pyo3(signature = (path, json, options))]
+fn edits(path: Option<String>, json: Option<String>, options: &str) -> PyResult<String> {
+    let o = Options::parse(options).map_err(err)?;
+    bind::edits(source(path, json)?, &o)
+        .map(|v| v.to_string())
+        .map_err(err)
+}
+
 /// The hook contract's input (Claude Code's), as JSON.
 #[pyfunction]
 fn parse_hook(harness: &str, event: &str, text: &str) -> PyResult<String> {
@@ -81,6 +91,7 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(install, m)?)?;
     m.add_function(wrap_pyfunction!(status, m)?)?;
     m.add_function(wrap_pyfunction!(uninstall, m)?)?;
+    m.add_function(wrap_pyfunction!(edits, m)?)?;
     m.add_function(wrap_pyfunction!(parse_hook, m)?)?;
     m.add_function(wrap_pyfunction!(answer_hook, m)?)?;
     m.add_function(wrap_pyfunction!(schema, m)?)?;

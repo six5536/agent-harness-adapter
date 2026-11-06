@@ -50,7 +50,7 @@ Each is listed as `not migrated: …` before anything moves.
   first install notes it and installs without migrating; `--migrate` refuses
   until you merge them.
 - At project scope, files with changes git has not committed stop the
-  migration (`--force` moves them anyway), so `git diff` shows exactly what moved.
+  migration (`--allow-dirty` moves them anyway), so `git diff` shows exactly what moved.
 - At user scope (`--scope user`), it moves `~/.claude/CLAUDE.md`,
   `~/.claude/skills`, `~/.claude/settings.json`'s hooks and `~/.claude/agents`
   into `~/.agents/`, after backing them up to `~/.agents/backup-<time>/`.

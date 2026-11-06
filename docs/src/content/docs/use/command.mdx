@@ -39,9 +39,10 @@ See [the hook contract](/agent-harness-adapter/reference/hook-contract/).
 ## Commands
 
 ```text
-agent-harness-adapter install   [--manifest <file>] [--harness <ids|all>] [--scope project|user|local] [--root <dir>] [--name <name>] [--force] [--without <parts>] [--migrate] [--json]
+agent-harness-adapter install   [--manifest <file>] [--harness <ids|all>] [--scope project|user|local] [--root <dir>] [--name <name>] [--force <part|all>]... [--migrate] [--allow-dirty] [--json]
 agent-harness-adapter uninstall [--manifest <file>] [--harness <ids|all>] [--scope ..] [--root <dir>] [--force] [--json]
 agent-harness-adapter status    [--manifest <file>] [--harness <ids|all>] [--scope ..] [--root <dir>] [--json]
+agent-harness-adapter diff      [--manifest <file>] [--harness <ids|all>] [--scope ..] [--root <dir>]
 agent-harness-adapter hook [--tool <name>] [--tools <kind>] <harness> <event> -- <command> [args..]
 agent-harness-adapter hook --hooks <path> <harness> <event>
 agent-harness-adapter schema <manifest|hooks|hook-input|hook-answer|result>

@@ -38,7 +38,7 @@ exits 2 (or prints a block answer) and that it finishes within its `timeout`.
 
 | Line | Means | Do |
 | --- | --- | --- |
-| `edited … ` | changed by hand since the last install; left alone | keep your change, or `install --force` to overwrite it |
+| `edited … ` | changed by hand since the last install; left alone | keep your change, see it with `diff`, or `install --force <part>` to overwrite it |
 | `stale …` | out of date with your sources | run `install` |
 | `missing source: config/mcp.json (mcp)` | a source you named in the config does not exist (an unused standard place, such as `.mcp.json`, is not listed) | create it, or fix the path; meanwhile it installs nothing |
 | `warning: … may load the skills twice` | the agent also reads Claude Code's copies in `.claude/skills` | nothing: the copies are identical |

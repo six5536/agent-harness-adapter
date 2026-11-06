@@ -25,8 +25,10 @@ A manifest is a file's path, a dict, or `None` for the repository's
 <Snippet code={install} region="install" lang="python" title="install.py" />
 
 Keyword arguments take the options: `scope` (`"project"`, `"user"` or
-`"local"`), `root` (the project directory), `home`, and for `install` `force`
-and `without`. `uninstall` and `status` take the same arguments. Results are
+`"local"`), `root` (the project directory), `home`, and for `install` `force`,
+`True` or a list of parts. `uninstall`, `status` and `edits` take the same
+arguments; `edits` returns each file you edited, with the text install would
+write and the text found. Results are
 the JSON of `agent-harness-adapter install --json`, as dicts.
 
 ## Answer a hook

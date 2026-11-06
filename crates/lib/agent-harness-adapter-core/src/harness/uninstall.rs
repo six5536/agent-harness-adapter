@@ -7,7 +7,7 @@ use crate::{
     harness::{
         Action, InstallResult, PartResult, Scope, State, Tool,
         file::render_files,
-        install::{Examined, Run, existing_text, installed, run},
+        install::{Examined, Force, Run, existing_text, installed, run},
         merge::render_unmerge,
         part::Kind,
         record::render_record,
@@ -125,7 +125,7 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
     } else {
         opts.harnesses.clone()
     };
-    let mut run = run(tool, &named, opts.scope, None)?;
+    let mut run = run(tool, &named, opts.scope, &Force::None)?;
     let shared = run.share()?;
     let examined = run.examine(&shared)?;
     let mut plan = Plan {
@@ -186,15 +186,8 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
         let text = render_record(&record, &tool.record_header());
         plan.record = Some((run.record_path.clone(), Some(text)));
     }
+    // The declined store is the user's: uninstall leaves it as found.
     apply_plan(&plan)?;
-    let store = tool.declined_store(opts.scope)?;
-    for m in run
-        .members
-        .iter()
-        .filter(|m| m.named && !m.declined.is_empty())
-    {
-        store.set_declined(m.harness.id(), &[])?;
-    }
     // Install's warnings are about loading twice, which an uninstall does
     // not cause: keep only the uninstall's own.
     run.warnings = warnings;

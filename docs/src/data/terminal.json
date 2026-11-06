@@ -378,7 +378,7 @@
         },
         {
           "kind": "out",
-          "text": "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter install --force` overwrites them"
+          "text": "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter diff` shows how, and `agent-harness-adapter install --force <part>` overwrites one"
         },
         {
           "kind": "cmd",
@@ -462,7 +462,7 @@
         },
         {
           "kind": "out",
-          "text": "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter install --force` overwrites them"
+          "text": "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter diff` shows how, and `agent-harness-adapter install --force <part>` overwrites one"
         },
         {
           "kind": "exit",
@@ -580,15 +580,15 @@
         },
         {
           "kind": "out",
-          "text": "AGENTS.md"
-        },
-        {
-          "kind": "out",
           "text": ".git"
         },
         {
           "kind": "out",
           "text": ".mcp.json"
+        },
+        {
+          "kind": "out",
+          "text": "AGENTS.md"
         },
         {
           "kind": "out",

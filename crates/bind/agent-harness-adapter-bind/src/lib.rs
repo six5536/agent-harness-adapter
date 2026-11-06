@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use agent_harness_adapter_core::{
     InstallOptions, InstallResult, Scope, UninstallOptions, fs,
     harness::{
-        self, expand, install as kit_install, installed, status as kit_status,
+        self, edits as kit_edits, expand, install as kit_install, installed, status as kit_status,
         uninstall as kit_uninstall,
     },
     hook::{Answer, Event, HookInput, wire},
@@ -45,10 +45,25 @@ pub struct Options {
     pub root: Option<PathBuf>,
     /// The home directory (default: `HOME`, else `USERPROFILE`).
     pub home: Option<PathBuf>,
-    /// Overwrite parts edited by hand.
-    pub force: bool,
-    /// Parts to leave out, replacing those declined before.
-    pub without: Option<Vec<String>>,
+    /// Overwrite parts edited by hand: `true` for every part not declined,
+    /// or the parts named.
+    pub force: ForceOption,
+}
+
+/// `force` as the bindings pass it: a switch, or a list of part names.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum ForceOption {
+    /// `true`: every part not declined; `false`: none.
+    Switch(bool),
+    /// The parts named.
+    Parts(Vec<String>),
+}
+
+impl Default for ForceOption {
+    fn default() -> Self {
+        ForceOption::Switch(false)
+    }
 }
 
 impl Options {
@@ -113,11 +128,11 @@ fn to_json(result: &InstallResult) -> Result<Value> {
 // @zen-impl: BND-1_AC-3
 pub fn install(source: Source, options: &Options) -> Result<Value> {
     let (tool, scope) = tool(source, options)?;
-    let mut opts =
-        InstallOptions::new(expand(&tool, &options.harnesses, scope), scope).force(options.force);
-    if let Some(w) = &options.without {
-        opts = opts.without(w.iter().cloned());
-    }
+    let opts = InstallOptions::new(expand(&tool, &options.harnesses, scope), scope);
+    let opts = match &options.force {
+        ForceOption::Switch(f) => opts.force(*f),
+        ForceOption::Parts(parts) => opts.force_parts(parts.iter().cloned()),
+    };
     to_json(&kit_install(&tool, &opts).map_err(msg)?)
 }
 
@@ -126,7 +141,10 @@ pub fn install(source: Source, options: &Options) -> Result<Value> {
 // @zen-impl: BND-1_AC-4
 pub fn uninstall(source: Source, options: &Options) -> Result<Value> {
     let (tool, scope) = tool(source, options)?;
-    let opts = UninstallOptions::new(options.harnesses.iter().cloned(), scope).force(options.force);
+    let ForceOption::Switch(force) = options.force else {
+        return Err("options: uninstall takes `force` as true or false".into());
+    };
+    let opts = UninstallOptions::new(options.harnesses.iter().cloned(), scope).force(force);
     to_json(&kit_uninstall(&tool, &opts).map_err(msg)?)
 }
 
@@ -141,6 +159,19 @@ pub fn status(source: Source, options: &Options) -> Result<Value> {
         expand(&tool, &options.harnesses, scope)
     };
     to_json(&kit_status(&tool, ids, scope).map_err(msg)?)
+}
+
+/// The edits of `options.harnesses`, or of the installed ones when none is
+/// named: each edited file's text `install` would write and the text found.
+// @zen-impl: BND-1_AC-5
+pub fn edits(source: Source, options: &Options) -> Result<Value> {
+    let (tool, scope) = tool(source, options)?;
+    let ids = if options.harnesses.is_empty() {
+        installed(&tool, scope).map_err(msg)?
+    } else {
+        expand(&tool, &options.harnesses, scope)
+    };
+    serde_json::to_value(kit_edits(&tool, ids, scope).map_err(msg)?).map_err(msg)
 }
 
 fn harness_event(

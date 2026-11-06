@@ -34,12 +34,21 @@ pub enum Error {
         /// The scope given.
         scope: Scope,
     },
-    /// A part name (e.g. in `--without`) no named harness's profile has.
+    /// A part name (e.g. in `--force`) no named harness's profile has.
     UnknownPart {
         /// The harness, or the harnesses named, comma-separated.
         harness: String,
         /// The part name given.
         part: String,
+    },
+    /// A forced part that a harness declines in the tool's config.
+    DeclinedPart {
+        /// The harness that declines it.
+        harness: String,
+        /// The part name given.
+        part: String,
+        /// Where the part is declined, e.g. `.tool/config.toml`.
+        store: String,
     },
     /// Something a harness cannot do, e.g. an answer it cannot express for
     /// an event.
@@ -102,6 +111,14 @@ impl fmt::Display for Error {
             Error::UnknownPart { harness, part } => {
                 write!(f, "harness `{harness}` has no part named `{part}`")
             }
+            Error::DeclinedPart {
+                harness,
+                part,
+                store,
+            } => write!(
+                f,
+                "harness `{harness}` declines `{part}` in {store}; remove it from `without` there to force it"
+            ),
             Error::Unsupported { harness, what } => {
                 write!(f, "harness `{harness}` cannot {what}")
             }

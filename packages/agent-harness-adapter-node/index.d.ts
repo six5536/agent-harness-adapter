@@ -19,10 +19,21 @@ export interface Options {
 
 /** Options of {@link install}. */
 export interface InstallOptions extends Options {
-  /** Overwrite parts edited by hand. */
-  force?: boolean;
-  /** Parts to leave out, replacing those declined before. */
-  without?: string[];
+  /**
+   * Overwrite parts edited by hand: true for every part not declined, or the
+   * part names. A part is declined in the config, as `[harness.<id>] without = [...]`.
+   */
+  force?: boolean | string[];
+}
+
+/** One file of a part edited by hand: the text install would write, and the text found. */
+export interface Edit {
+  harness: string;
+  part: string;
+  /** The file, relative to the root. */
+  path: string;
+  expected: string;
+  found: string;
 }
 
 /** Options of {@link uninstall}. */
@@ -125,6 +136,8 @@ export function install(manifest: Manifest, harnesses: string[], options?: Insta
 export function uninstall(manifest: Manifest, harnesses: string[], options?: UninstallOptions): Result;
 /** The state of each part, for `harnesses` or the installed ones; nothing is written. */
 export function status(manifest: Manifest, harnesses?: string[], options?: Options): Result;
+/** Each file of a part edited by hand, for `harnesses` or the installed ones; nothing is written. */
+export function edits(manifest: Manifest, harnesses?: string[], options?: Options): Edit[];
 /** The hook contract's input (Claude Code's) for the text `harness` sent at `event`. */
 export function parseHook(harness: string, event: Event | string, text: string): HookInput;
 /** What a hook command writes for `answer` (Claude Code's answer JSON), in `harness`'s form. */

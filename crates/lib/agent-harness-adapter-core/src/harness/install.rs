@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     Error, Result,
-    fs::read_text,
+    fs::{read_text, shown},
     harness::{
         Context, Harness, Markers, Part, Profile, Reads, Scope, State, Tool,
         file::render_files,
@@ -25,6 +25,30 @@ use crate::{
     integration::{Integration, Item},
 };
 
+/// The parts `install` writes whatever their state (`--force`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Force {
+    /// No part: an edited part is left as found.
+    #[default]
+    None,
+    /// Every part that is not declined (`--force all`).
+    All,
+    /// The parts named (`--force <part>`).
+    Parts(Vec<String>),
+}
+
+impl Force {
+    /// Whether the part `name` is forced.
+    pub fn covers(&self, name: &str) -> bool {
+        match self {
+            Force::None => false,
+            Force::All => true,
+            Force::Parts(parts) => parts.iter().any(|p| p == name),
+        }
+    }
+}
+
 /// The options of [`install`], built with [`InstallOptions::new`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -33,36 +57,40 @@ pub struct InstallOptions {
     pub harnesses: Vec<String>,
     /// `--scope`.
     pub scope: Scope,
-    /// `--without`, when given at all: replaces the declined parts of every
-    /// harness named.
-    pub without: Option<Vec<String>>,
-    /// `--force`: write a part whose state is `edited`.
-    pub force: bool,
+    /// `--force`: the parts written whatever their state.
+    pub force: Force,
 }
 
 impl InstallOptions {
     /// Install `harnesses` at `scope`, with the stored declined parts and
-    /// without `--force`.
+    /// no forced part.
     pub fn new<I: IntoIterator<Item = S>, S: Into<String>>(harnesses: I, scope: Scope) -> Self {
         InstallOptions {
             harnesses: harnesses.into_iter().map(Into::into).collect(),
             scope,
-            without: None,
-            force: false,
+            force: Force::None,
         }
     }
 
-    /// `--without`: decline these parts, replacing the stored list.
+    /// `--force` alone: every part that is not declined, or none.
     #[must_use]
-    pub fn without<I: IntoIterator<Item = S>, S: Into<String>>(mut self, parts: I) -> Self {
-        self.without = Some(parts.into_iter().map(Into::into).collect());
+    pub fn force(mut self, force: bool) -> Self {
+        self.force = if force { Force::All } else { Force::None };
         self
     }
 
-    /// `--force`: also write the parts the user edited.
+    /// `--force <part>`: these parts; `all` among them forces every part
+    /// that is not declined, and no part forces none.
     #[must_use]
-    pub fn force(mut self, force: bool) -> Self {
-        self.force = force;
+    pub fn force_parts<I: IntoIterator<Item = S>, S: Into<String>>(mut self, parts: I) -> Self {
+        let parts: Vec<String> = parts.into_iter().map(Into::into).collect();
+        self.force = if parts.iter().any(|p| p == "all") {
+            Force::All
+        } else if parts.is_empty() {
+            Force::None
+        } else {
+            Force::Parts(parts)
+        };
         self
     }
 }
@@ -110,12 +138,6 @@ pub(super) struct Run {
     /// Per item read from a SOURCE under the root, its location.
     pub(super) sources: BTreeMap<Item, String>,
     pub(super) missing: Vec<MissingSource>,
-}
-
-/// `path` relative to `root` when it lies under it, `/`-separated.
-fn display(root: &Path, path: &Path) -> String {
-    let shown = path.strip_prefix(root).unwrap_or(path);
-    shown.to_string_lossy().replace('\\', "/")
 }
 
 /// The profile `harness` renders for `integration`, then the raw parts.
@@ -172,11 +194,12 @@ fn profile(
 // @zen-impl: KIT-1_AC-2
 // @zen-impl: KIT-19_AC-1
 // @zen-impl: KIT-8_AC-1
+// @zen-impl: KIT-6_AC-1
 pub(super) fn run<T: Tool + ?Sized>(
     tool: &T,
     named: &[String],
     scope: Scope,
-    without: Option<&[String]>,
+    force: &Force,
 ) -> Result<Run> {
     let supported = tool.harnesses();
     for id in named {
@@ -195,7 +218,7 @@ pub(super) fn run<T: Tool + ?Sized>(
     }
     let root = tool.root(scope)?;
     let record_path = tool.record_path(scope)?;
-    let record = read_record(&record_path, &display(&root, &record_path))?;
+    let record = read_record(&record_path, &shown(&root, &record_path))?;
     let user_root = match scope {
         Scope::User => Some(root.clone()),
         _ => tool.root(Scope::User).ok(),
@@ -234,17 +257,12 @@ pub(super) fn run<T: Tool + ?Sized>(
                 }
             }
         }
-        // Read even when `--without` replaces it: a store that cannot be
-        // read refuses here, before any write.
-        let stored = store.declined(h.id())?;
-        let declined = match without {
-            Some(w) if is_named => w
-                .iter()
-                .filter(|p| profile.part(p).is_some())
-                .cloned()
-                .collect(),
-            _ => stored,
-        };
+        // A store that cannot be read refuses here, before any write.
+        let declined: Vec<String> = store
+            .declined(h.id())?
+            .into_iter()
+            .filter(|p| profile.part(p).is_some())
+            .collect();
         let mut reads = BTreeMap::new();
         for p in profile.parts() {
             if let Ok(item) = p.name().parse::<Item>() {
@@ -261,15 +279,28 @@ pub(super) fn run<T: Tool + ?Sized>(
             missed,
         });
     }
-    if let Some(part) = without.into_iter().flatten().find(|p| {
-        !members
-            .iter()
-            .any(|m| m.named && m.profile.part(p).is_some())
-    }) {
-        return Err(Error::UnknownPart {
-            harness: named.join(", "),
-            part: part.clone(),
-        });
+    if let Force::Parts(parts) = force {
+        for part in parts {
+            if !members
+                .iter()
+                .any(|m| m.named && m.profile.part(part).is_some())
+            {
+                return Err(Error::UnknownPart {
+                    harness: named.join(", "),
+                    part: part.clone(),
+                });
+            }
+            if let Some(m) = members
+                .iter()
+                .find(|m| m.named && m.declined.contains(part))
+            {
+                return Err(Error::DeclinedPart {
+                    harness: m.harness.id().to_string(),
+                    part: part.clone(),
+                    store: store.location(),
+                });
+            }
+        }
     }
     Ok(Run {
         markers: Markers::new(tool.name()),
@@ -520,9 +551,9 @@ fn plan_part(cx: &Context, markers: &Markers, plan: &mut Plan, e: &Examined<'_>)
 /// left. Every refusal comes before any write.
 // @zen-impl: KIT-4_AC-1
 // @zen-impl: KIT-4_AC-2
-// @zen-impl: KIT-6_AC-1
+// @zen-impl: KIT-4_AC-5
 pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<InstallResult> {
-    let mut run = run(tool, &opts.harnesses, opts.scope, opts.without.as_deref())?;
+    let mut run = run(tool, &opts.harnesses, opts.scope, &opts.force)?;
     let shared = run.share()?;
     let examined = run.examine(&shared)?;
     let mut plan = Plan::default();
@@ -543,7 +574,7 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
         }
         let written = match e.state {
             State::Absent | State::Stale => true,
-            State::Edited => opts.force,
+            State::Edited => opts.force.covers(e.part.name()),
             _ => false,
         };
         let action = if !written {
@@ -563,11 +594,10 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
             .entry(m.harness.id().to_string())
             .or_default();
         match e.state {
-            State::Skipped => {
-                table.remove(e.part.name());
-            }
-            // A shared part keeps any hash; an edited part left keeps its own.
-            State::Shared => {}
+            // A declined part keeps its hash, so that it is stale, not edited,
+            // when the decline ends; a shared part keeps any hash; an edited
+            // part left keeps its own.
+            State::Skipped | State::Shared => {}
             State::Edited if !written => {}
             _ => {
                 table.insert(e.part.name().to_string(), hash(&expected(e.part)));
@@ -592,12 +622,6 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
         ));
     }
     apply_plan(&plan)?;
-    if opts.without.is_some() {
-        let store = tool.declined_store(opts.scope)?;
-        for m in run.members.iter().filter(|m| m.named) {
-            store.set_declined(m.harness.id(), &m.declined)?;
-        }
-    }
     Ok(run.result(parts))
 }
 
@@ -623,7 +647,7 @@ pub fn expand<T: Tool + ?Sized, S: AsRef<str>>(tool: &T, names: &[S], scope: Sco
 pub fn installed<T: Tool + ?Sized>(tool: &T, scope: Scope) -> Result<Vec<String>> {
     let root = tool.root(scope)?;
     let path = tool.record_path(scope)?;
-    let record = read_record(&path, &display(&root, &path))?;
+    let record = read_record(&path, &shown(&root, &path))?;
     Ok(tool
         .harnesses()
         .iter()
@@ -643,7 +667,7 @@ pub fn status<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
         .into_iter()
         .map(|s| s.as_ref().to_string())
         .collect();
-    let mut run = run(tool, &named, scope, None)?;
+    let mut run = run(tool, &named, scope, &Force::None)?;
     let shared = run.share()?;
     let parts: Vec<(usize, PartResult)> = run
         .examine(&shared)?
@@ -674,26 +698,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn display_is_relative_under_the_root() {
-        assert_eq!(
-            display(Path::new("/r"), Path::new("/r/.tool/h.toml")),
-            ".tool/h.toml"
-        );
-        assert_eq!(
-            display(Path::new("/r"), Path::new("/x/h.toml")),
-            "/x/h.toml"
-        );
-    }
-
-    #[test]
     fn options_build() {
-        let o = InstallOptions::new(["claude", "codex"], Scope::User)
-            .without(["mcp"])
-            .force(true);
+        let o = InstallOptions::new(["claude", "codex"], Scope::User).force(true);
         assert_eq!(o.harnesses, ["claude", "codex"]);
         assert_eq!(o.scope, Scope::User);
-        assert_eq!(o.without, Some(vec!["mcp".to_string()]));
-        assert!(o.force);
-        assert_eq!(InstallOptions::new(["c"], Scope::Project).without, None);
+        assert_eq!(o.force, Force::All);
+        assert_eq!(o.clone().force(false).force, Force::None);
+        let p = o.clone().force_parts(["skills", "hooks"]);
+        assert_eq!(p.force, Force::Parts(vec!["skills".into(), "hooks".into()]));
+        assert!(p.force.covers("hooks") && !p.force.covers("mcp"));
+        assert_eq!(o.clone().force_parts(["skills", "all"]).force, Force::All);
+        assert_eq!(o.force_parts(Vec::<String>::new()).force, Force::None);
+        assert_eq!(
+            InstallOptions::new(["c"], Scope::Project).force,
+            Force::None
+        );
     }
 }

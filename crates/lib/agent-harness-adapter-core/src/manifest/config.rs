@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::{Error, Item, Result, harness::Scope};
+use crate::{Error, Item, Result, fs::same_dir, harness::Scope};
 
 /// The directory the CONFIG is in, under its root.
 pub const CONFIG_DIR: &str = ".agents";
@@ -60,7 +60,10 @@ pub fn find_config(
 /// up to the first directory that has `marker`. So a file above the
 /// project, another project's or one planted there, is never used.
 pub fn project_dirs(start: &Path, home: Option<&Path>, marker: &str) -> Vec<PathBuf> {
-    let chain: Vec<&Path> = start.ancestors().take_while(|d| Some(*d) != home).collect();
+    let chain: Vec<&Path> = start
+        .ancestors()
+        .take_while(|d| home.is_none_or(|h| !same_dir(d, h)))
+        .collect();
     let end = match chain.iter().position(|d| d.join(".git").exists()) {
         Some(git) => git,
         None => chain
@@ -258,6 +261,32 @@ mod tests {
         assert_eq!(dirs, vec![project.join("src"), project.clone()]);
         assert_eq!(
             find_config(Scope::Project, None, &project, &home).unwrap(),
+            None
+        );
+    }
+
+    // The search stops at home when the start is reached through a symlink,
+    // as macOS's `/var` is `/private/var`: the home's own CONFIG is never a
+    // project's.
+    #[cfg(unix)]
+    #[test]
+    fn home_through_a_symlink_still_ends_the_search() {
+        let real = tmp("linked");
+        put(&real, "toml");
+        fs::create_dir_all(real.join("work")).unwrap();
+        let link = real.with_file_name(format!(
+            "{}-link",
+            real.file_name().unwrap().to_string_lossy()
+        ));
+        let _ = fs::remove_file(&link);
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        let start = link.join("work").canonicalize().unwrap();
+        assert_eq!(
+            project_dirs(&start, Some(&link), CONFIG_DIR),
+            vec![start.clone()]
+        );
+        assert_eq!(
+            find_config(Scope::Project, None, &start, &link).unwrap(),
             None
         );
     }

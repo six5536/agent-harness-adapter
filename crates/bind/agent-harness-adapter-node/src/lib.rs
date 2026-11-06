@@ -47,6 +47,15 @@ pub fn status(path: Option<String>, json: Option<String>, options: String) -> Re
         .map_err(err)
 }
 
+/// Edits: `options` is JSON; returns each edited file's texts as JSON.
+#[napi]
+pub fn edits(path: Option<String>, json: Option<String>, options: String) -> Result<String> {
+    let o = Options::parse(&options).map_err(err)?;
+    bind::edits(source(path, json)?, &o)
+        .map(|v| v.to_string())
+        .map_err(err)
+}
+
 /// The hook contract's input (Claude Code's), as JSON.
 #[napi]
 pub fn parse_hook(harness: String, event: String, text: String) -> Result<String> {

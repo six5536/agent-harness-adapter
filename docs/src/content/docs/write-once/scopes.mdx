@@ -38,9 +38,9 @@ install warns.
 | `current` | as the install would write it |
 | `stale` | out of date: `install` rewrites it |
 | `absent` | not there yet |
-| `edited` | changed by hand: left alone unless `--force` |
+| `edited` | changed by hand: left alone unless forced with `--force <part>` |
 | `shared` | another agent's copy, or the source itself, serves it |
-| `skipped` | declined with `--without` |
+| `skipped` | declined in `.agents/config.toml` |
 
 `status` exits 1 when any part is not `current`, `shared` or `skipped`: a
 copy out of date, a part missing, or a file edited by hand. CI can use it to
@@ -51,13 +51,16 @@ check that every agent's copy is current.
 - The adapter writes only its own region of an instructions file, its own
   entries in a settings file, and its own files; your text, settings and
   hooks beside them stay.
-- A part changed by hand is `edited`. `install --force` overwrites it;
-  `uninstall --force` removes it.
+- A part changed by hand is `edited`. `diff` shows how it differs;
+  `install --force <part>` overwrites it (`--force all` overwrites every
+  part); `uninstall --force` removes it.
 - `uninstall` takes out what it wrote, then removes files and folders left
   empty. Content another installed agent still reads stays
   (`kept … used by <agent>`). `AGENTS.md`, `.agents/` and the config are
   never removed.
 - A refused install writes nothing, and every write is atomic and only made
   when the content changes.
-- `--without hooks,mcp` leaves parts out. The choice is remembered, per agent,
-  in `.agents/config.toml`; giving `--without` again replaces it.
+- To leave parts out, list them per agent in `.agents/config.toml`, as
+  `[harness.claude] without = ["hooks", "mcp"]`. No command writes that file,
+  and a declined part keeps its record, so it is up to date again when you
+  take it off the list.

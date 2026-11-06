@@ -28,6 +28,8 @@ const env = {
   HOME: tmp,
   PATH: `${path.dirname(bin)}${path.delimiter}${process.env.PATH}`,
   GIT_CONFIG_NOSYSTEM: "1",
+  // `ls` sorts by the locale, so one locale gives the same output everywhere.
+  LC_ALL: "C",
 };
 delete env.USERPROFILE;
 
@@ -148,8 +150,10 @@ const scenes = [];
 
 {
   const lines = [];
-  // Back to what install wrote.
-  run([], "agent-harness-adapter install --force");
+  // Back to what install wrote. The scene doesn't show this run, so a failure
+  // would pass unseen: stop on one.
+  const reset = run([], "agent-harness-adapter install --force all");
+  if (reset.code !== 0) throw new Error(`install --force all failed:\n${reset.text}`);
   run(lines, "agent-harness-adapter uninstall");
   note(lines, "It took out only what it wrote: CLAUDE.md held just its @AGENTS.md line");
   note(lines, "Your sources stay");

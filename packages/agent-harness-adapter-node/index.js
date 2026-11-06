@@ -34,7 +34,6 @@ function options(harnesses, opts = {}) {
     root: opts.root ?? null,
     home: opts.home ?? null,
     force: opts.force ?? false,
-    without: opts.without ?? null,
   });
 }
 
@@ -55,6 +54,12 @@ function uninstall(manifest, harnesses, opts) {
 /** The state of each part, for `harnesses` or the installed ones. */
 function status(manifest, harnesses, opts) {
   return JSON.parse(native.status(...source(manifest), options(harnesses, opts)));
+}
+
+/** Each file of a part edited by hand, for `harnesses` or the installed ones: {harness, part, path, expected, found}. */
+// @zen-impl: BND-1_AC-5
+function edits(manifest, harnesses, opts) {
+  return JSON.parse(native.edits(...source(manifest), options(harnesses, opts)));
 }
 
 /** The hook contract's input for what `harness` sent at `event`: Claude Code's input, with `harness` and `tool_kind`. */
@@ -95,6 +100,7 @@ module.exports = {
   install,
   uninstall,
   status,
+  edits,
   parseHook,
   answerHook,
   runHook,

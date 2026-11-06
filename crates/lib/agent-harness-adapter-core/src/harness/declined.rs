@@ -1,26 +1,24 @@
 //! The declined parts: a store behind a trait, and a TOML implementation
 //! that keeps `[harness.<name>] without = [...]` in the tool's config file,
-//! edited in place with its comments kept.
+//! which the user writes and the library only reads.
 // @zen-component: KIT-Declined
 
 use std::path::PathBuf;
 
-use toml_edit::{Array, DocumentMut, Item, Table, TableLike, Value};
+use toml_edit::{DocumentMut, Item, TableLike};
 
-use crate::{
-    Error, Result,
-    fs::read_text,
-    harness::{parse_toml, write::write_if_changed},
-};
+use crate::{Error, Result, fs::read_text, harness::parse_toml};
 
 /// Where the parts a user declined are kept.
 pub trait DeclinedStore {
     /// The declined parts of `harness`. A store that cannot be read is a
     /// refusal; `install` calls this before any write.
     fn declined(&self, harness: &str) -> Result<Vec<String>>;
-    /// Set the declined parts of `harness` to `parts`, writing only on
-    /// change. Called after every part is written.
-    fn set_declined(&self, harness: &str, parts: &[String]) -> Result<()>;
+    /// Where the user declines parts, e.g. `.tool/config.toml`, named when
+    /// a forced part is declined.
+    fn location(&self) -> String {
+        "the tool's config".to_string()
+    }
 }
 
 /// A [`DeclinedStore`] in a TOML file: `[harness.<name>] without = [...]`.
@@ -91,50 +89,9 @@ impl DeclinedStore for TomlDeclined {
             .collect()
     }
 
-    fn set_declined(&self, harness: &str, parts: &[String]) -> Result<()> {
-        let text = read_text(&self.path)?;
-        let Some(out) = set_declined_text(text.as_deref(), harness, parts, &self.display)? else {
-            return Ok(());
-        };
-        write_if_changed(&self.path, &out)
+    fn location(&self) -> String {
+        self.display.clone()
     }
-}
-
-/// The config text with `harness.<name>.without` set to `parts`, edited in
-/// place; `None` when the text is unchanged. `display` names the file in a
-/// refusal.
-pub(crate) fn set_declined_text(
-    text: Option<&str>,
-    harness: &str,
-    parts: &[String],
-    display: &str,
-) -> Result<Option<String>> {
-    let refuse = |m: &str| Error::file(display, m);
-    let mut doc: DocumentMut = match text {
-        Some(t) => parse_toml(display, t)?,
-        None => DocumentMut::new(),
-    };
-    let harness_table = doc
-        .entry("harness")
-        .or_insert_with(|| {
-            let mut t = Table::new();
-            t.set_implicit(true);
-            Item::Table(t)
-        })
-        .as_table_like_mut()
-        .ok_or_else(|| refuse("`harness` is not a table"))?;
-    let table = harness_table
-        .entry(harness)
-        .or_insert(Item::Table(Table::new()))
-        .as_table_like_mut()
-        .ok_or_else(|| refuse(&format!("`harness.{harness}` is not a table")))?;
-    let mut array = Array::new();
-    for part in parts {
-        array.push(part.as_str());
-    }
-    table.insert("without", Item::Value(Value::Array(array)));
-    let out = doc.to_string();
-    Ok((Some(out.as_str()) != text).then_some(out))
 }
 
 #[cfg(test)]
@@ -142,80 +99,27 @@ mod tests {
     use super::*;
     use crate::test_support::temp_dir;
 
-    fn hooks() -> Vec<String> {
-        vec!["hooks".to_string()]
-    }
-
-    fn without(text: &str) -> toml_edit::Item {
-        let doc: DocumentMut = text.parse().unwrap();
-        doc["harness"]["claude"]["without"].clone()
-    }
-
     // @zen-test: KIT-8_AC-3
     #[test]
-    fn sets_the_declined_list_in_place() {
-        let d = "config.toml";
-        assert_eq!(
-            set_declined_text(None, "claude", &hooks(), d).unwrap(),
-            Some("[harness.claude]\nwithout = [\"hooks\"]\n".into())
-        );
-        let text = "# The machines.\n[machines]\nfiles = [\"a\"] # kept\n";
-        let out = set_declined_text(Some(text), "claude", &hooks(), d)
-            .unwrap()
-            .unwrap();
-        assert!(out.starts_with(text), "{out}");
-        assert!(
-            out.ends_with("[harness.claude]\nwithout = [\"hooks\"]\n"),
-            "{out}"
-        );
-        let text = "[harness.claude] # mine\nwithout = [\"skills\"]\n";
-        let out = set_declined_text(Some(text), "claude", &hooks(), d)
-            .unwrap()
-            .unwrap();
-        assert_eq!(out, "[harness.claude] # mine\nwithout = [\"hooks\"]\n");
-        assert_eq!(
-            set_declined_text(Some(&out), "claude", &hooks(), d).unwrap(),
-            None
-        );
-        let out = set_declined_text(
-            Some("harness = { claude = { without = [] } }\n"),
-            "claude",
-            &hooks(),
-            d,
-        )
-        .unwrap()
-        .unwrap();
-        assert_eq!(
-            without(&out).as_array().unwrap().get(0).unwrap().as_str(),
-            Some("hooks")
-        );
-        let e = set_declined_text(Some("harness = 1\n"), "claude", &hooks(), d).unwrap_err();
-        assert!(e.to_string().contains("`harness` is not a table"), "{e}");
-        let e =
-            set_declined_text(Some("[harness]\nclaude = 1\n"), "claude", &hooks(), d).unwrap_err();
-        assert!(
-            e.to_string().contains("`harness.claude` is not a table"),
-            "{e}"
-        );
-        let e = set_declined_text(Some("[harness\n"), "claude", &hooks(), d).unwrap_err();
-        assert!(matches!(e, Error::File { .. }), "{e}");
-        assert!(e.to_string().starts_with("config.toml: "), "{e}");
-    }
-
-    // @zen-test: KIT-8_AC-3
-    #[test]
-    fn the_toml_store_reads_and_writes() {
+    fn the_toml_store_reads() {
         let dir = temp_dir("declined-store");
         let store = TomlDeclined::new(dir.join("sub/config.toml"), "sub/config.toml");
+        assert_eq!(store.location(), "sub/config.toml");
         assert_eq!(store.declined("claude").unwrap(), Vec::<String>::new());
-        store.set_declined("claude", &hooks()).unwrap();
-        assert_eq!(store.declined("claude").unwrap(), hooks());
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        let text = "# mine\n[harness.claude] # kept\nwithout = [\"hooks\"]\n";
+        std::fs::write(&store.path, text).unwrap();
+        assert_eq!(store.declined("claude").unwrap(), vec!["hooks".to_string()]);
         assert_eq!(store.declined("other").unwrap(), Vec::<String>::new());
-        let before = std::fs::metadata(&store.path).unwrap().modified().unwrap();
-        store.set_declined("claude", &hooks()).unwrap();
+        assert_eq!(std::fs::read_to_string(&store.path).unwrap(), text);
+        std::fs::write(
+            &store.path,
+            "harness = { claude = { without = [\"skills\"] } }\n",
+        )
+        .unwrap();
         assert_eq!(
-            std::fs::metadata(&store.path).unwrap().modified().unwrap(),
-            before
+            store.declined("claude").unwrap(),
+            vec!["skills".to_string()]
         );
         for (text, empty) in [("[machines]\n", true), ("[harness.claude]\nx = 1\n", true)] {
             std::fs::write(&store.path, text).unwrap();

@@ -12,7 +12,7 @@ format in every harness, Claude Code's (``parse_hook`` / ``answer_hook`` /
 
 import json
 import os
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from . import _native
 
@@ -20,6 +20,7 @@ __all__ = [
     "install",
     "status",
     "uninstall",
+    "edits",
     "parse_hook",
     "answer_hook",
     "run_hook",
@@ -44,7 +45,7 @@ def _source(manifest: Optional[Manifest]):
     return os.fspath(manifest), None
 
 
-def _options(harnesses, scope, root, home, force=False, without=None) -> str:
+def _options(harnesses, scope, root, home, force=False) -> str:
     def path(p):
         return None if p is None else os.fspath(p)
 
@@ -54,8 +55,7 @@ def _options(harnesses, scope, root, home, force=False, without=None) -> str:
             "scope": scope,
             "root": path(root),
             "home": path(home),
-            "force": force,
-            "without": None if without is None else list(without),
+            "force": force if isinstance(force, bool) else list(force),
         }
     )
 
@@ -67,8 +67,7 @@ def install(
     scope: str = "project",
     root: PathLike = None,
     home: PathLike = None,
-    force: bool = False,
-    without: Optional[Iterable[str]] = None,
+    force: Union[bool, Iterable[str]] = False,
 ) -> Dict[str, Any]:
     """Install the manifest's integration for ``harnesses`` (ids, or "all").
 
@@ -77,11 +76,14 @@ def install(
     against the working directory), or ``None``: the config
     ``.agents/agent-harness-adapter.toml``, found as the command finds it.
     ``root`` is the project directory (default: the config's, else the
-    working directory); ``home`` the home directory. Returns the result,
-    as ``agent-harness-adapter install --json`` prints it.
+    working directory); ``home`` the home directory. ``force`` overwrites
+    parts edited by hand: ``True`` for every part not declined, or the
+    part names. A part is declined in the config, as
+    ``[harness.<id>] without = [...]``. Returns the result, as
+    ``agent-harness-adapter install --json`` prints it.
     """
     path, text = _source(manifest)
-    options = _options(harnesses, scope, root, home, force, without)
+    options = _options(harnesses, scope, root, home, force)
     return json.loads(_native.install(path, text, options))
 
 
@@ -115,6 +117,22 @@ def status(
     """The state of each part, for ``harnesses`` or the installed ones."""
     path, text = _source(manifest)
     return json.loads(_native.status(path, text, _options(harnesses, scope, root, home)))
+
+
+def edits(
+    manifest: Optional[Manifest],
+    harnesses: Optional[Iterable[str]] = None,
+    *,
+    scope: str = "project",
+    root: PathLike = None,
+    home: PathLike = None,
+) -> List[Dict[str, Any]]:
+    """Each file of a part edited by hand, for ``harnesses`` or the
+    installed ones: ``{"harness", "part", "path", "expected", "found"}``,
+    the text install would write and the text found."""
+    # @zen-impl: BND-1_AC-5
+    path, text = _source(manifest)
+    return json.loads(_native.edits(path, text, _options(harnesses, scope, root, home)))
 
 
 def parse_hook(harness: str, event: str, text: str) -> Dict[str, Any]:

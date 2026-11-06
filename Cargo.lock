@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "agent-harness-adapter"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "agent-harness-adapter-core",
  "assert_cmd",
@@ -13,11 +13,12 @@ dependencies = [
  "proptest",
  "regex",
  "serde_json",
+ "similar 3.2.1",
 ]
 
 [[package]]
 name = "agent-harness-adapter-bind"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "agent-harness-adapter-core",
  "serde",
@@ -26,7 +27,7 @@ dependencies = [
 
 [[package]]
 name = "agent-harness-adapter-core"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "insta",
  "proptest",
@@ -38,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "agent-harness-adapter-node"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "agent-harness-adapter-bind",
  "napi",
@@ -48,7 +49,7 @@ dependencies = [
 
 [[package]]
 name = "agent-harness-adapter-py"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "agent-harness-adapter-bind",
  "pyo3",
@@ -411,7 +412,7 @@ checksum = "86f0f8fee8c926415c58d6ae43a08523a26faccb2323f5e6b644fe7dd4ef6b82"
 dependencies = [
  "console",
  "once_cell",
- "similar",
+ "similar 2.7.0",
  "tempfile",
 ]
 
@@ -938,6 +939,15 @@ name = "similar"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
+
+[[package]]
+name = "similar"
+version = "3.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2f8bec09ae8fae0f4f265a4559a9334be3929d8504e9b536df0a41302bd1733"
+dependencies = [
+ "bstr",
+]
 
 [[package]]
 name = "strsim"

@@ -113,21 +113,7 @@ impl Context {
     /// `path` relative to the root, `/`-separated, when it is under it (and
     /// not the root itself).
     pub fn relative(&self, path: &Path) -> Option<String> {
-        let abs = |p: &Path| std::path::absolute(p).unwrap_or_else(|_| p.to_path_buf());
-        let (path, root) = (abs(path), abs(&self.root));
-        let rel = path
-            .strip_prefix(&root)
-            .ok()
-            .map(Path::to_path_buf)
-            .or_else(|| {
-                let (p, r) = (path.canonicalize().ok()?, root.canonicalize().ok()?);
-                p.strip_prefix(r).ok().map(Path::to_path_buf)
-            })?;
-        let parts: Vec<String> = rel
-            .components()
-            .map(|c| c.as_os_str().to_string_lossy().into_owned())
-            .collect();
-        (!parts.is_empty()).then(|| parts.join("/"))
+        crate::fs::relative(&self.root, path)
     }
 
     /// Whether `rel` is a file under the root.

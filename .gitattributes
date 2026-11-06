@@ -1,2 +1,5 @@
-# The checked-in schemas must equal what `agent-harness-adapter schema` prints on every OS.
-schema/*.json text eol=lf
+# Every text file is checked out with LF line endings on every system, so the
+# templates the build embeds (the Pi extension, the OpenCode plugin), the
+# checked-in schemas and the fixtures the tests compare are the same bytes on
+# Windows as on Linux and macOS, whatever the user's core.autocrlf.
+* text=auto eol=lf

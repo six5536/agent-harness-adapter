@@ -54,7 +54,8 @@ The adapter only touches its own content:
 It keeps a **record** of what it wrote, `.agents/harness.toml`, so it can
 tell a file it wrote and that changed since (`stale`) from one you changed
 by hand (`edited`), which it leaves alone. Commit the record with the rest.
-Parts you turn off with `--without` are remembered in `.agents/config.toml`.
+Parts you turn off are listed in `.agents/config.toml`, which you edit and
+no command writes.
 
 ## Hooks
 

@@ -40,9 +40,10 @@ impl Plan {
         self.moves.is_empty()
     }
 
-    /// The moves and what is left, as lines for the user.
+    /// The moves and what is left, as lines for the user, with each path
+    /// shown as `kit_fs::shown` gives it, as the rest of the output.
     pub fn describe(&self, base: &Path) -> String {
-        let rel = |p: &Path| p.strip_prefix(base).unwrap_or(p).display().to_string();
+        let rel = |p: &Path| kit_fs::shown(base, p);
         let mut out = String::from("Claude Code's setup to move into the standard places:\n");
         for m in &self.moves {
             out.push_str(&format!(
@@ -416,7 +417,7 @@ pub fn check_git(plan: &Plan, root: &Path) -> Result<()> {
         .output();
     match out {
         Ok(o) if o.status.success() && !o.stdout.is_empty() => Err(Error::Usage(format!(
-            "cannot migrate: these files have changes git has not committed (commit them, or run with --force):\n{}",
+            "cannot migrate: these files have changes git has not committed (commit them, or run with --allow-dirty):\n{}",
             String::from_utf8_lossy(&o.stdout).trim_end()
         ))),
         _ => Ok(()),

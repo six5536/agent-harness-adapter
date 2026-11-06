@@ -4,6 +4,7 @@
 // @zen-component: AHA-Cli
 
 mod bridge;
+mod diff;
 mod dispatch;
 mod error;
 mod install;
@@ -35,6 +36,9 @@ enum Cmd {
     /// Report its state in harnesses; exits 1 when an install would change
     /// something.
     Status(install::StatusArgs),
+    /// Show how each part edited by hand differs from what install would
+    /// write, as a unified diff.
+    Diff(diff::DiffArgs),
     /// Run a harness's hook in Claude Code's hook protocol: through a
     /// command (after `--`), or the matching entries of a hooks file
     /// (`--hooks`).
@@ -52,6 +56,7 @@ fn main() -> ExitCode {
         Cmd::Install(a) => install::run_install(&a),
         Cmd::Uninstall(a) => install::run_uninstall(&a),
         Cmd::Status(a) => install::run_status(&a),
+        Cmd::Diff(a) => diff::run(&a),
         Cmd::Hook(a) => bridge::run(&a).map_err(error::Error::from),
         Cmd::Schema { contract } => schema::run(contract).map_err(error::Error::from),
     })

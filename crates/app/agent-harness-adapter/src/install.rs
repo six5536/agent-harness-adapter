@@ -53,14 +53,14 @@ pub struct InstallArgs {
     /// The name a new config gets: its markers and record (default `agents`).
     #[arg(long, value_name = "NAME")]
     pub name: Option<String>,
-    /// Leave a part out (instructions, skills, hooks, mcp, …); repeatable.
-    /// Given at all, it replaces the parts declined before.
+    /// Overwrite these parts even if edited by hand (instructions, skills,
+    /// hooks, mcp, …, or `all`); repeatable. A part declined in the config
+    /// (`[harness.<id>] without = [...]`) is refused.
     #[arg(long, value_name = "PART", value_delimiter = ',')]
-    pub without: Vec<String>,
-    /// Overwrite parts edited by hand; migrate files git has uncommitted
-    /// changes in.
+    pub force: Vec<String>,
+    /// Migrate files git has uncommitted changes in.
     #[arg(long)]
-    pub force: bool,
+    pub allow_dirty: bool,
     /// Move Claude Code's setup into the standard places without asking
     /// (also once the config exists).
     #[arg(long)]
@@ -93,8 +93,8 @@ pub struct StatusArgs {
 
 /// The manifest as a tool; the CONFIG it came from (its path and root),
 /// and its text when it is still to be written.
-struct Loaded {
-    tool: ManifestTool,
+pub(crate) struct Loaded {
+    pub(crate) tool: ManifestTool,
     config: Option<(PathBuf, PathBuf)>,
     write: Option<String>,
 }
@@ -108,7 +108,7 @@ fn home() -> Result<PathBuf> {
 /// else a refusal.
 // @zen-impl: AHA-7_AC-4
 // @zen-impl: AHA-7_AC-5
-fn load(common: &Common, create: Option<&str>) -> Result<Loaded> {
+pub(crate) fn load(common: &Common, create: Option<&str>) -> Result<Loaded> {
     let cwd = std::env::current_dir()?;
     let scope = common.scope;
     if let Some(m) = &common.manifest {
@@ -183,7 +183,7 @@ fn common_root(common: &Common) -> Result<PathBuf> {
 /// upwards holding `.git` (not past `home`), else `cwd`.
 fn repo_root(cwd: &Path, home: &Path) -> PathBuf {
     cwd.ancestors()
-        .take_while(|d| *d != home)
+        .take_while(|d| !fs::same_dir(d, home))
         .find(|d| d.join(".git").exists())
         .unwrap_or(cwd)
         .to_path_buf()
@@ -224,7 +224,7 @@ pub fn run_install(args: &InstallArgs) -> Result<u8> {
         _ => None,
     };
     if let (Some(plan), Some((_, root)), Scope::Project, false) =
-        (&migration, &loaded.config, scope, args.force)
+        (&migration, &loaded.config, scope, args.allow_dirty)
     {
         migrate::check_git(plan, root)?;
     }
@@ -253,20 +253,11 @@ pub fn run_install(args: &InstallArgs) -> Result<u8> {
         };
         loaded.tool = ManifestTool::new(manifest, project, home()?);
     }
-    let mut opts = InstallOptions::new(choice.ids().iter().cloned(), scope).force(args.force);
-    if !args.without.is_empty() {
-        opts = opts.without(args.without.iter().cloned());
-    }
+    let opts = InstallOptions::new(choice.ids().iter().cloned(), scope)
+        .force_parts(args.force.iter().cloned());
     let result = install(&loaded.tool, &opts)?;
     let standard = loaded.config.is_some();
-    print(
-        &args.common,
-        &result,
-        standard,
-        args.force,
-        INSTALL_NOTE,
-        &mut err,
-    )
+    print(&args.common, &result, standard, INSTALL_NOTE, &mut err)
 }
 
 /// Whether to migrate: `--migrate`, else the user's answer when there is a
@@ -310,13 +301,12 @@ pub fn run_uninstall(args: &UninstallArgs) -> Result<u8> {
         &args.common,
         &result,
         loaded.config.is_some(),
-        args.force,
         UNINSTALL_NOTE,
         &mut std::io::stderr(),
     )
 }
 
-const INSTALL_NOTE: &str = "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter install --force` overwrites them";
+const INSTALL_NOTE: &str = "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter diff` shows how, and `agent-harness-adapter install --force <part>` overwrites one";
 const UNINSTALL_NOTE: &str = "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter uninstall --force` removes them";
 
 // @zen-impl: AHA-3_AC-2
@@ -334,7 +324,6 @@ pub fn run_status(args: &StatusArgs) -> Result<u8> {
         &args.common,
         &result,
         loaded.config.is_some(),
-        false,
         INSTALL_NOTE,
         &mut std::io::stderr(),
     )?;
@@ -346,7 +335,7 @@ pub fn run_status(args: &StatusArgs) -> Result<u8> {
 }
 
 /// The result as text or JSON on stdout, and with text the note about
-/// edited parts on `stderr`. From the config (`standard`), the text leaves
+/// edited parts left as found on `stderr`. From the config (`standard`), the text leaves
 /// out the standard sources the user does not use.
 // @zen-impl: AHA-3_AC-3
 // @zen-impl: AHA-3_AC-4
@@ -354,7 +343,6 @@ fn print(
     common: &Common,
     result: &InstallResult,
     standard: bool,
-    force: bool,
     note: &str,
     stderr: &mut impl Write,
 ) -> Result<u8> {
@@ -378,7 +366,7 @@ fn print(
         .iter()
         .flat_map(|h| &h.parts)
         .any(|p| p.state == State::Edited && p.action.is_none());
-    if edited && !force {
+    if edited {
         writeln!(stderr, "{note}")?;
     }
     Ok(cli::EXIT_OK)

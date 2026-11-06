@@ -22,9 +22,10 @@ A manifest is a file's path, an object, or `null` for the repository's
 <Snippet code={install} region="install" lang="js" title="install.mjs" />
 
 The third argument takes options: `scope` (`"project"`, `"user"` or
-`"local"`), `root` (the project directory), `home`, and for `install` `force`
-and `without` ([InstallOptions](/agent-harness-adapter/api/node/interfaces/installoptions/)).
-`uninstall` and `status` take the same arguments. Results are the JSON of
+`"local"`), `root` (the project directory), `home`, and for `install` `force`,
+`true` or a list of parts ([InstallOptions](/agent-harness-adapter/api/node/interfaces/installoptions/)).
+`uninstall`, `status` and `edits` take the same arguments; `edits` returns
+each file you edited, with the text install would write and the text found. Results are the JSON of
 `agent-harness-adapter install --json`.
 
 ## Answer a hook
