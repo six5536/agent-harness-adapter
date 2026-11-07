@@ -95,12 +95,12 @@ let tool = MyTool { project };
 let result = install(&tool, &InstallOptions::new(["claude", "codex", "pi"], Scope::Project))?;
 print!("{}", result.to_text());
 // claude:
-//   created CLAUDE.md (instructions)
+//   created AGENTS.md (instructions)
 //   created .claude/skills (skills)
 //   created .claude/settings.json (hooks)
 //   ...
 // codex:
-//   created AGENTS.md (instructions)
+//   shared  AGENTS.md (instructions, by claude)
 //   created .agents/skills (skills)
 //   created .codex/hooks.json (hooks)
 //   created .codex/config.toml (mcp)
@@ -108,7 +108,7 @@ print!("{}", result.to_text());
 //   note: new hooks run only once approved in Codex's /hooks
 //   ...
 // pi:
-//   shared  AGENTS.md (instructions, by codex)
+//   shared  AGENTS.md (instructions, by claude)
 //   shared  .agents/skills (skills, by codex)
 //   created .pi/extensions (hooks)
 //   ...

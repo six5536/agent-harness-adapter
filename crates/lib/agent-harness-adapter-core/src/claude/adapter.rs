@@ -15,7 +15,7 @@ use crate::{
         parts::{self, GroupHooks},
         protocol,
     },
-    harness::{Context, Harness, MergeOp, Part, Reads, Scope},
+    harness::{Context, Harness, Markers, MergeOp, Part, Reads, Scope},
     hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind},
     integration::{Integration, Item},
 };
@@ -26,25 +26,58 @@ pub struct Claude;
 
 const ID: &str = "claude";
 
-/// The instructions file under `root`: `AGENTS.md` when it exists and
-/// `CLAUDE.md` is absent or has a line `@AGENTS.md`; otherwise `CLAUDE.md`,
-/// created when absent.
+/// The instructions file under `root`: `AGENTS.md` when `CLAUDE.md` has a
+/// line `@AGENTS.md` (`AGENTS.md` created when absent), or when `CLAUDE.md`
+/// is absent and `AGENTS.md` exists; otherwise `CLAUDE.md`, created when
+/// absent. An install also keeps the tool's region in a `CLAUDE.md` that
+/// imports `AGENTS.md` and already holds it, which this, knowing no tool,
+/// cannot see.
 // @zen-impl: HAR-1_AC-2
 pub fn instructions_file(root: &Path) -> Result<&'static str> {
-    let agents = root.join("AGENTS.md");
-    let claude = root.join("CLAUDE.md");
-    if !agents.is_file() {
-        return Ok("CLAUDE.md");
-    }
-    if !claude.is_file() {
-        return Ok("AGENTS.md");
-    }
-    let text = std::fs::read_to_string(&claude).map_err(|e| Error::io(&claude, e))?;
-    Ok(if text.lines().any(|l| l.trim() == "@AGENTS.md") {
+    chosen_file(root, root.join("AGENTS.md").is_file(), None)
+}
+
+/// HAR-1_AC-2's rule, given whether `AGENTS.md` is there (a file under
+/// `root`, or one another harness of the run writes) and, in a run, the
+/// tool, whose region a `CLAUDE.md` that imports `AGENTS.md` keeps.
+fn chosen_file(root: &Path, agents: bool, tool: Option<&str>) -> Result<&'static str> {
+    let Some(text) = claude_md(root)? else {
+        return Ok(if agents { "AGENTS.md" } else { "CLAUDE.md" });
+    };
+    let holds = tool.is_some_and(|t| Markers::new(t).find(&text).is_some());
+    Ok(if imports_agents(&text) && !holds {
         "AGENTS.md"
     } else {
         "CLAUDE.md"
     })
+}
+
+/// The text of `CLAUDE.md` under `root`; `None` when it is not a file.
+fn claude_md(root: &Path) -> Result<Option<String>> {
+    let claude = root.join("CLAUDE.md");
+    if !claude.is_file() {
+        return Ok(None);
+    }
+    std::fs::read_to_string(&claude)
+        .map(Some)
+        .map_err(|e| Error::io(&claude, e))
+}
+
+/// Whether `text` has a line `@AGENTS.md`.
+fn imports_agents(text: &str) -> bool {
+    text.lines().any(|l| l.trim() == "@AGENTS.md")
+}
+
+/// Where Claude Code loads the instructions at `cx`: the chosen file, and
+/// `AGENTS.md` too when the chosen file is a `CLAUDE.md` that imports it.
+// @zen-impl: HAR-1_AC-2
+fn instructions_reads(cx: &Context) -> Result<Reads> {
+    let own = location(Item::Instructions, cx)?;
+    let imported = cx.scope == Scope::Project
+        && own.as_deref() == Some("CLAUDE.md")
+        && claude_md(&cx.root)?.is_some_and(|t| imports_agents(&t));
+    let also = imported.then(|| "AGENTS.md".to_string());
+    Ok(Reads::always(own.into_iter().chain(also)))
 }
 
 /// The REFERENCE to the instructions' SOURCE (HAR-14_AC-1): the file
@@ -120,7 +153,14 @@ fn location(item: Item, cx: &Context) -> Result<Option<String>> {
     let local = cx.scope == Scope::Local;
     Ok(match item {
         Item::Instructions => match cx.scope {
-            Scope::Project => Some(instructions_file(&cx.root)?.to_string()),
+            Scope::Project => Some(
+                chosen_file(
+                    &cx.root,
+                    cx.is_file_or_rendered("AGENTS.md"),
+                    Some(&cx.tool),
+                )?
+                .to_string(),
+            ),
             Scope::User => Some(".claude/CLAUDE.md".into()),
             _ => None,
         },
@@ -205,7 +245,10 @@ impl Harness for Claude {
     }
 
     fn reads(&self, item: Item, cx: &Context) -> Result<Reads> {
-        Ok(Reads::always(location(item, cx)?))
+        match item {
+            Item::Instructions => instructions_reads(cx),
+            _ => Ok(Reads::always(location(item, cx)?)),
+        }
     }
 
     // @zen-impl: HAR-1_AC-4
@@ -255,9 +298,51 @@ mod tests {
         // Both, with the import, spaces around it allowed.
         fs::write(dir.join("CLAUDE.md"), "  @AGENTS.md  \n").unwrap();
         assert_eq!(t(), "AGENTS.md");
-        // CLAUDE.md alone.
+        // CLAUDE.md alone, with the import: AGENTS.md, created later.
         fs::remove_file(dir.join("AGENTS.md")).unwrap();
+        assert_eq!(t(), "AGENTS.md");
+        // CLAUDE.md alone, without it.
+        fs::write(dir.join("CLAUDE.md"), "# Claude\n").unwrap();
         assert_eq!(t(), "CLAUDE.md");
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    // @zen-test: HAR-1_AC-2
+    // @zen-test: KIT-19_AC-9
+    #[test]
+    fn an_agents_md_another_harness_renders_counts_as_there() {
+        let dir = temp_dir("claude-rendered");
+        let mut cx = Context::new("t", Scope::Project, &dir, None);
+        let at = |cx: &Context| Claude.render(&full(), cx).unwrap()[0].location();
+        assert_eq!(at(&cx), "CLAUDE.md");
+        cx.rendered.insert("AGENTS.md".into());
+        assert_eq!(at(&cx), "AGENTS.md");
+        assert_eq!(
+            Claude.reads(Item::Instructions, &cx).unwrap(),
+            Reads::always(["AGENTS.md"])
+        );
+        // A CLAUDE.md that imports AGENTS.md and holds the region keeps it,
+        // and Claude Code loads AGENTS.md as well.
+        fs::write(
+            dir.join("CLAUDE.md"),
+            "@AGENTS.md\n\n<!-- t:harness -->\nx\n<!-- /t:harness -->\n",
+        )
+        .unwrap();
+        assert_eq!(at(&cx), "CLAUDE.md");
+        assert_eq!(
+            Claude.reads(Item::Instructions, &cx).unwrap(),
+            Reads::always(["CLAUDE.md", "AGENTS.md"])
+        );
+        // Another tool's region does not.
+        fs::write(
+            dir.join("CLAUDE.md"),
+            "@AGENTS.md\n\n<!-- u:harness -->\nx\n<!-- /u:harness -->\n",
+        )
+        .unwrap();
+        assert_eq!(at(&cx), "AGENTS.md");
+        // A CLAUDE.md without the import still wins.
+        fs::write(dir.join("CLAUDE.md"), "# Claude\n").unwrap();
+        assert_eq!(at(&cx), "CLAUDE.md");
         fs::remove_dir_all(&dir).unwrap();
     }
 

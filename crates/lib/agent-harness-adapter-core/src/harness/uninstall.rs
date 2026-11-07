@@ -2,12 +2,14 @@
 //! (KIT-22), with install's run, states and plan.
 // @zen-component: KIT-Uninstall
 
+use std::collections::BTreeMap;
+
 use crate::{
     Result,
     harness::{
         Action, InstallResult, PartResult, Scope, State, Tool,
         file::render_files,
-        install::{Examined, Force, Run, existing_text, installed, run},
+        install::{Covered, Examined, Force, Run, existing_text, installed, run},
         merge::render_unmerge,
         part::Kind,
         record::render_record,
@@ -46,21 +48,37 @@ impl UninstallOptions {
     }
 }
 
-/// The installed, unnamed harnesses that read `e`'s item at its location.
+/// The installed, unnamed harnesses that read `e`'s item at its location
+/// and either have their own part for it there or are shared by it, each
+/// with whether its own part is there (it then owns what is kept).
 // @zen-impl: KIT-22_AC-4
-fn users(run: &Run, e: &Examined<'_>) -> Vec<String> {
+fn users(
+    run: &Run,
+    shared: &BTreeMap<(usize, String), Covered>,
+    e: &Examined<'_>,
+) -> Vec<(String, bool)> {
     let Ok(item) = e.part.name().parse::<Item>() else {
         return Vec::new();
     };
     run.members
         .iter()
-        .filter(|m| !m.named)
-        .filter(|m| {
+        .enumerate()
+        .filter(|(_, m)| !m.named)
+        .filter(|(_, m)| {
             m.reads
                 .get(&item)
                 .is_some_and(|r| r.always.iter().chain(&r.maybe).any(|l| *l == e.path))
         })
-        .map(|m| m.harness.id().to_string())
+        .filter_map(|(i, m)| {
+            let own = m
+                .profile
+                .part(e.part.name())
+                .is_some_and(|p| p.location() == e.path);
+            let covered = shared
+                .get(&(i, e.part.name().to_string()))
+                .is_some_and(|c| c.by.is_some() && c.location == e.path);
+            (own || covered).then(|| (m.harness.id().to_string(), own))
+        })
         .collect()
 }
 
@@ -134,6 +152,8 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
     };
     let mut parts = Vec::new();
     let mut warnings = Vec::new();
+    // Kept parts: (the named harness, the part, the harnesses that own it).
+    let mut kept: Vec<(String, String, Vec<String>)> = Vec::new();
     for e in &examined {
         let m = &run.members[e.member];
         if !m.named {
@@ -144,12 +164,26 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
             State::Edited => opts.force,
             _ => false,
         };
-        let users = if wanted { users(&run, e) } else { Vec::new() };
+        let users = if wanted {
+            users(&run, &shared, e)
+        } else {
+            Vec::new()
+        };
         let mut action = None;
         let mut by = e.by.clone();
         if wanted && !users.is_empty() {
             action = Some(Action::Kept);
-            by = Some(users.join(", "));
+            let names: Vec<&str> = users.iter().map(|(u, _)| u.as_str()).collect();
+            by = Some(names.join(", "));
+            kept.push((
+                m.harness.id().to_string(),
+                e.part.name().to_string(),
+                users
+                    .iter()
+                    .filter(|(_, owns)| *owns)
+                    .map(|(u, _)| u.clone())
+                    .collect(),
+            ));
         } else if wanted {
             if plan_removal(&run, &mut plan, e)? {
                 action = Some(Action::Removed);
@@ -175,6 +209,19 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
         ));
     }
     let mut record = run.record.clone();
+    // A kept part's hash goes to the harnesses whose own part is there, so
+    // a later install finds it stale, not edited.
+    // @zen-impl: KIT-22_AC-4
+    for (from, part, users) in &kept {
+        let Some(hash) = run.record.harnesses.get(from).and_then(|t| t.get(part)) else {
+            continue;
+        };
+        for u in users {
+            if let Some(table) = record.harnesses.get_mut(u) {
+                table.entry(part.clone()).or_insert_with(|| hash.clone());
+            }
+        }
+    }
     for m in run.members.iter().filter(|m| m.named) {
         record.harnesses.remove(m.harness.id());
     }

@@ -241,13 +241,41 @@ pub(super) fn run<T: Tool + ?Sized>(
         })
         .collect();
     let store = tool.declined_store(scope)?;
+    let set: Vec<(&Arc<dyn Harness>, bool)> = supported
+        .iter()
+        .filter(|h| h.scopes().contains(&scope))
+        .map(|h| (h, named.iter().any(|n| n == h.id())))
+        .filter(|(h, is_named)| *is_named || record.harnesses.contains_key(h.id()))
+        .collect();
+    // A first render gives where each harness puts the parts it does not
+    // decline; each then renders again seeing where the others do, so a
+    // choice made from the files present sees a file the same run writes.
+    // The first render's locations are all a harness sees: none sees where
+    // another chose from them.
+    // @zen-impl: KIT-19_AC-9
+    let mut first: Vec<Vec<String>> = Vec::with_capacity(set.len());
+    for (h, _) in &set {
+        // A store that cannot be read refuses here, before any write.
+        let declined = store.declined(h.id())?;
+        first.push(
+            profile(h.as_ref(), &integration, &cx)?
+                .0
+                .parts()
+                .iter()
+                .filter(|p| !declined.iter().any(|d| d == p.name()))
+                .map(Part::location)
+                .collect(),
+        );
+    }
     let mut members = Vec::new();
-    for h in supported {
-        let is_named = named.iter().any(|n| n == h.id());
-        let recorded = record.harnesses.contains_key(h.id());
-        if !(is_named || recorded) || !h.scopes().contains(&scope) {
-            continue;
-        }
+    for (i, (h, is_named)) in set.into_iter().enumerate() {
+        let mut cx = cx.clone();
+        cx.rendered = first
+            .iter()
+            .enumerate()
+            .filter(|(j, _)| *j != i)
+            .flat_map(|(_, l)| l.iter().cloned())
+            .collect();
         let (profile, unsupported) = profile(h.as_ref(), &integration, &cx)?;
         let mut missed: Vec<crate::hook::Event> = Vec::new();
         if profile.part(Item::Hooks.as_str()).is_some() {
@@ -257,7 +285,6 @@ pub(super) fn run<T: Tool + ?Sized>(
                 }
             }
         }
-        // A store that cannot be read refuses here, before any write.
         let declined: Vec<String> = store
             .declined(h.id())?
             .into_iter()
@@ -270,7 +297,7 @@ pub(super) fn run<T: Tool + ?Sized>(
             }
         }
         members.push(Member {
-            harness: h,
+            harness: Arc::clone(h),
             named: is_named,
             profile,
             reads,

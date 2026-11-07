@@ -2,6 +2,7 @@
 // @zen-component: KIT-Adapter
 
 use std::{
+    collections::BTreeSet,
     fmt::Debug,
     path::{Path, PathBuf},
     sync::Arc,
@@ -87,6 +88,12 @@ pub struct Context {
     pub root: PathBuf,
     /// The home directory, when known (a project setting may live there).
     pub user_root: Option<PathBuf>,
+    /// The locations, relative to the root, where the other harnesses of
+    /// the run render the parts they do not decline, at a context without
+    /// this set: what an install may create beside the harness's own parts.
+    /// A harness's choice made from this set is not in it. Empty outside a
+    /// run.
+    pub rendered: BTreeSet<String>,
 }
 
 impl Context {
@@ -102,6 +109,7 @@ impl Context {
             scope,
             root: root.into(),
             user_root,
+            rendered: BTreeSet::new(),
         }
     }
 
@@ -119,6 +127,13 @@ impl Context {
     /// Whether `rel` is a file under the root.
     pub fn is_file(&self, rel: &str) -> bool {
         self.path(rel).is_file()
+    }
+
+    /// Whether `rel` is a file under the root, or a location where another
+    /// harness of the run renders a part, so a file once the run installs.
+    // @zen-impl: KIT-19_AC-9
+    pub fn is_file_or_rendered(&self, rel: &str) -> bool {
+        self.is_file(rel) || self.rendered.contains(rel)
     }
 
     /// The home directory joined with `rel`, when the home is known.
@@ -203,6 +218,9 @@ mod tests {
         assert_eq!(cx.path("a/b"), Path::new("/p/a/b"));
         assert_eq!(cx.user_path(".x"), Some(PathBuf::from("/h/.x")));
         assert!(!cx.is_file("nope"));
+        let mut run = cx.clone();
+        run.rendered.insert("AGENTS.md".into());
+        assert!(run.is_file_or_rendered("AGENTS.md") && !cx.is_file_or_rendered("AGENTS.md"));
         assert_eq!(
             Context::new("t", Scope::User, "/h", None).user_path("x"),
             None
