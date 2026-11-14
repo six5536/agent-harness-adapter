@@ -1,7 +1,7 @@
 //! The items of an integration and the standard renderings several
 //! harnesses share.
 
-use std::time::Duration;
+use std::{fmt::Write as _, time::Duration};
 
 use serde_json::{Map, Value, json};
 
@@ -31,7 +31,7 @@ pub(super) fn yaml_scalar(text: &str) -> String {
 /// The command is any command line: `{harness}` and `{event}` anywhere in
 /// it, in any order, or not at all, are replaced by the harness id and the
 /// event's name; `{{` and `}}` give literal braces.
-// @zen-impl: KIT-11_AC-2
+// sokf-implements: KIT-11_AC-2
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hook {
     event: Event,
@@ -337,7 +337,7 @@ impl Agent {
     /// # Errors
     ///
     /// [`Error::File`](crate::Error::File) when it has no frontmatter.
-    // @zen-impl: KIT-17_AC-10
+    // sokf-implements: KIT-17_AC-10
     pub fn from_markdown(text: &str, path: &std::path::Path) -> crate::Result<Self> {
         let (front, body) = super::skill::split_frontmatter(text).ok_or_else(|| {
             crate::Error::file(
@@ -385,7 +385,7 @@ impl Agent {
     /// `extra` (key, value), then the prompt as the body. An agent read from
     /// a file is that file, with each `extra` key it lacks added at the end
     /// of its frontmatter (HAR-14_AC-5).
-    // @zen-impl: HAR-14_AC-5
+    // sokf-implements: HAR-14_AC-5
     pub fn to_markdown(&self, extra: &[(&str, &str)]) -> String {
         let source = self.source_md.as_deref();
         if let Some((text, (front, _))) =
@@ -399,7 +399,7 @@ impl Agent {
             }
             for (k, v) in extra {
                 if super::skill::field(front, k).is_none() {
-                    out.push_str(&format!("{k}: {}\n", yaml_scalar(v)));
+                    let _ = writeln!(out, "{k}: {}", yaml_scalar(v));
                 }
             }
             out.push_str(&text[end..]);
@@ -411,7 +411,7 @@ impl Agent {
             yaml_scalar(&self.description)
         );
         for (k, v) in extra {
-            out.push_str(&format!("{k}: {}\n", yaml_scalar(v)));
+            let _ = writeln!(out, "{k}: {}", yaml_scalar(v));
         }
         out.push_str("---\n\n");
         out.push_str(&self.prompt);
@@ -480,7 +480,7 @@ mod tests {
         }
     }
 
-    // @zen-test: KIT-11_AC-2
+    // sokf-tests: KIT-11_AC-2
     #[test]
     fn hook_commands_fill_placeholders_anywhere() {
         let h = Hook::new(Event::Stop, "mytool hook {harness} {event}");

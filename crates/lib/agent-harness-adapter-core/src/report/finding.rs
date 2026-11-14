@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+// sokf:begin finding
 /// How a finding is reported.
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -28,7 +29,7 @@ impl Severity {
 }
 
 /// One line of a report: a problem on a file, with its severity.
-// @zen-impl: KIT-13_AC-1
+// sokf-implements: KIT-13_AC-1
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -45,6 +46,7 @@ pub struct Finding {
     /// parentheses after the message.
     pub authority: Option<String>,
 }
+// sokf:end finding
 
 /// Build a finding with [`Finding::error`], [`Finding::warning`] or
 /// [`Finding::info`], then [`Finding::line`] and [`Finding::authority`].
@@ -112,8 +114,8 @@ impl Finding {
 mod tests {
     use super::*;
 
-    // @zen-test: KIT-13_AC-1
-    // @zen-test: KIT-13_AC-3
+    // sokf-tests: KIT-13_AC-1
+    // sokf-tests: KIT-13_AC-3
     #[test]
     fn the_line_carries_the_level_and_authority() {
         let f = Finding::error("a.yaml", "bad").line(3).authority("CFG-1");

@@ -1,6 +1,5 @@
 //! Tool calls in Claude Code's terms (KIT-11_AC-9): the name a hook matcher
 //! written for Claude Code expects, and the input keys its hooks read.
-// @zen-component: KIT-ClaudeNames
 
 use serde_json::Value;
 
@@ -9,7 +8,7 @@ use crate::hook::{ToolCall, ToolKind};
 /// `call` named by its kind: shell → `Bash`, read → `Read`, write →
 /// `Edit`; MCP and other calls keep their name. The default for a harness
 /// without its own table.
-// @zen-impl: KIT-11_AC-9
+// sokf-implements: KIT-11_AC-9
 pub fn by_kind(call: &ToolCall) -> ToolCall {
     match call.kind {
         ToolKind::Shell => rename(call, "Bash"),
@@ -50,7 +49,7 @@ pub fn named(call: &ToolCall, name: Option<&str>) -> ToolCall {
 /// A shell call's command as text: `command` or `cmd` as a string; for an
 /// array, its last element after `-c` or `-lc`, else its elements joined
 /// by spaces.
-// @zen-impl: HAR-15_AC-3
+// sokf-implements: HAR-15_AC-3
 pub fn shell_command(input: &Value) -> Option<String> {
     let value = input.get("command").or_else(|| input.get("cmd"))?;
     match value {
@@ -80,7 +79,7 @@ mod tests {
 
     use super::*;
 
-    // @zen-test: HAR-15_AC-3
+    // sokf-tests: HAR-15_AC-3
     #[test]
     fn shell_commands_become_text() {
         for (input, want) in [
@@ -107,7 +106,7 @@ mod tests {
         assert_eq!(file_path(&json!({"x": 1})), None);
     }
 
-    // @zen-test: KIT-11_AC-9
+    // sokf-tests: KIT-11_AC-9
     #[test]
     fn by_kind_names_and_normalises() {
         let shell = ToolCall::new("exec", ToolKind::Shell, json!({"cmd": "ls", "cwd": "/p"}));
@@ -164,7 +163,7 @@ mod tests {
 
     proptest::proptest! {
         #![proptest_config(proptest::prelude::ProptestConfig::with_cases(64))]
-        // @zen-test: HAR_P-4
+        // sokf-tests: HAR_P-4
         #[test]
         fn claude_names_are_total(call in calls()) {
             for h in crate::harness::builtin() {
@@ -180,8 +179,8 @@ mod tests {
         }
     }
 
-    // @zen-test: HAR-15_AC-2
-    // @zen-test: HAR-15_AC-1
+    // sokf-tests: HAR-15_AC-2
+    // sokf-tests: HAR-15_AC-1
     #[test]
     fn each_harness_names_its_tools() {
         let cases = [

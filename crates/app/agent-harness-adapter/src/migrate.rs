@@ -1,9 +1,9 @@
 //! Migration from Claude Code (AHA-9): when the first install writes the
 //! CONFIG, Claude Code's setup moves into the standard places, so every
 //! agent gets it; the install that follows points or copies it back.
-// @zen-component: AHA-Migrate
 
 use std::{
+    fmt::Write as _,
     fs,
     path::{Path, PathBuf},
     process::Command,
@@ -16,6 +16,7 @@ use serde_json::{Map, Value};
 
 use crate::error::{Error, Result};
 
+// sokf:begin plan
 /// One move: what, from where, to where.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Move {
@@ -33,6 +34,7 @@ pub struct Plan {
     writes: Vec<(PathBuf, Option<String>)>,
     dirs: Vec<PathBuf>,
 }
+// sokf:end plan
 
 impl Plan {
     /// Whether there is anything to move.
@@ -46,15 +48,10 @@ impl Plan {
         let rel = |p: &Path| kit_fs::shown(base, p);
         let mut out = String::from("Claude Code's setup to move into the standard places:\n");
         for m in &self.moves {
-            out.push_str(&format!(
-                "  {}: {} -> {}\n",
-                m.what,
-                rel(&m.from),
-                rel(&m.to)
-            ));
+            let _ = writeln!(out, "  {}: {} -> {}", m.what, rel(&m.from), rel(&m.to));
         }
         for l in &self.left {
-            out.push_str(&format!("  not migrated: {l}\n"));
+            let _ = writeln!(out, "  not migrated: {l}");
         }
         out
     }
@@ -102,9 +99,9 @@ fn read(path: &Path) -> Result<Option<String>> {
 
 /// The migration of Claude Code's setup at `scope` under `root` (the
 /// project root, or the home directory), checked for conflicts.
-// @zen-impl: AHA-9_AC-2
-// @zen-impl: AHA-9_AC-3
-// @zen-impl: AHA-9_AC-4
+// sokf-implements: AHA-9_AC-2
+// sokf-implements: AHA-9_AC-3
+// sokf-implements: AHA-9_AC-4
 pub fn plan(scope: Scope, root: &Path) -> Result<Plan> {
     let p = places(scope, root);
     let mut plan = Plan::default();
@@ -145,7 +142,7 @@ fn instructions(p: &Places, plan: &mut Plan) -> Result<()> {
         .filter(|l| {
             !l.trim().starts_with("@AGENTS.md") && !l.trim().starts_with("@~/.agents/AGENTS.md")
         })
-        .map(|l| format!("{l}\n"))
+        .flat_map(|l| [l, "\n"])
         .collect();
     let own = own.trim();
     if own.is_empty() {
@@ -170,9 +167,10 @@ fn instructions(p: &Places, plan: &mut Plan) -> Result<()> {
 }
 
 /// `text` split into its own lines and the tool regions (`<!-- x:harness
-/// -->` … `<!-- /x:harness -->`), which stay where they are.
+/// -->`, or `<!-- x:harness last -->`, … `<!-- /x:harness -->`), which stay
+/// where they are.
 fn split_regions(text: &str) -> (String, String) {
-    let open = Regex::new(r"^<!-- ([^/ ][^ ]*):harness -->$").expect("a regex");
+    let open = Regex::new(r"^<!-- ([^/ ][^ ]*):harness( last)? -->$").expect("a regex");
     let (mut own, mut kept) = (String::new(), String::new());
     let mut inside: Option<String> = None;
     for line in text.split_inclusive('\n') {
@@ -215,7 +213,7 @@ fn folders(p: &Places, what: &str, kind: &str, dirs: bool, plan: &mut Plan) -> R
         let wanted = if dirs {
             from.join("SKILL.md").is_file()
         } else {
-            from.is_file() && name.ends_with(".md")
+            from.is_file() && from.extension().is_some_and(|e| e == "md")
         };
         if name.starts_with('.') || !wanted {
             continue;
@@ -403,7 +401,7 @@ fn pretty(v: &Value) -> String {
 
 /// Refuse when, at project scope, a file the migration changes has changes
 /// git has not committed (no git, or not a repository: no check).
-// @zen-impl: AHA-9_AC-5
+// sokf-implements: AHA-9_AC-5
 pub fn check_git(plan: &Plan, root: &Path) -> Result<()> {
     let paths: Vec<&Path> = plan.touched().into_iter().filter(|p| p.exists()).collect();
     if paths.is_empty() {
@@ -427,8 +425,8 @@ pub fn check_git(plan: &Plan, root: &Path) -> Result<()> {
 /// Write the plan: at user scope, first a copy of every file it changes or
 /// removes under `.agents/backup-<UTC time>/` of the home directory (its
 /// path returned); then the new files, then the removals.
-// @zen-impl: AHA-9_AC-6
-// @zen-impl: AHA-9_AC-7
+// sokf-implements: AHA-9_AC-6
+// sokf-implements: AHA-9_AC-7
 pub fn apply(plan: &Plan, scope: Scope, root: &Path) -> Result<Option<PathBuf>> {
     let backup = if scope == Scope::User {
         let dir = root.join(".agents").join(format!("backup-{}", utc_now()));
@@ -475,6 +473,10 @@ fn utc_now() -> String {
         .map_or(0, |d| d.as_secs());
     let (days, rest) = (secs / 86_400, secs % 86_400);
     // Civil date from days since 1970-01-01 (Howard Hinnant's algorithm).
+    #[expect(
+        clippy::cast_possible_wrap,
+        reason = "`u64::MAX / 86_400` days is far below `i64::MAX`"
+    )]
     let z = days as i64 + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z.rem_euclid(146_097);

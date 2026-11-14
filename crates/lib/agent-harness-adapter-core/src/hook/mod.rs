@@ -1,7 +1,6 @@
 //! Hooks, the same for every harness: events, the input a harness sends,
 //! the answer a hook gives, [`emit`], which writes it in the harness's form,
 //! and [`LoopGuard`].
-// @zen-component: KIT-Hook
 
 mod answer;
 pub mod claude_names;

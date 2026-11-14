@@ -1,4 +1,4 @@
-// The landing page's terminal (PLAN-016 D16-4): runs the built command in a
+// The landing page's terminal: runs the built command in a
 // temporary repository with a Claude Code setup and records each scene's real
 // output in src/data/terminal.json.
 //

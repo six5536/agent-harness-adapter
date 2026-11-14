@@ -27,6 +27,7 @@ pub struct ReadmeDoctests;
 
 mod common;
 mod error;
+mod follow;
 mod hash;
 #[cfg(test)]
 mod test_support;
@@ -52,10 +53,11 @@ pub mod qwen;
 pub mod report;
 
 pub use error::{Error, Result};
+pub use follow::{Outcome, Request, follow};
 pub use harness::{
     Action, DeclinedStore, Edit, EntryMatch, ExternalPart, Force, Harness, HarnessResult,
-    InstallOptions, InstallResult, MergeOp, Part, PartResult, Scope, State, TomlDeclined, Tool,
-    UninstallOptions, edits, install, installed, status, uninstall,
+    InstallOptions, InstallResult, Kept, MergeOp, Part, PartResult, Scope, State, TomlDeclined,
+    Tool, UninstallOptions, edits, install, installed, keep_instructions, status, uninstall,
 };
-pub use integration::{Integration, Item};
+pub use integration::{BlockOrder, Integration, Item};
 pub use report::{Finding, Report, Severity};

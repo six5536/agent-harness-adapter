@@ -5,13 +5,13 @@
 use serde_json::{Value, json};
 
 use crate::{
-    Result,
     common::{extension, parts},
     harness::{Context, MergeOp, Part, Reads, Scope},
     hook::ToolKind,
-    integration::{Integration, Item, McpServer, Transport},
+    integration::{Command, Integration, Item, McpServer, Transport},
 };
 
+// sokf:begin layout
 /// An agent of the OpenCode family: its id, names and paths.
 pub(crate) struct Layout {
     /// The harness id.
@@ -30,6 +30,7 @@ pub(crate) struct Layout {
     pub(crate) config: &'static str,
     pub(crate) also_config: &'static [&'static str],
 }
+// sokf:end layout
 
 impl Layout {
     fn dir(&self, scope: Scope) -> &'static str {
@@ -63,7 +64,7 @@ impl Layout {
     /// plugin, MCP entries and `permission.bash` patterns in the config,
     /// subagents (`mode: subagent`) and commands. Allowed MCP tools are
     /// left out: how the agents match them is not confirmed.
-    pub(crate) fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
+    pub(crate) fn render(&self, integration: &Integration, cx: &Context) -> Vec<Part> {
         let mut out = Vec::new();
         for item in integration.items() {
             let at = self.location(item, cx);
@@ -96,10 +97,10 @@ impl Layout {
                 Item::Agents => parts::agents(&at, ".md", integration, |a| {
                     a.to_markdown(&[("mode", "subagent")])
                 }),
-                Item::Commands => parts::commands(&at, ".md", integration, |c| c.to_markdown()),
+                Item::Commands => parts::commands(&at, ".md", integration, Command::to_markdown),
             });
         }
-        Ok(out)
+        out
     }
 
     /// What the agent reads for `item`: its own location; skills also from
@@ -196,7 +197,7 @@ pub(crate) fn tool_kind(name: &str) -> ToolKind {
 }
 
 /// Claude Code's name for one of the OpenCode family's tools (HAR-15_AC-2).
-// @zen-impl: HAR-15_AC-2
+// sokf-implements: HAR-15_AC-2
 pub(crate) fn claude_name(name: &str) -> Option<&'static str> {
     Some(match name {
         "bash" => "Bash",

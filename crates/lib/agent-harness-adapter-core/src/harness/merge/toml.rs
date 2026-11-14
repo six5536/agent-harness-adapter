@@ -140,8 +140,8 @@ pub(crate) fn extract_toml(doc: &DocumentMut, op: &MergeOp) -> Result<Option<Val
 
 /// The file to write with `ops` merged into `existing` (a new file holds
 /// only the tool's tables). `None` when nothing changes.
-// @zen-impl: KIT-2_AC-5
-// @zen-impl: KIT-10_AC-5
+// sokf-implements: KIT-2_AC-5
+// sokf-implements: KIT-10_AC-5
 pub(crate) fn render_toml_merge(
     existing: Option<&str>,
     ops: &[MergeOp],
@@ -178,6 +178,8 @@ pub(crate) fn render_toml_merge(
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Write as _;
+
     use proptest::prelude::*;
     use serde_json::json;
 
@@ -193,8 +195,8 @@ mod tests {
         )
     }
 
-    // @zen-test: KIT-2_AC-5
-    // @zen-test: KIT-10_AC-5
+    // sokf-tests: KIT-2_AC-5
+    // sokf-tests: KIT-10_AC-5
     #[test]
     fn a_table_is_added_and_the_rest_kept() {
         let out = render_toml_merge(None, &[server("tool", "tool")], P)
@@ -289,10 +291,10 @@ mod tests {
             .prop_map(|(keys, comment, other)| {
                 let mut out = String::new();
                 if let Some(c) = comment {
-                    out.push_str(&format!("# {c}\n"));
+                    let _ = writeln!(out, "# {c}");
                 }
                 for (k, v) in keys {
-                    out.push_str(&format!("k{k} = {v}\n"));
+                    let _ = writeln!(out, "k{k} = {v}");
                 }
                 if other {
                     out.push_str("\n[mcp_servers.other] # theirs\ncommand = \"x\"\n");
@@ -304,7 +306,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(128))]
 
-        // @zen-test: KIT_P-11
+        // sokf-tests: KIT_P-11
         #[test]
         fn toml_merge_keeps_the_rest(text in arb_doc(), name in "[a-z]{1,6}") {
             let op = server(&format!("t{name}"), "tool");

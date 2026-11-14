@@ -1,0 +1,96 @@
+[settings]
+idiomatic_version_file_enable_tools = ["rust"]
+
+[env]
+RUST_NIGHTLY = "nightly-2026-11-05"
+
+[tools]
+cargo-binstall = "1.26.2"
+"cargo:cargo-nextest" = "0.9.151"
+"cargo:cargo-llvm-cov" = "0.9.1"
+"cargo:cargo-deny" = "0.20.2"
+
+[tasks."audit:rust"]
+hide = true
+run = "cargo deny check advisories"
+
+# A test of the CI tier is ignored and stands in a module named ci, so that the
+# filter "test(/(^|::)ci::/)" selects it. The coverage and the long tests leave it out,
+# because it can fail on a developer's machine and in the coverage job.
+[tasks."coverage:report:rust"]
+hide = true
+run = 'cargo +$RUST_NIGHTLY llvm-cov nextest --workspace --run-ignored all -E "not test(/(^|::)ci::/)" --html'
+
+[tasks."coverage:check:rust"]
+hide = true
+run = 'cargo +$RUST_NIGHTLY llvm-cov nextest --workspace --run-ignored all -E "not test(/(^|::)ci::/)" --fail-under-lines ${COVERAGE_MIN_LINES:-90}'
+
+[tasks."setup:dev:rust"]
+hide = true
+run = "rustup toolchain install $RUST_NIGHTLY --profile minimal --component rustfmt,llvm-tools-preview"
+
+[tasks."format:write:rust"]
+hide = true
+run = "cargo +$RUST_NIGHTLY fmt --all"
+
+[tasks."format:check:rust"]
+hide = true
+run = "cargo +$RUST_NIGHTLY fmt --all -- --check"
+
+[tasks."lint:check:rust"]
+hide = true
+run = "cargo clippy --workspace --all-targets -- -D warnings"
+
+[tasks."lint:check:rust-lints"]
+hide = true
+run = "node .config/mise/scripts/rust-lints-check.mts"
+
+[tasks."lint:fix:rust"]
+hide = true
+run = "cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged"
+
+[tasks."test:fast:rust"]
+hide = true
+run = "cargo nextest run --workspace"
+
+[tasks."test:fast:rust-scripts"]
+hide = true
+run = "node --test .config/mise/scripts/rust-lints-check.test.mts"
+
+[tasks."coverage:check:rust-scripts"]
+hide = true
+depends = ["test:fast:rust-scripts"]
+
+[tasks."test:long:rust"]
+hide = true
+run = 'cargo nextest run --workspace --run-ignored only --no-tests=pass -E "not test(/(^|::)ci::/)"'
+
+[tasks."test:ci:rust"]
+hide = true
+run = 'cargo nextest run --workspace --run-ignored only --no-tests=pass -E "test(/(^|::)ci::/)"'
+
+[tasks."docs:check:rust"]
+hide = true
+env = { RUSTDOCFLAGS = "-D warnings" }
+run = "cargo doc --workspace --no-deps --locked"
+
+[tasks."version:set:rust"]
+hide = true
+usage = 'arg "<version>"'
+run = 'node .config/mise/scripts/rust-version.mts set "${usage_version?}"'
+
+[tasks."version:list:rust"]
+hide = true
+run = "node .config/mise/scripts/rust-version.mts list"
+
+[tasks."publish:rust"]
+hide = true
+run = "node .config/mise/scripts/rust-publish.mts"
+
+[tasks."rust:publish:needed"]
+hide = true
+run = "node .config/mise/scripts/rust-publish.mts needed"
+
+[tasks."prune:rust"]
+hide = true
+run = "node .config/mise/scripts/rust-prune.mts"

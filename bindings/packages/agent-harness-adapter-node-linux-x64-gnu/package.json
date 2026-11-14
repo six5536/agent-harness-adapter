@@ -1,0 +1,37 @@
+{
+  "name": "@six5536/agent-harness-adapter-node-linux-x64-gnu",
+  "version": "0.4.0",
+  "description": "Prebuilt agent-harness-adapter Node addon for linux-x64-gnu.",
+  "keywords": [
+    "napi"
+  ],
+  "homepage": "https://github.com/six5536/agent-harness-adapter#readme",
+  "bugs": {
+    "url": "https://github.com/six5536/agent-harness-adapter/issues"
+  },
+  "license": "MIT",
+  "author": "six5536 <10079653+six5536@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/six5536/agent-harness-adapter.git",
+    "directory": "bindings/packages/agent-harness-adapter-node-linux-x64-gnu"
+  },
+  "files": [
+    "index.node"
+  ],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "main": "index.node",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org"
+  }
+}

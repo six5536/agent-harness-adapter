@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "description": "The packages that the shared tsconfig and the scripts of the packs use.",
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "smol-toml": "1.9.1"
+  }
+}

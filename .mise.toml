@@ -1,17 +1,95 @@
+# The tasks and tools that only agent-harness-adapter has. The packs supply
+# everything else, in .config/mise/conf.d/.
+
 [tools]
-node = "26"
+# maturin builds the Python binding's wheels, and uv publishes them to PyPI.
+maturin = "1.15.0"
+uv = "0.13.7"
 
-python = '3.14'
-# 1.98 is the development toolchain; 1.85 is the MSRV (Cargo.toml
-# rust-version, checked in CI); nightly is used only by coverage
-# (cargo +nightly llvm-cov), which needs `coverage(off)` markers.
-rust = ['1.98', '1.85', 'nightly']
-sccache = '0.18'
-# Cross-compiles the static musl release binaries (npm run build:linux-*).
-zig = "0.16.0"
-cargo-binstall = "1.24.0"
+[env]
+# The publish of the Python binding stays off until PyPI confirms the
+# account that holds the pending trusted publisher of the public mirror's
+# publish.yml; then set this to "true".
+PUBLISH_PYPI = "false"
 
+# After the launcher's smoke test, which builds the host's binary when no
+# release build has staged one.
+[tasks."test:smoke:aha"]
+hide = true
+depends = ["test:smoke:launcher"]
+run = "node scripts/release-smoke.mts"
 
-"cargo:cargo-nextest" = "0.9.146"
-"cargo:cargo-llvm-cov" = "0.9.1"
-"cargo:cargo-zigbuild" = "0.23.4"
+# The npm packages of the Node binding share the version of the rest. The
+# rust-cli-npm pack's script reads the packages/ of its working directory.
+[tasks."version:set:node-binding"]
+hide = true
+dir = "bindings"
+usage = 'arg "<version>"'
+run = 'node ../.config/mise/scripts/launcher-version.mts set "${usage_version?}"'
+
+[tasks."version:list:node-binding"]
+hide = true
+dir = "bindings"
+run = "node ../.config/mise/scripts/launcher-version.mts list"
+
+[tasks."build:node"]
+description = "Build the Node addon for this machine, for the Node binding's tests"
+run = "node scripts/build-node.mts"
+
+[tasks."site:build"]
+description = "Build the documentation site into docs/dist"
+run = "node scripts/site-build.mts"
+
+# The release artefacts of the bindings, which build.yml builds and uploads, and
+# the publish reads from dist/.
+[tasks."build:release:ubuntu:node-linux-x64-gnu"]
+hide = true
+run = "node scripts/build-release-bindings.mts node x86_64-unknown-linux-gnu linux-x64-gnu"
+
+[tasks."build:release:ubuntu:node-linux-arm64-gnu"]
+hide = true
+run = "node scripts/build-release-bindings.mts node aarch64-unknown-linux-gnu linux-arm64-gnu"
+
+[tasks."build:release:macos:node-darwin-x64"]
+hide = true
+run = "node scripts/build-release-bindings.mts node x86_64-apple-darwin darwin-x64"
+
+[tasks."build:release:macos:node-darwin-arm64"]
+hide = true
+run = "node scripts/build-release-bindings.mts node aarch64-apple-darwin darwin-arm64"
+
+[tasks."build:release:windows:node-win32-x64"]
+hide = true
+run = "node scripts/build-release-bindings.mts node x86_64-pc-windows-msvc win32-x64"
+
+[tasks."build:release:ubuntu:wheel-linux-x64"]
+hide = true
+run = "node scripts/build-release-bindings.mts wheel x86_64-unknown-linux-gnu"
+
+[tasks."build:release:ubuntu:wheel-linux-arm64"]
+hide = true
+run = "node scripts/build-release-bindings.mts wheel aarch64-unknown-linux-gnu"
+
+[tasks."build:release:macos:wheel-darwin-x64"]
+hide = true
+run = "node scripts/build-release-bindings.mts wheel x86_64-apple-darwin"
+
+[tasks."build:release:macos:wheel-darwin-arm64"]
+hide = true
+run = "node scripts/build-release-bindings.mts wheel aarch64-apple-darwin"
+
+[tasks."build:release:windows:wheel-win32-x64"]
+hide = true
+run = "node scripts/build-release-bindings.mts wheel x86_64-pc-windows-msvc"
+
+[tasks."build:release:ubuntu:sdist"]
+hide = true
+run = "node scripts/build-release-bindings.mts sdist"
+
+[tasks."publish:node-binding"]
+hide = true
+run = "node scripts/publish-bindings.mts node"
+
+[tasks."publish:python"]
+hide = true
+run = "node scripts/publish-bindings.mts python"

@@ -9,7 +9,7 @@ use crate::{
     Result,
     harness::{EntryMatch, MergeOp, Part},
     hook::{Event, ToolKind},
-    integration::{Hook, Integration, Item},
+    integration::{Hook, Integration, Item, Skill},
 };
 
 /// The instructions region in `file`.
@@ -25,7 +25,7 @@ pub(crate) fn skills(dir: &str, integration: &Integration) -> Part {
         integration
             .skills()
             .iter()
-            .flat_map(|s| s.dir_files())
+            .flat_map(Skill::dir_files)
             .collect(),
     )
 }
@@ -97,6 +97,7 @@ pub(crate) fn owner(integration: &Integration, hooks: &[&Hook]) -> Result<EntryM
     ))
 }
 
+// sokf:begin group-hooks
 /// How a harness lays out its group hooks.
 pub(crate) struct GroupHooks {
     /// The array of an event's groups, from the event's name.
@@ -110,6 +111,7 @@ pub(crate) struct GroupHooks {
     /// The harness id, for `{harness}`.
     pub(crate) harness: &'static str,
 }
+// sokf:end group-hooks
 
 /// One group-entries op per event the harness has, the tool's hooks for it
 /// grouped by matcher: `{"matcher"?, "hooks": [{"type": "command",

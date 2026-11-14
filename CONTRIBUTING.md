@@ -11,13 +11,22 @@ Open an issue, with the bug report or the feature request template. A pull reque
 
 ## Build agent-harness-adapter
 
-The project pins its toolchains in `rust-toolchain.toml` and `.mise.toml`, which [mise](https://mise.jdx.dev/) installs:
+The project pins its toolchains in `rust-toolchain.toml`, in `.mise.toml`, and in the files of `.config/mise/conf.d/`, which [mise](https://mise.jdx.dev/) installs:
 
 ```sh
 mise install
 cargo build --locked -p agent-harness-adapter
 ```
 
-The Node binding builds with `npm run build:node`, and the documentation site, in `docs/`, with `npm ci && npm run build` there.
+The Node binding's addon builds with `mise run build:node`, and the documentation site, in `docs/`, with `mise run site:build`.
 
-`.github/workflows/release.yml` is the release: it builds the CLI for five platforms, the Node addons, and the Python wheels, publishes the crates to crates.io and the packages to npm, creates the GitHub release with the notes that the tag's message carries, and deploys the documentation site. The GitHub releases hold the notes of every release: they are the project's changelog.
+To build the release artefacts as the release does, install the JavaScript workspace and run a build task, such as the command for Linux on x64:
+
+```sh
+npm install
+mise run build:release:ubuntu:linux-x64
+```
+
+`mise tasks ls --hidden` lists a task for each artefact, and the middle part of each name says which operating system it runs on: the command, the Node addon, and the Python wheel for each of five platforms, and the Python source distribution.
+
+`.github/workflows/publish.yml` is the release: with `build.yml`, it builds every artefact, smoke-tests the command, publishes the crates and the packages, and creates the GitHub release with the notes that the tag's message carries, and after it `docs.yml` deploys the documentation site. The GitHub releases hold the notes of every release: they are the project's changelog.

@@ -42,6 +42,7 @@ pub(crate) fn parse(
     Ok(input)
 }
 
+// sokf:begin answer
 /// The answer for an extension of `harness`: allow anywhere; deny before a
 /// tool; continue at stop; context at session start, on a prompt and after
 /// a tool. Anything else is unsupported.
@@ -62,6 +63,7 @@ pub(crate) fn answer(harness: &str, event: Event, answer: &Answer) -> Result<Out
         _ => return Err(protocol::unsupported(harness, event, answer)),
     })
 }
+// sokf:end answer
 
 /// The tool name as it may appear in a comment: no line breaks.
 pub(crate) fn comment_safe(name: &str) -> String {

@@ -1,14 +1,14 @@
 //! The crate's error type.
-// @zen-component: KIT-Error
 
 use std::{fmt, io, path::PathBuf};
 
 use crate::harness::Scope;
 
+// sokf:begin error
 /// Everything that can go wrong in the library. Every variant but [`Error::Io`]
 /// and [`Error::Internal`] is a refusal: `install` returns it before any
 /// write.
-// @zen-impl: KIT-16_AC-1
+// sokf-implements: KIT-16_AC-1
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
@@ -50,6 +50,24 @@ pub enum Error {
         /// Where the part is declined, e.g. `.tool/config.toml`.
         store: String,
     },
+    /// No file holds the tool's block at a scope where the tool's kept text
+    /// has no standard file to go to ([`keep_instructions`]).
+    ///
+    /// [`keep_instructions`]: crate::harness::keep_instructions
+    NoBlock {
+        /// The tool's name.
+        tool: String,
+        /// The scope given.
+        scope: Scope,
+    },
+    /// A text to keep that holds a line of a block's markers, which would
+    /// make it a block ([`keep_instructions`]).
+    ///
+    /// [`keep_instructions`]: crate::harness::keep_instructions
+    MarkedText {
+        /// The marker line.
+        line: String,
+    },
     /// Something a harness cannot do, e.g. an answer it cannot express for
     /// an event.
     Unsupported {
@@ -80,6 +98,7 @@ pub enum Error {
     /// A bug, or an inconsistent integration or harness.
     Internal(String),
 }
+// sokf:end error
 
 impl Error {
     /// An [`Error::Io`] for `path` from an [`io::Error`].
@@ -119,6 +138,12 @@ impl fmt::Display for Error {
                 f,
                 "harness `{harness}` declines `{part}` in {store}; remove it from `without` there to force it"
             ),
+            Error::NoBlock { tool, scope } => {
+                write!(f, "no file holds the block of `{tool}` at {scope} scope")
+            }
+            Error::MarkedText { line } => {
+                write!(f, "the text to keep holds a block's marker: `{line}`")
+            }
             Error::Unsupported { harness, what } => {
                 write!(f, "harness `{harness}` cannot {what}")
             }
@@ -146,7 +171,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 mod tests {
     use super::*;
 
-    // @zen-test: KIT-16_AC-1
+    // sokf-tests: KIT-16_AC-1
     #[test]
     fn each_kind_displays_one_line() {
         let e = Error::io(
@@ -195,6 +220,19 @@ mod tests {
             (
                 Error::file("a.json", "is not a JSON object"),
                 "a.json: is not a JSON object",
+            ),
+            (
+                Error::NoBlock {
+                    tool: "pakf".into(),
+                    scope: Scope::User,
+                },
+                "no file holds the block of `pakf` at user scope",
+            ),
+            (
+                Error::MarkedText {
+                    line: "<!-- x:harness -->".into(),
+                },
+                "the text to keep holds a block's marker: `<!-- x:harness -->`",
             ),
             (Error::Refused("could not run x".into()), "could not run x"),
             (Error::Internal("bug".into()), "internal: bug"),

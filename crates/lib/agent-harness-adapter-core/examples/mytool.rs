@@ -1,4 +1,4 @@
-//! The docs site's Rust example (PLAN-016 N2): a tool that installs its
+//! The docs site's Rust example: a tool that installs its
 //! integration and answers its hook.
 //!
 //! ```sh
@@ -26,7 +26,7 @@ struct MyTool {
 
 // region: tool
 impl Tool for MyTool {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "mytool"
     }
 

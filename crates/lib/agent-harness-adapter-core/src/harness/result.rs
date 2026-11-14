@@ -1,7 +1,6 @@
 //! What `install` and `status` report.
-// @zen-component: KIT-Results
 
-use std::path::PathBuf;
+use std::{fmt::Write as _, path::PathBuf};
 
 use serde::Serialize;
 
@@ -10,6 +9,8 @@ use crate::{
     integration::Item,
 };
 
+// sokf:begin result
+// sokf:begin action
 /// What install did to a part.
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
@@ -29,6 +30,7 @@ pub enum Action {
     /// still read it.
     Kept,
 }
+// sokf:end action
 
 impl Action {
     /// The action's word in a report.
@@ -43,8 +45,9 @@ impl Action {
     }
 }
 
+// sokf:begin part-result
 /// One line of the report.
-// @zen-impl: KIT-4_AC-3
+// sokf-implements: KIT-4_AC-3
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
@@ -73,6 +76,7 @@ pub struct PartResult {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub in_place: bool,
 }
+// sokf:end part-result
 
 impl PartResult {
     /// Whether this run wrote the part (created, rewrote or updated it).
@@ -116,6 +120,7 @@ impl PartResult {
     }
 }
 
+// sokf:begin results
 /// One harness's part of the outcome.
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -160,6 +165,8 @@ pub struct MissingSource {
     /// Its path, relative to the root when under it.
     pub path: String,
 }
+// sokf:end results
+// sokf:end result
 
 impl InstallResult {
     /// The JSON Schema of the result's JSON (`--json`).
@@ -179,34 +186,42 @@ impl InstallResult {
     /// The text report: per harness, `<id>:`, one line per part,
     /// `unsupported: <items>` and `note: <text>` lines; then `warning:
     /// <text>` lines.
-    // @zen-impl: KIT-4_AC-4
+    // sokf-implements: KIT-4_AC-4
     pub fn to_text(&self) -> String {
         let mut out = String::new();
         for h in &self.harnesses {
-            out.push_str(&format!("{}:\n", h.harness));
+            let _ = writeln!(out, "{}:", h.harness);
             for p in &h.parts {
-                out.push_str(&format!("  {}\n", p.to_line()));
+                let _ = writeln!(out, "  {}", p.to_line());
             }
             if !h.unsupported.is_empty() {
                 let items: Vec<&str> = h.unsupported.iter().map(|i| i.as_str()).collect();
-                out.push_str(&format!("  unsupported: {}\n", items.join(", ")));
+                let _ = writeln!(out, "  unsupported: {}", items.join(", "));
             }
             for n in &h.notes {
-                out.push_str(&format!("  note: {n}\n"));
+                let _ = writeln!(out, "  note: {n}");
             }
         }
         for w in &self.warnings {
-            out.push_str(&format!("warning: {w}\n"));
+            let _ = writeln!(out, "warning: {w}");
         }
         for m in &self.missing {
-            out.push_str(&format!("missing source: {} ({})\n", m.path, m.item));
+            let _ = writeln!(out, "missing source: {} ({})", m.path, m.item);
         }
         out
     }
 
+    /// Whether a part edited by hand was left as found (KIT-28_AC-6).
+    pub(crate) fn edited_left(&self) -> bool {
+        self.harnesses
+            .iter()
+            .flat_map(|h| &h.parts)
+            .any(|p| p.state == State::Edited && !p.changed())
+    }
+
     /// Whether every part reported is current, shared, in place or skipped:
     /// nothing for `install` to do (KIT-5_AC-3).
-    // @zen-impl: KIT-5_AC-3
+    // sokf-implements: KIT-5_AC-3
     pub fn in_sync(&self) -> bool {
         self.harnesses
             .iter()
@@ -230,8 +245,8 @@ mod tests {
         }
     }
 
-    // @zen-test: KIT-4_AC-3
-    // @zen-test: KIT-4_AC-4
+    // sokf-tests: KIT-4_AC-3
+    // sokf-tests: KIT-4_AC-4
     #[test]
     fn text_and_json_carry_the_same_content() {
         let r = InstallResult {

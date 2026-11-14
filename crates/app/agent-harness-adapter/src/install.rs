@@ -21,6 +21,7 @@ use crate::{
     pick::{self, Choice},
 };
 
+// sokf:begin args
 /// The options every command shares.
 #[derive(Debug, Args)]
 pub struct Common {
@@ -90,6 +91,7 @@ pub struct StatusArgs {
     #[arg(long, value_name = "IDS", value_delimiter = ',')]
     pub harness: Vec<String>,
 }
+// sokf:end args
 
 /// The manifest as a tool; the CONFIG it came from (its path and root),
 /// and its text when it is still to be written.
@@ -106,8 +108,8 @@ fn home() -> Result<PathBuf> {
 /// The tool for `common`: `--manifest`, else the CONFIG found; else, when
 /// `create` names one, a new CONFIG of that name (written by the caller),
 /// else a refusal.
-// @zen-impl: AHA-7_AC-4
-// @zen-impl: AHA-7_AC-5
+// sokf-implements: AHA-7_AC-4
+// sokf-implements: AHA-7_AC-5
 pub(crate) fn load(common: &Common, create: Option<&str>) -> Result<Loaded> {
     let cwd = std::env::current_dir()?;
     let scope = common.scope;
@@ -189,9 +191,9 @@ fn repo_root(cwd: &Path, home: &Path) -> PathBuf {
         .to_path_buf()
 }
 
-// @zen-impl: AHA-3_AC-1
-// @zen-impl: AHA-8_AC-1
-// @zen-impl: AHA-8_AC-4
+// sokf-implements: AHA-3_AC-1
+// sokf-implements: AHA-8_AC-1
+// sokf-implements: AHA-8_AC-4
 pub fn run_install(args: &InstallArgs) -> Result<u8> {
     let name = args.name.as_deref().unwrap_or("agents");
     let loaded = load(&args.common, Some(name))?;
@@ -211,7 +213,7 @@ pub fn run_install(args: &InstallArgs) -> Result<u8> {
         Some((_, root)) if scope != Scope::Local && (loaded.write.is_some() || args.migrate) => {
             let plan = match migrate::plan(scope, root) {
                 Ok(plan) => plan,
-                // @zen-impl: AHA-9_AC-4
+                // sokf-implements: AHA-9_AC-4
                 // Only offered: a conflict does not stop the install.
                 Err(e) if !args.migrate => {
                     writeln!(err, "note: {e}")?;
@@ -262,7 +264,7 @@ pub fn run_install(args: &InstallArgs) -> Result<u8> {
 
 /// Whether to migrate: `--migrate`, else the user's answer when there is a
 /// terminal, else no, with a note naming `--migrate`.
-// @zen-impl: AHA-9_AC-1
+// sokf-implements: AHA-9_AC-1
 fn wants_migration(
     args: &InstallArgs,
     plan: &migrate::Plan,
@@ -287,7 +289,7 @@ fn wants_migration(
         .map_err(|e| Error::Usage(format!("could not ask: {e}")))
 }
 
-// @zen-impl: AHA-3_AC-5
+// sokf-implements: AHA-3_AC-5
 pub fn run_uninstall(args: &UninstallArgs) -> Result<u8> {
     let loaded = load(&args.common, None)?;
     let ids = if args.harness.is_empty() {
@@ -309,7 +311,7 @@ pub fn run_uninstall(args: &UninstallArgs) -> Result<u8> {
 const INSTALL_NOTE: &str = "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter diff` shows how, and `agent-harness-adapter install --force <part>` overwrites one";
 const UNINSTALL_NOTE: &str = "note: parts marked edited were changed by hand and left alone; `agent-harness-adapter uninstall --force` removes them";
 
-// @zen-impl: AHA-3_AC-2
+// sokf-implements: AHA-3_AC-2
 pub fn run_status(args: &StatusArgs) -> Result<u8> {
     let loaded = load(&args.common, None)?;
     let tool = &loaded.tool;
@@ -337,8 +339,8 @@ pub fn run_status(args: &StatusArgs) -> Result<u8> {
 /// The result as text or JSON on stdout, and with text the note about
 /// edited parts left as found on `stderr`. From the config (`standard`), the text leaves
 /// out the standard sources the user does not use.
-// @zen-impl: AHA-3_AC-3
-// @zen-impl: AHA-3_AC-4
+// sokf-implements: AHA-3_AC-3
+// sokf-implements: AHA-3_AC-4
 fn print(
     common: &Common,
     result: &InstallResult,
@@ -352,7 +354,7 @@ fn print(
         cli::write_stdout(&line)?;
         return Ok(cli::EXIT_OK);
     }
-    // @zen-impl: AHA-3_AC-6
+    // sokf-implements: AHA-3_AC-6
     let mut shown = result.clone();
     if standard {
         let unused = standard_sources(common.scope);

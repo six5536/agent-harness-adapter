@@ -1,6 +1,5 @@
 //! Whole-file reads and atomic writes that respect what the user set up:
 //! a symlink stays a symlink, a file keeps its permissions.
-// @zen-component: KIT-Fs
 
 use std::{
     fs::{self, File},
@@ -17,7 +16,7 @@ const MAX_LINKS: usize = 40;
 static NEXT_TMP: AtomicU64 = AtomicU64::new(0);
 
 /// The text of `path`; `None` when absent.
-// @zen-impl: KIT-15_AC-1
+// sokf-implements: KIT-15_AC-1
 pub fn read_text(path: &Path) -> Result<Option<String>> {
     match fs::read_to_string(path) {
         Ok(t) => Ok(Some(t)),
@@ -28,7 +27,7 @@ pub fn read_text(path: &Path) -> Result<Option<String>> {
 
 /// The user's home directory: `HOME`, else `USERPROFILE` (Windows); `None`
 /// when neither is set.
-// @zen-impl: KIT-15_AC-3
+// sokf-implements: KIT-15_AC-3
 pub fn home_dir() -> Option<PathBuf> {
     home_from(|k| std::env::var_os(k))
 }
@@ -90,7 +89,7 @@ fn home_from(var: impl Fn(&str) -> Option<std::ffi::OsString>) -> Option<PathBuf
 /// symlink the file it points to is replaced, not the link; an existing
 /// file's permissions carry over. The temp name is unique per write, so
 /// concurrent writers never share one.
-// @zen-impl: KIT-15_AC-2
+// sokf-implements: KIT-15_AC-2
 pub fn write_atomic(path: &Path, contents: impl AsRef<[u8]>) -> Result<()> {
     let target = resolve(path);
     if let Some(parent) = target.parent() {
@@ -141,7 +140,7 @@ fn resolve(path: &Path) -> PathBuf {
 mod tests {
     use super::*;
 
-    // @zen-test: KIT-15_AC-3
+    // sokf-tests: KIT-15_AC-3
     #[test]
     fn home_is_home_else_userprofile() {
         let env = |pairs: &'static [(&'static str, &'static str)]| {
@@ -165,7 +164,7 @@ mod tests {
     }
     use crate::test_support::temp_dir;
 
-    // @zen-test: KIT-15_AC-1
+    // sokf-tests: KIT-15_AC-1
     #[test]
     fn reads_absent_as_none() {
         let dir = temp_dir("fs-read");
@@ -179,7 +178,7 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    // @zen-test: KIT-15_AC-2
+    // sokf-tests: KIT-15_AC-2
     #[test]
     fn leaves_no_temp_files() {
         let dir = temp_dir("fs-tmp");
@@ -200,7 +199,7 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    // @zen-test: KIT-15_AC-2
+    // sokf-tests: KIT-15_AC-2
     #[cfg(unix)]
     #[test]
     fn writes_through_symlinks_and_keeps_the_mode() {

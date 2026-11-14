@@ -1,9 +1,8 @@
 //! A tool's integration, declared once without naming a harness.
-// @zen-component: KIT-Integration
 
 use std::{fmt, path::PathBuf, str::FromStr, time::Duration};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Result,
@@ -17,7 +16,7 @@ pub const ADAPTER: &str = "agent-harness-adapter";
 
 /// One kind of thing in an integration. An item becomes at most one part
 /// per harness, named by the item's name (e.g. `hooks`).
-// @zen-impl: KIT-17_AC-2
+// sokf-implements: KIT-17_AC-2
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -79,10 +78,37 @@ impl FromStr for Item {
     }
 }
 
+/// Where a tool's block stands in a file that holds the blocks of several
+/// tools (KIT-26).
+// sokf-implements: KIT-26_AC-1
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum BlockOrder {
+    /// Where it was first written: appended, or before a block that asks to
+    /// come last.
+    #[default]
+    Installed,
+    /// After the block of every other tool that does not ask the same; its
+    /// opening marker is `<!-- <tool>:harness last -->`.
+    Last,
+}
+
+impl BlockOrder {
+    /// The order's name, as a manifest gives it: `installed` or `last`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BlockOrder::Installed => "installed",
+            BlockOrder::Last => "last",
+        }
+    }
+}
+
 /// What a tool installs into every harness, built with the methods below.
 /// Harnesses read it through the accessors and render it into their own
 /// files.
-// @zen-impl: KIT-17_AC-1
+// sokf-implements: KIT-17_AC-1
 #[derive(Debug, Clone, Default)]
 pub struct Integration {
     instructions: Option<String>,
@@ -99,6 +125,7 @@ pub struct Integration {
     missing: Vec<Source>,
     warnings: Vec<String>,
     adapter: Option<String>,
+    order: BlockOrder,
     /// The hooks file and, per event it dispatches, the sum of its entries'
     /// timeouts in seconds.
     dispatch: Option<(PathBuf, Vec<(Event, u64)>)>,
@@ -184,14 +211,29 @@ impl Integration {
         self
     }
 
+    /// With its blocks in the order `order` among other tools' blocks in a
+    /// file (KIT-26): [`BlockOrder::Last`] puts them after every other
+    /// tool's. It changes where a block stands, never what it holds.
+    // sokf-implements: KIT-26_AC-1
+    #[must_use]
+    pub fn block_order(mut self, order: BlockOrder) -> Self {
+        self.order = order;
+        self
+    }
+
+    /// The order of its blocks among other tools' blocks.
+    pub fn block_order_value(&self) -> BlockOrder {
+        self.order
+    }
+
     /// With the instructions read from the file `file`, its SOURCE; a
     /// missing file gives no instructions (KIT-17_AC-8).
     ///
     /// # Errors
     ///
     /// When the file exists and cannot be read as UTF-8 text.
-    // @zen-impl: KIT-17_AC-7
-    // @zen-impl: KIT-17_AC-8
+    // sokf-implements: KIT-17_AC-7
+    // sokf-implements: KIT-17_AC-8
     pub fn instructions_from(mut self, file: impl Into<PathBuf>) -> Result<Self> {
         let src = self.source_of(Item::Instructions, file.into());
         if let Some(src) = src {
@@ -206,7 +248,7 @@ impl Integration {
     /// # Errors
     ///
     /// When a skill directory cannot be read (KIT-17_AC-6).
-    // @zen-impl: KIT-17_AC-9
+    // sokf-implements: KIT-17_AC-9
     pub fn skills_from(mut self, dir: impl Into<PathBuf>) -> Result<Self> {
         if let Some(src) = self.source_of(Item::Skills, dir.into()) {
             self.skills.extend(source::skills(&src)?);
@@ -221,8 +263,8 @@ impl Integration {
     /// # Errors
     ///
     /// When the file is not a hooks file (KIT-24_AC-4).
-    // @zen-impl: KIT-24_AC-2
-    // @zen-impl: KIT-24_AC-7
+    // sokf-implements: KIT-24_AC-2
+    // sokf-implements: KIT-24_AC-7
     pub fn hooks_from(mut self, file: impl Into<PathBuf>) -> Result<Self> {
         let Some(src) = self.source_of(Item::Hooks, file.into()) else {
             return Ok(self);
@@ -320,11 +362,12 @@ impl Integration {
         &self.warnings
     }
 
+    // sokf:begin resolve
     /// The integration for `cx`: with a dispatch hook per event of its hooks
     /// file, `<adapter> hook --hooks <path> {harness} {event}`, the path
     /// relative to the root (`~/…` at user scope).
-    // @zen-impl: KIT-24_AC-2
-    // @zen-impl: HAR-14_AC-6
+    // sokf-implements: KIT-24_AC-2
+    // sokf-implements: HAR-14_AC-6
     pub(crate) fn resolve(&self, cx: &Context) -> Integration {
         let mut out = self.clone();
         let Some((file, events)) = &self.dispatch else {
@@ -354,6 +397,41 @@ impl Integration {
         }
         out
     }
+    // sokf:end resolve
+
+    /// The instructions alone, as `keep_instructions` renders them
+    /// (KIT-27): the block, or an empty one when `empty` and there is none,
+    /// its SOURCE, and with `raw` the raw parts named `instructions`; no
+    /// other item, so no other part's file is read.
+    pub(crate) fn instructions_only(&self, empty: bool, raw: bool) -> Integration {
+        let item = Item::Instructions;
+        Integration {
+            instructions: self
+                .instructions
+                .clone()
+                .or_else(|| empty.then(String::new)),
+            parts: self
+                .parts
+                .iter()
+                .filter(|(_, p)| raw && p.name() == item.as_str())
+                .cloned()
+                .collect(),
+            sources: self
+                .sources
+                .iter()
+                .filter(|s| s.item == item)
+                .cloned()
+                .collect(),
+            missing: self
+                .missing
+                .iter()
+                .filter(|s| s.item == item)
+                .cloned()
+                .collect(),
+            order: self.order,
+            ..Integration::default()
+        }
+    }
 
     /// The instructions block.
     pub fn instructions_block(&self) -> Option<&str> {
@@ -375,8 +453,8 @@ impl Integration {
     /// hook's and each harness's own): the text before its first placeholder
     /// (the whole command when it has none). A command that starts with a
     /// placeholder needs a match: an empty prefix would own every entry.
-    // @zen-impl: KIT-11_AC-7
-    // @zen-impl: KIT-11_AC-8
+    // sokf-implements: KIT-11_AC-7
+    // sokf-implements: KIT-11_AC-8
     pub fn hook_owner(&self, hook: &Hook) -> Result<EntryMatch> {
         if let Some(m) = hook.owned_by().or(self.hook_match.as_ref()) {
             return Ok(m.clone());
@@ -457,10 +535,28 @@ mod tests {
         assert!("nope".parse::<Item>().is_err());
     }
 
-    // @zen-test: KIT-17_AC-1
+    // sokf-tests: KIT-26_AC-1
+    #[test]
+    fn a_block_order_is_installed_unless_set() {
+        assert_eq!(
+            Integration::new().block_order_value(),
+            BlockOrder::Installed
+        );
+        let i = Integration::new().block_order(BlockOrder::Last);
+        assert_eq!(i.block_order_value(), BlockOrder::Last);
+        assert_eq!(BlockOrder::Last.as_str(), "last");
+        assert_eq!(BlockOrder::Installed.as_str(), "installed");
+        assert_eq!(
+            serde_json::to_string(&BlockOrder::Last).unwrap(),
+            "\"last\""
+        );
+    }
+
+    // sokf-tests: KIT-17_AC-1
     #[test]
     fn an_integration_holds_its_items_in_profile_order() {
-        assert!(Integration::new().items().is_empty());
+        let items = Integration::new().items();
+        assert!(items.is_empty(), "{items:?}");
         let i = Integration::new()
             .command(Command::new("c", "d", "p"))
             .instructions("b\n")
@@ -488,8 +584,8 @@ mod tests {
         assert_eq!(i.parts_for("codex").count(), 0);
     }
 
-    // @zen-test: KIT-11_AC-7
-    // @zen-test: KIT-11_AC-8
+    // sokf-tests: KIT-11_AC-7
+    // sokf-tests: KIT-11_AC-8
     #[test]
     fn a_hook_is_owned_by_its_match_the_integrations_or_its_prefix() {
         let plain = Hook::new(Event::Stop, "t hook {harness} {event}");

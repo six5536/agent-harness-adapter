@@ -1,0 +1,48 @@
+{
+  "name": "@six5536/agent-harness-adapter",
+  "version": "0.4.0",
+  "description": "One agent setup, every coding agent: keep instructions, skills and hooks in AGENTS.md and .agents/, and Claude Code, Codex, Gemini CLI, Copilot, Cursor, OpenCode and more use them.",
+  "keywords": [
+    "agent",
+    "claude-code",
+    "cli",
+    "hooks",
+    "llm"
+  ],
+  "homepage": "https://six5536.github.io/agent-harness-adapter/",
+  "bugs": {
+    "url": "https://github.com/six5536/agent-harness-adapter/issues"
+  },
+  "license": "MIT",
+  "author": "six5536 <10079653+six5536@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/six5536/agent-harness-adapter.git",
+    "directory": "packages/cli"
+  },
+  "bin": {
+    "agent-harness-adapter": "bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "optionalDependencies": {
+    "@six5536/agent-harness-adapter-darwin-arm64": "0.4.0",
+    "@six5536/agent-harness-adapter-darwin-x64": "0.4.0",
+    "@six5536/agent-harness-adapter-linux-arm64": "0.4.0",
+    "@six5536/agent-harness-adapter-linux-x64": "0.4.0",
+    "@six5536/agent-harness-adapter-win32-x64": "0.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

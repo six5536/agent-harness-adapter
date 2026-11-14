@@ -7,7 +7,6 @@
 //! `hooks/hook-matcher.ts`, `hooks/hook-timeout.ts`, `core/client.ts`,
 //! `tools/tool-names.ts`, `memory/memoryDiscovery.ts`,
 //! `permissions/rule-parser.ts`), version 0.25.0 (checked 2026-10-07).
-// @zen-component: HAR-Qwen
 
 use crate::{
     Result,
@@ -29,7 +28,11 @@ const ID: &str = "qwen";
 const SETTINGS: &str = ".qwen/settings.json";
 
 /// Qwen Code's name for `event`: Claude Code's names.
-// @zen-impl: HAR-13_AC-3
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "`GroupHooks::event` takes this shape, as some harnesses lack an event"
+)]
+// sokf-implements: HAR-13_AC-3
 fn event_name(event: Event) -> Option<&'static str> {
     Some(match event {
         Event::SessionStart => "SessionStart",
@@ -91,7 +94,7 @@ fn command_md(c: &Command) -> String {
 
 fn location(item: Item, cx: &Context) -> Result<String> {
     Ok(match item {
-        // @zen-impl: HAR-13_AC-2
+        // sokf-implements: HAR-13_AC-2
         Item::Instructions => settings::context_files(cx, &CONTEXT)?.0,
         Item::Skills => ".agents/skills".into(),
         Item::Hooks | Item::Mcp | Item::Permissions => SETTINGS.into(),
@@ -101,7 +104,7 @@ fn location(item: Item, cx: &Context) -> Result<String> {
 }
 
 /// Claude Code's name for one of its tools (HAR-15_AC-2).
-// @zen-impl: HAR-15_AC-2
+// sokf-implements: HAR-15_AC-2
 fn claude_name(name: &str) -> Option<&'static str> {
     match name {
         "run_shell_command" => Some("Bash"),
@@ -121,7 +124,7 @@ impl Harness for Qwen {
         ID
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("qwen")
     }
@@ -130,14 +133,19 @@ impl Harness for Qwen {
         claude_names::named(call, claude_name(&call.name))
     }
 
-    // @zen-impl: HAR-13_AC-1
+    // sokf-implements: HAR-13_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User]
     }
 
-    // @zen-impl: HAR-13_AC-5
-    // @zen-impl: HAR-13_AC-6
-    // @zen-impl: HAR-13_AC-7
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &["QWEN.md", ".qwen"], &[".qwen"])
+    }
+
+    // sokf-implements: HAR-13_AC-5
+    // sokf-implements: HAR-13_AC-6
+    // sokf-implements: HAR-13_AC-7
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
         let mut out = Vec::new();
         for item in integration.items() {
@@ -186,17 +194,17 @@ impl Harness for Qwen {
         })
     }
 
-    // @zen-impl: HAR-13_AC-4
+    // sokf-implements: HAR-13_AC-4
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
         protocol::parse(ID, event, text, tool_kind, "last_assistant_message")
     }
 
-    // @zen-impl: HAR-13_AC-4
+    // sokf-implements: HAR-13_AC-4
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
         protocol::answer(ID, event, event_name(event).unwrap_or_default(), answer)
     }
 
-    // @zen-impl: HAR-13_AC-8
+    // sokf-implements: HAR-13_AC-8
     fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
         let mut out = Vec::new();
         if !parts.iter().any(PartResult::changed) {

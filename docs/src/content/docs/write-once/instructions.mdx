@@ -61,6 +61,136 @@ Run `mytool check` before you finish.
   </TabItem>
 </Tabs>
 
+### Hand them over, and name no harness
+
+A tool that should know nothing of agents hands the adapter its name, a
+scope and its instructions, and prints the report it gets back, exiting with
+its code. The adapter puts the block into every agent the project uses: the
+ones the project's own [config](/agent-harness-adapter/reference/config/)
+installed, and the ones whose own files are there (`.claude/` or a
+`CLAUDE.md` of your own, `.gemini/` or `GEMINI.md`, `AGENTS.md`, `.codex/`,
+…), and takes it out of an agent the project stopped using. With no
+instructions, the block goes again, and a file goes only when nothing else is
+left in it. A block you
+edited stays as you left it (exit 1); a refusal writes nothing (exit 2).
+The record is `.mytool/harness.toml`, and `.mytool/config.toml` declines the
+block in one agent (`[harness.gemini] without = ["instructions"]`).
+
+<Tabs syncKey="lang">
+  <TabItem label="Rust">
+    ```rust
+    let out = follow(&Request::new("mytool", Scope::Project).instructions(text));
+    print!("{}", out.report);
+    std::process::exit(out.exit.into());
+    ```
+  </TabItem>
+  <TabItem label="Node">
+    ```js
+    const out = aha.follow("mytool", { instructions: text });
+    process.stdout.write(out.report);
+    process.exitCode = out.exit;
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    out = aha.follow("mytool", text)
+    print(out["report"], end="")
+    sys.exit(out["exit"])
+    ```
+  </TabItem>
+</Tabs>
+
+`Request::keep` (Node `keep`, Python `keep=`) keeps a text as the project's
+own first, and `Request::block_order(BlockOrder::Last)` (`blockOrder:
+"last"`, `block_order="last"`) puts the block after every other tool's, as
+the next two sections say.
+
+### After every other tool's block
+
+Several tools can keep a block in one file, and each new block goes at the
+end. A tool whose instructions refine the others' can ask for its block to
+come last, after every other tool's, without naming them:
+
+<Tabs syncKey="lang">
+  <TabItem label="Command">
+    ```toml
+    block_order = "last"   # default "installed": where it was first written
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    Integration::new()
+        .instructions("Run `mytool check` before you finish.\n")
+        .block_order(BlockOrder::Last)
+    ```
+  </TabItem>
+  <TabItem label="Node">
+    ```js
+    { instructions: "Run `mytool check` before you finish.\n", block_order: "last" }
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    {"instructions": "Run `mytool check` before you finish.\n", "block_order": "last"}
+    ```
+  </TabItem>
+</Tabs>
+
+Its block then opens with `<!-- mytool:harness last -->`, so every tool's
+install sees the choice: another tool puts its block before it, and any
+tool's install puts the blocks of a file in order, those that come last after
+the others, when an older install left them otherwise (`updated`, though the
+text is `current`; `status` warns of it). The blocks change places with their
+text as it is, your lines between them stay where they are, and blocks that
+make the same choice keep their order. The choice never changes a block's
+text.
+
+### Keep a tool's text as the project's own
+
+When a tool stops managing part of its instructions while the project keeps
+them, such as a pack the project leaves but whose rules it keeps, it hands
+the text to the adapter, which writes it as plain text right after the
+tool's block, outside it, in each file that holds the block for an installed
+harness: `CLAUDE.md`, `GEMINI.md`, `AGENTS.md`, whichever the harnesses read.
+A file several harnesses share is written once. Instructions your tool reads
+from a source file get the text in that file alone, since every agent reads
+it, directly or through a copy.
+
+```md
+<!-- mytool:harness -->
+
+Run `mytool check` before you finish.
+<!-- /mytool:harness -->
+
+Use the rust rules in knowledge/project-rules/rust.md.
+```
+
+The text has no markers, so it is yours: no later install, `status` or
+uninstall rewrites it or takes it out. Where no file holds the block, the
+text goes into `AGENTS.md` (created when absent); at user and local scope
+that is refused, since no file there is read by every agent. A text that
+holds a block's marker line is refused. Calling it again with the same text
+writes nothing.
+
+<Tabs syncKey="lang">
+  <TabItem label="Rust">
+    ```rust
+    let kept = keep_instructions(&tool, "Use the rust rules.\n", Scope::Project)?;
+    print!("{}", kept.to_text()); // kept    CLAUDE.md / kept    GEMINI.md
+    ```
+  </TabItem>
+  <TabItem label="Node">
+    ```js
+    aha.keepInstructions(manifest, "Use the rust rules.\n", { root })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    aha.keep_instructions(manifest, "Use the rust rules.\n", root=root)
+    ```
+  </TabItem>
+</Tabs>
+
 ## Limits
 
 - Cursor has no instructions file at user scope (its user rules are not files).

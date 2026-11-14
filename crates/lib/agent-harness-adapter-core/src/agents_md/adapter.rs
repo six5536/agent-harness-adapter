@@ -1,6 +1,5 @@
 //! Any agent that reads `AGENTS.md` (<https://agents.md>) and the shared
 //! skills directory `.agents/skills`.
-// @zen-component: HAR-AgentsMd
 
 use crate::{
     Error, Result,
@@ -29,13 +28,18 @@ impl Harness for AgentsMd {
         ID
     }
 
-    // @zen-impl: HAR-8_AC-1
+    // sokf-implements: HAR-8_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User]
     }
 
-    // @zen-impl: HAR-8_AC-2
-    // @zen-impl: HAR-8_AC-3
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &["AGENTS.md"], &[])
+    }
+
+    // sokf-implements: HAR-8_AC-2
+    // sokf-implements: HAR-8_AC-3
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
         let mut out = Vec::new();
         if let (Some(at), Some(block)) = (
@@ -76,9 +80,9 @@ mod tests {
     use super::*;
     use crate::integration::{Hook, Skill};
 
-    // @zen-test: HAR-8_AC-1
-    // @zen-test: HAR-8_AC-2
-    // @zen-test: HAR-8_AC-3
+    // sokf-tests: HAR-8_AC-1
+    // sokf-tests: HAR-8_AC-2
+    // sokf-tests: HAR-8_AC-3
     #[test]
     fn instructions_and_skills_only() {
         let i = Integration::new()
@@ -100,7 +104,8 @@ mod tests {
             Reads::default()
         );
         assert_eq!(AgentsMd.scopes().len(), 2);
-        assert!(AgentsMd.hook_events().is_empty());
+        let events = AgentsMd.hook_events();
+        assert!(events.is_empty(), "{events:?}");
         assert_eq!(crate::claude::Claude.hook_events().len(), 7);
         assert_eq!(
             AgentsMd.parse_hook(Event::Stop, "{}").unwrap().harness,

@@ -17,7 +17,7 @@ pub struct Skill {
     body: String,
     files: Vec<(String, String)>,
     /// `SKILL.md` as read from a skill directory, written unchanged.
-    skill_md: Option<String>,
+    original: Option<String>,
 }
 
 impl Skill {
@@ -33,7 +33,7 @@ impl Skill {
             description: description.into(),
             body: body.into(),
             files: Vec::new(),
-            skill_md: None,
+            original: None,
         }
     }
 
@@ -46,8 +46,8 @@ impl Skill {
     /// [`Error::File`] when `SKILL.md` is missing, its frontmatter has no
     /// `name` of lowercase letters, digits and `-`, or a file is not UTF-8
     /// text; [`Error::Io`] when a file cannot be read.
-    // @zen-impl: KIT-17_AC-5
-    // @zen-impl: KIT-17_AC-6
+    // sokf-implements: KIT-17_AC-5
+    // sokf-implements: KIT-17_AC-6
     pub fn from_dir(dir: impl AsRef<Path>) -> Result<Self> {
         let dir = dir.as_ref();
         let path = dir.join("SKILL.md");
@@ -78,7 +78,7 @@ impl Skill {
             description,
             body,
             files,
-            skill_md: Some(skill_md),
+            original: Some(skill_md),
         })
     }
 
@@ -113,7 +113,7 @@ impl Skill {
     /// read from a skill directory, else rendered), then `<name>/<path>` for
     /// each extra file.
     pub fn dir_files(&self) -> Vec<(String, String)> {
-        let skill_md = self.skill_md.clone().unwrap_or_else(|| {
+        let skill_md = self.original.clone().unwrap_or_else(|| {
             format!(
                 "---\nname: {}\ndescription: {}\n---\n\n{}",
                 self.name,
@@ -260,7 +260,7 @@ mod tests {
         );
     }
 
-    // @zen-test: KIT-17_AC-5
+    // sokf-tests: KIT-17_AC-5
     #[test]
     fn a_skill_directory_is_read_as_it_is() {
         let dir = temp_dir("skill-dir");
@@ -269,7 +269,7 @@ mod tests {
         fs::create_dir_all(dir.join("scripts/sub")).unwrap();
         fs::write(dir.join("scripts/sub/b.sh"), "b\n").unwrap();
         fs::write(dir.join("a.md"), "a\n").unwrap();
-        fs::write(dir.join(".DS_Store"), [0xff, 0xfe]).unwrap();
+        fs::write(dir.join(".DS_Store"), [0xFF, 0xFE]).unwrap();
         fs::create_dir_all(dir.join(".git")).unwrap();
         fs::write(dir.join(".git/x"), "x").unwrap();
         let s = Skill::from_dir(&dir).unwrap();
@@ -288,7 +288,7 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    // @zen-test: KIT-17_AC-6
+    // sokf-tests: KIT-17_AC-6
     #[test]
     fn a_bad_skill_directory_is_refused_naming_the_file() {
         let dir = temp_dir("skill-bad");
@@ -307,7 +307,7 @@ mod tests {
             "---\nname: \"ok\"\ndescription: 'it''s'\n---\nx",
         )
         .unwrap();
-        fs::write(dir.join("logo.png"), [0x89, 0x50, 0xff]).unwrap();
+        fs::write(dir.join("logo.png"), [0x89, 0x50, 0xFF]).unwrap();
         let e = refused(&dir);
         assert!(
             e.contains("logo.png") && e.contains("not UTF-8 text"),

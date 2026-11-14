@@ -1,6 +1,5 @@
 //! `uninstall`: a tool's integration taken back out of a set of harnesses
 //! (KIT-22), with install's run, states and plan.
-// @zen-component: KIT-Uninstall
 
 use std::collections::BTreeMap;
 
@@ -18,6 +17,7 @@ use crate::{
     integration::Item,
 };
 
+// sokf:begin uninstall-options
 /// The options of [`uninstall`], built with [`UninstallOptions::new`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -28,7 +28,12 @@ pub struct UninstallOptions {
     pub scope: Scope,
     /// `--force`: also remove the parts the user edited.
     pub force: bool,
+    /// Keep a part for another installed harness only when that harness's
+    /// own part is there, not when it is merely covered by it (`follow`,
+    /// whose next install writes the covered harness where it reads).
+    pub(crate) own_only: bool,
 }
+// sokf:end uninstall-options
 
 impl UninstallOptions {
     /// Uninstall `harnesses` at `scope`, without `--force`.
@@ -37,6 +42,7 @@ impl UninstallOptions {
             harnesses: harnesses.into_iter().map(Into::into).collect(),
             scope,
             force: false,
+            own_only: false,
         }
     }
 
@@ -51,7 +57,7 @@ impl UninstallOptions {
 /// The installed, unnamed harnesses that read `e`'s item at its location
 /// and either have their own part for it there or are shared by it, each
 /// with whether its own part is there (it then owns what is kept).
-// @zen-impl: KIT-22_AC-4
+// sokf-implements: KIT-22_AC-4
 fn users(
     run: &Run,
     shared: &BTreeMap<(usize, String), Covered>,
@@ -84,8 +90,8 @@ fn users(
 
 /// Plan the removal of one part; `false` when it cannot be removed (an
 /// external part its tool cannot remove).
-// @zen-impl: KIT-22_AC-1
-// @zen-impl: KIT-22_AC-2
+// sokf-implements: KIT-22_AC-1
+// sokf-implements: KIT-22_AC-2
 fn plan_removal(run: &Run, plan: &mut Plan, e: &Examined<'_>) -> Result<bool> {
     let fs_path = run.cx.path(&e.path);
     match &e.part.kind {
@@ -132,11 +138,11 @@ fn plan_removal(run: &Run, plan: &mut Plan, e: &Examined<'_>) -> Result<bool> {
 /// installed harness that is not named reads it; a declined, shared or
 /// absent part is left. The record loses the named harnesses, and their
 /// declined parts are cleared. Every refusal comes before any write.
-// @zen-impl: KIT-22_AC-3
-// @zen-impl: KIT-22_AC-6
-// @zen-impl: KIT-22_AC-7
-// @zen-impl: KIT-22_AC-8
-// @zen-impl: KIT-22_AC-9
+// sokf-implements: KIT-22_AC-3
+// sokf-implements: KIT-22_AC-6
+// sokf-implements: KIT-22_AC-7
+// sokf-implements: KIT-22_AC-8
+// sokf-implements: KIT-22_AC-9
 pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<InstallResult> {
     let named = if opts.harnesses.iter().any(|n| n == "all") {
         installed(tool, opts.scope)?
@@ -166,6 +172,9 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
         };
         let users = if wanted {
             users(&run, &shared, e)
+                .into_iter()
+                .filter(|(_, own)| *own || !opts.own_only)
+                .collect::<Vec<_>>()
         } else {
             Vec::new()
         };
@@ -211,7 +220,7 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
     let mut record = run.record.clone();
     // A kept part's hash goes to the harnesses whose own part is there, so
     // a later install finds it stale, not edited.
-    // @zen-impl: KIT-22_AC-4
+    // sokf-implements: KIT-22_AC-4
     for (from, part, users) in &kept {
         let Some(hash) = run.record.harnesses.get(from).and_then(|t| t.get(part)) else {
             continue;
@@ -238,5 +247,5 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
     // Install's warnings are about loading twice, which an uninstall does
     // not cause: keep only the uninstall's own.
     run.warnings = warnings;
-    Ok(run.result(parts))
+    Ok(run.result(&parts))
 }

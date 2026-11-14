@@ -2,7 +2,6 @@
 //! format, e.g. `.agents/hooks.json`. Its events become dispatch hooks
 //! (`agent-harness-adapter hook --hooks <path>`), which run its entries at
 //! hook time in every harness.
-// @zen-component: KIT-HooksFile
 
 use std::{collections::BTreeMap, path::Path};
 
@@ -18,8 +17,9 @@ use crate::{
     integration::{Integration, Item},
 };
 
+// sokf:begin hooks-file
 /// A hooks file: Claude Code's `hooks` object, event name to groups.
-// @zen-impl: KIT-24_AC-1
+// sokf-implements: KIT-24_AC-1
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -62,6 +62,7 @@ pub struct Entry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool: Option<String>,
 }
+// sokf:end hooks-file
 
 fn command_type() -> String {
     "command".into()
@@ -89,7 +90,7 @@ impl Entry {
 
 impl HooksFile {
     /// `text`, the hooks file `path` (for messages), read and checked.
-    // @zen-impl: KIT-24_AC-4
+    // sokf-implements: KIT-24_AC-4
     pub fn parse(text: &str, path: &str) -> Result<Self> {
         let value: Value =
             serde_json::from_str(text).map_err(|e| Error::file(path, e.to_string()))?;
@@ -121,7 +122,7 @@ impl HooksFile {
     }
 
     /// The events with an entry dispatch runs, in [`Event::ALL`] order.
-    // @zen-impl: KIT-24_AC-2
+    // sokf-implements: KIT-24_AC-2
     pub fn events(&self) -> Vec<Event> {
         Event::ALL
             .into_iter()
@@ -142,7 +143,7 @@ impl HooksFile {
 
     /// The event names it has that are not one of the seven, which nothing
     /// runs (KIT-24_AC-7).
-    // @zen-impl: KIT-24_AC-7
+    // sokf-implements: KIT-24_AC-7
     pub fn other_events(&self) -> Vec<&str> {
         self.hooks
             .keys()
@@ -169,7 +170,7 @@ impl HooksFile {
 /// entry carrying `tool` (KIT-24_AC-5), so dispatch skips them and uninstall
 /// removes only them. A harness from outside the library uses it in its
 /// `render`.
-// @zen-impl: KIT-24_AC-5
+// sokf-implements: KIT-24_AC-5
 pub fn tool_part(
     integration: &Integration,
     tool: &str,
@@ -211,7 +212,7 @@ pub fn tool_part(
 }
 
 /// The JSON Schema of a hooks file.
-// @zen-impl: KIT-24_AC-6
+// sokf-implements: KIT-24_AC-6
 #[cfg(feature = "schemars")]
 pub fn schema() -> Value {
     let mut schema =
@@ -227,8 +228,8 @@ mod tests {
 
     use super::*;
 
-    // @zen-test: KIT-24_AC-1
-    // @zen-test: KIT-24_AC-4
+    // sokf-tests: KIT-24_AC-1
+    // sokf-tests: KIT-24_AC-4
     #[test]
     fn reads_claude_codes_format() {
         let f = HooksFile::parse(
@@ -245,7 +246,8 @@ mod tests {
         assert_eq!(f.events(), vec![Event::PreTool]);
         assert_eq!(f.groups(Event::PreTool)[0].matcher.as_deref(), Some("Bash"));
         assert_eq!(f.groups(Event::PreTool)[0].hooks[0].timeout, Some(5));
-        assert!(f.groups(Event::SessionEnd).is_empty());
+        let groups = f.groups(Event::SessionEnd);
+        assert!(groups.is_empty(), "{groups:?}");
         assert_eq!(f.other_events(), vec!["Notification"]);
         assert_eq!(f.other_types(), 1);
         for (bad, says) in [
@@ -266,7 +268,7 @@ mod tests {
         assert_eq!(HooksFile::parse("{}", "h").unwrap(), HooksFile::default());
     }
 
-    // @zen-test: KIT-24_AC-6
+    // sokf-tests: KIT-24_AC-6
     #[cfg(feature = "schemars")]
     #[test]
     fn the_schema_names_the_hooks_file() {
@@ -308,7 +310,7 @@ mod tests {
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(256))]
-        // @zen-test: KIT_P-17
+        // sokf-tests: KIT_P-17
         #[test]
         fn hooks_files_round_trip(f in files()) {
             let text = serde_json::to_string(&f).unwrap();

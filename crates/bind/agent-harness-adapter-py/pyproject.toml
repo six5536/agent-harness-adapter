@@ -24,7 +24,8 @@ Homepage = "https://six5536.github.io/agent-harness-adapter/"
 Documentation = "https://six5536.github.io/agent-harness-adapter/use/python/"
 Repository = "https://github.com/six5536/agent-harness-adapter"
 
-# @zen-impl: BND-4_AC-1 (abi3-py39 wheels and an sdist; release.yml builds them per platform)
+# Abi3-py39 wheels and an sdist; release.yml builds them per platform.
+# sokf-implements: BND-4_AC-1
 [tool.maturin]
 python-source = "python"
 module-name = "agent_harness_adapter._native"

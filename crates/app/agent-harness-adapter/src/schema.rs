@@ -8,6 +8,7 @@ use agent_harness_adapter_core::{
 use clap::ValueEnum;
 use serde_json::Value;
 
+// sokf:begin contract
 /// A contract with a schema.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum Contract {
@@ -22,6 +23,7 @@ pub enum Contract {
     /// `install` / `status --json`.
     Result,
 }
+// sokf:end contract
 
 impl Contract {
     /// The schema.
@@ -38,8 +40,8 @@ impl Contract {
 
 /// Print the schema of `contract`, pretty, with a final newline: the text
 /// kept in `schema/`.
-// @zen-impl: AHA-5_AC-1
-// @zen-impl: AHA-5_AC-2
+// sokf-implements: AHA-5_AC-1
+// sokf-implements: AHA-5_AC-2
 pub fn run(contract: Contract) -> std::io::Result<u8> {
     let mut text = serde_json::to_string_pretty(&contract.schema()).expect("a schema serialises");
     text.push('\n');

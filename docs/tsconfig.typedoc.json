@@ -6,5 +6,5 @@
     "module": "nodenext",
     "target": "es2022"
   },
-  "files": ["../packages/agent-harness-adapter-node/index.d.ts"]
+  "files": ["../bindings/packages/agent-harness-adapter-node/index.d.ts"]
 }

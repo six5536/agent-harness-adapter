@@ -1,6 +1,5 @@
 //! `<tool> harness install` and `status` over a set of harnesses, generic
 //! over a [`Tool`].
-// @zen-component: KIT-Harness
 
 use std::{
     collections::BTreeMap,
@@ -22,9 +21,10 @@ use crate::{
         state::{Observed, expected, hash, observe, state},
         write::{Plan, apply_plan},
     },
-    integration::{Integration, Item},
+    integration::{Hook, Integration, Item},
 };
 
+// sokf:begin install-options
 /// The parts `install` writes whatever their state (`--force`).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[non_exhaustive]
@@ -94,6 +94,7 @@ impl InstallOptions {
         self
     }
 }
+// sokf:end install-options
 
 /// One harness of the set: its profile, where it loads each item, and what
 /// it declined.
@@ -141,8 +142,8 @@ pub(super) struct Run {
 }
 
 /// The profile `harness` renders for `integration`, then the raw parts.
-// @zen-impl: KIT-17_AC-3
-// @zen-impl: KIT-17_AC-4
+// sokf-implements: KIT-17_AC-3
+// sokf-implements: KIT-17_AC-4
 fn profile(
     harness: &dyn Harness,
     integration: &Integration,
@@ -190,11 +191,15 @@ fn profile(
 }
 
 /// Resolve the set, render each profile, read the declined parts.
-// @zen-impl: KIT-1_AC-1
-// @zen-impl: KIT-1_AC-2
-// @zen-impl: KIT-19_AC-1
-// @zen-impl: KIT-8_AC-1
-// @zen-impl: KIT-6_AC-1
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pass over the set, whose steps share the run's state"
+)]
+// sokf-implements: KIT-1_AC-1
+// sokf-implements: KIT-1_AC-2
+// sokf-implements: KIT-19_AC-1
+// sokf-implements: KIT-8_AC-1
+// sokf-implements: KIT-6_AC-1
 pub(super) fn run<T: Tool + ?Sized>(
     tool: &T,
     named: &[String],
@@ -252,7 +257,7 @@ pub(super) fn run<T: Tool + ?Sized>(
     // choice made from the files present sees a file the same run writes.
     // The first render's locations are all a harness sees: none sees where
     // another chose from them.
-    // @zen-impl: KIT-19_AC-9
+    // sokf-implements: KIT-19_AC-9
     let mut first: Vec<Vec<String>> = Vec::with_capacity(set.len());
     for (h, _) in &set {
         // A store that cannot be read refuses here, before any write.
@@ -279,7 +284,7 @@ pub(super) fn run<T: Tool + ?Sized>(
         let (profile, unsupported) = profile(h.as_ref(), &integration, &cx)?;
         let mut missed: Vec<crate::hook::Event> = Vec::new();
         if profile.part(Item::Hooks.as_str()).is_some() {
-            for e in integration.hooks().iter().map(|hk| hk.event()) {
+            for e in integration.hooks().iter().map(Hook::event) {
                 if !h.hook_events().contains(&e) && !missed.contains(&e) {
                     missed.push(e);
                 }
@@ -330,7 +335,7 @@ pub(super) fn run<T: Tool + ?Sized>(
         }
     }
     Ok(Run {
-        markers: Markers::new(tool.name()),
+        markers: Markers::new(tool.name()).order(declared.block_order_value()),
         cx,
         record_path,
         record,
@@ -362,7 +367,7 @@ impl Run {
     }
 
     /// The shared parts: per item, the choice of KIT-Shared.
-    // @zen-impl: KIT-19_AC-6
+    // sokf-implements: KIT-19_AC-6
     pub(super) fn share(&mut self) -> Result<BTreeMap<(usize, String), Covered>> {
         let mut shared = BTreeMap::new();
         for item in Item::ALL {
@@ -423,7 +428,7 @@ impl Run {
     }
 
     /// Examine every part of every member: declined, shared, or its state.
-    // @zen-impl: KIT-8_AC-2
+    // sokf-implements: KIT-8_AC-2
     pub(super) fn examine(
         &self,
         shared: &BTreeMap<(usize, String), Covered>,
@@ -460,7 +465,7 @@ impl Run {
                 }
                 // A copy of a SOURCE differs from its recorded hash once the
                 // SOURCE changes: stale.
-                // @zen-impl: KIT-23_AC-4
+                // sokf-implements: KIT-23_AC-4
                 let observed = observe(&self.cx.root, part, &path, &self.markers)?;
                 let st = state(&observed, &expected(part), self.recorded(i, part), false);
                 let present = matches!(observed, Observed::Present(_));
@@ -489,7 +494,7 @@ impl Run {
     }
 
     /// The result of the named members, from their parts' results.
-    pub(super) fn result(&self, parts: Vec<(usize, PartResult)>) -> InstallResult {
+    pub(super) fn result(&self, parts: &[(usize, PartResult)]) -> InstallResult {
         let harnesses = self
             .members
             .iter()
@@ -522,8 +527,8 @@ impl Run {
     }
 }
 
-/// The note for hooks whose event the harness does not run (PLAN-017 F7).
-// @zen-impl: KIT-20_AC-2
+/// The note for hooks whose event the harness does not run.
+// sokf-implements: KIT-20_AC-2
 fn missed_note(m: &Member) -> Option<String> {
     if m.missed.is_empty() {
         return None;
@@ -546,7 +551,7 @@ pub(super) fn existing_text(plan: &Plan, path: &Path) -> Result<Option<String>> 
 }
 
 /// Plan the write of one part, from the pending or the on-disk text.
-// @zen-impl: KIT-7_AC-1
+// sokf-implements: KIT-7_AC-1
 fn plan_part(cx: &Context, markers: &Markers, plan: &mut Plan, e: &Examined<'_>) -> Result<()> {
     let fs_path = cx.path(&e.path);
     match &e.part.kind {
@@ -572,13 +577,31 @@ fn plan_part(cx: &Context, markers: &Markers, plan: &mut Plan, e: &Examined<'_>)
     Ok(())
 }
 
+/// Whether `e` is a region found current, the parts KIT-26_AC-4 places; an
+/// edited region stays where it is.
+// sokf-implements: KIT-26_AC-5
+fn is_current_region(e: &Examined<'_>) -> bool {
+    e.state == State::Current && matches!(e.part.kind, Kind::Region { .. })
+}
+
+/// For a current region ([`is_current_region`]) in the file's `text` that
+/// install puts in place (KIT-26_AC-4): the file's new text, and whether
+/// the blocks move (else only the opening marker changes). Install and
+/// status share it.
+// sokf-implements: KIT-26_AC-4
+fn placing(markers: &Markers, text: Option<&str>) -> Option<(String, bool)> {
+    let text = text?;
+    let placed = markers.place(text)?;
+    Some((placed, markers.out_of_order(text)))
+}
+
 /// Make the tree match each named harness's profile: a declined part is
 /// skipped, a shared part left to its writer, an absent part created, a
 /// stale part rewritten, an edited part left unless `force`, a current part
 /// left. Every refusal comes before any write.
-// @zen-impl: KIT-4_AC-1
-// @zen-impl: KIT-4_AC-2
-// @zen-impl: KIT-4_AC-5
+// sokf-implements: KIT-4_AC-1
+// sokf-implements: KIT-4_AC-2
+// sokf-implements: KIT-4_AC-5
 pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<InstallResult> {
     let mut run = run(tool, &opts.harnesses, opts.scope, &opts.force)?;
     let shared = run.share()?;
@@ -604,7 +627,21 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
             State::Edited => opts.force.covers(e.part.name()),
             _ => false,
         };
-        let action = if !written {
+        // A current region in the wrong place, or under the other form of
+        // its opening marker, moves with its lines as found.
+        // sokf-implements: KIT-26_AC-4
+        let mut placed = false;
+        if !written && is_current_region(e) {
+            let fs_path = run.cx.path(&e.path);
+            let existing = existing_text(&plan, &fs_path)?;
+            if let Some((text, _)) = placing(&run.markers, existing.as_deref()) {
+                plan.set(fs_path, text);
+                placed = true;
+            }
+        }
+        let action = if placed {
+            Some(Action::Updated)
+        } else if !written {
             None
         } else if !e.existed {
             Some(Action::Created)
@@ -649,13 +686,13 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
         ));
     }
     apply_plan(&plan)?;
-    Ok(run.result(parts))
+    Ok(run.result(&parts))
 }
 
 /// The harness ids `names` stands for at `scope`: `all` is every harness
 /// of the tool with files at the scope, in the tool's order; other names
 /// are kept as given.
-// @zen-impl: KIT-1_AC-3
+// sokf-implements: KIT-1_AC-3
 pub fn expand<T: Tool + ?Sized, S: AsRef<str>>(tool: &T, names: &[S], scope: Scope) -> Vec<String> {
     if names.iter().any(|n| n.as_ref() == "all") {
         return tool
@@ -670,7 +707,7 @@ pub fn expand<T: Tool + ?Sized, S: AsRef<str>>(tool: &T, names: &[S], scope: Sco
 
 /// The ids of the harnesses installed at `scope` (those in the record), in
 /// the tool's order; nothing is written.
-// @zen-impl: KIT-5_AC-2
+// sokf-implements: KIT-5_AC-2
 pub fn installed<T: Tool + ?Sized>(tool: &T, scope: Scope) -> Result<Vec<String>> {
     let root = tool.root(scope)?;
     let path = tool.record_path(scope)?;
@@ -684,7 +721,7 @@ pub fn installed<T: Tool + ?Sized>(tool: &T, scope: Scope) -> Result<Vec<String>
 }
 
 /// The state of every part of `harnesses` at `scope`; nothing is written.
-// @zen-impl: KIT-5_AC-1
+// sokf-implements: KIT-5_AC-1
 pub fn status<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
     tool: &T,
     harnesses: I,
@@ -696,8 +733,26 @@ pub fn status<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
         .collect();
     let mut run = run(tool, &named, scope, &Force::None)?;
     let shared = run.share()?;
-    let parts: Vec<(usize, PartResult)> = run
-        .examine(&shared)?
+    let examined = run.examine(&shared)?;
+    // A current region that install would move is current, with a warning.
+    // sokf-implements: KIT-26_AC-4
+    let mut moves = Vec::new();
+    for e in examined.iter().filter(|e| run.members[e.member].named) {
+        let text = if is_current_region(e) {
+            read_text(&run.cx.path(&e.path))?
+        } else {
+            None
+        };
+        if let Some((_, moved)) = placing(&run.markers, text.as_deref()) {
+            let (h, part, path) = (run.members[e.member].harness.id(), e.part.name(), &e.path);
+            moves.push(if moved {
+                format!("{h}: the tools' blocks in {path} are out of their order; install moves them ({part})")
+            } else {
+                format!("{h}: the {part} block in {path} opens with the other form of its marker; install rewrites it")
+            });
+        }
+    }
+    let parts: Vec<(usize, PartResult)> = examined
         .into_iter()
         .map(|e| {
             (
@@ -713,11 +768,12 @@ pub fn status<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
             )
         })
         .collect();
-    let parts = parts
+    let parts: Vec<_> = parts
         .into_iter()
         .filter(|(i, _)| run.members[*i].named)
         .collect();
-    Ok(run.result(parts))
+    run.warnings.extend(moves);
+    Ok(run.result(&parts))
 }
 
 #[cfg(test)]

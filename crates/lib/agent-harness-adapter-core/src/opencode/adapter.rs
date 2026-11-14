@@ -6,7 +6,6 @@
 //! `permissions.mdx`, `plugins.mdx`) and its source (`session/instruction.ts`,
 //! `config/plugin.ts`, `session/prompt.ts`, `session/tools.ts`,
 //! `cli/cmd/run.ts`), version 1.18.35 (checked 2026-10-07).
-// @zen-component: HAR-OpenCode
 
 use crate::{
     Result,
@@ -27,7 +26,7 @@ const ID: &str = "opencode";
 /// the first of `AGENTS.md`, `CLAUDE.md` that exists
 /// (`.config/opencode/AGENTS.md`, `.claude/CLAUDE.md` at user scope), else
 /// the first; OpenCode loads only that one.
-// @zen-impl: HAR-10_AC-2
+// sokf-implements: HAR-10_AC-2
 const LAYOUT: plugin::Layout = plugin::Layout {
     harness: ID,
     agent: "OpenCode",
@@ -44,7 +43,7 @@ impl Harness for OpenCode {
     }
 
     /// Every event but one: no session end.
-    // @zen-impl: HAR-10_AC-3
+    // sokf-implements: HAR-10_AC-3
     fn hook_events(&self) -> &[Event] {
         &[
             Event::SessionStart,
@@ -56,7 +55,7 @@ impl Harness for OpenCode {
         ]
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("opencode")
     }
@@ -65,35 +64,40 @@ impl Harness for OpenCode {
         claude_names::named(call, plugin::claude_name(&call.name))
     }
 
-    // @zen-impl: HAR-10_AC-1
+    // sokf-implements: HAR-10_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User]
     }
 
-    // @zen-impl: HAR-10_AC-3
-    // @zen-impl: HAR-10_AC-5
-    // @zen-impl: HAR-10_AC-6
-    // @zen-impl: HAR-10_AC-7
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &["opencode.json", ".opencode"], &[".config/opencode"])
+    }
+
+    // sokf-implements: HAR-10_AC-3
+    // sokf-implements: HAR-10_AC-5
+    // sokf-implements: HAR-10_AC-6
+    // sokf-implements: HAR-10_AC-7
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
-        LAYOUT.render(integration, cx)
+        Ok(LAYOUT.render(integration, cx))
     }
 
     fn reads(&self, item: Item, cx: &Context) -> Result<Reads> {
         Ok(LAYOUT.reads(item, cx))
     }
 
-    // @zen-impl: HAR-10_AC-4
+    // sokf-implements: HAR-10_AC-4
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
         extension::parse(ID, event, text, plugin::tool_kind)
     }
 
-    // @zen-impl: HAR-10_AC-4
-    // @zen-impl: AHA-2_AC-3
+    // sokf-implements: HAR-10_AC-4
+    // sokf-implements: AHA-2_AC-3
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
         extension::answer(ID, event, answer)
     }
 
-    // @zen-impl: HAR-10_AC-8
+    // sokf-implements: HAR-10_AC-8
     fn notes(&self, _cx: &Context, parts: &[PartResult]) -> Vec<String> {
         if parts.iter().any(PartResult::changed) {
             vec!["restart OpenCode to load the changes".into()]

@@ -2,7 +2,6 @@
 //! blocked on, one file per key (a repository, a session) in a directory the
 //! caller chooses. A hook that would block twice on the same text lets the
 //! agent stop instead.
-// @zen-component: KIT-LoopGuard
 
 use std::{fs, path::PathBuf};
 
@@ -48,7 +47,7 @@ impl LoopGuard {
     }
 
     /// Record `hash` for `key`. Silent on failure: the guard is a cache.
-    // @zen-impl: KIT-12_AC-2
+    // sokf-implements: KIT-12_AC-2
     fn write(&self, key: &str, hash: &str) {
         if fs::create_dir_all(&self.dir).is_err() {
             return;
@@ -68,7 +67,7 @@ impl LoopGuard {
     /// Whether the hook should block on `text` for `key`: `false` when it
     /// blocked on the same text last time; otherwise `true`, and the text's
     /// hash is recorded.
-    // @zen-impl: KIT-12_AC-1
+    // sokf-implements: KIT-12_AC-1
     pub fn should_block(&self, key: &str, text: &str) -> bool {
         let hash = hash_text(text);
         if self.read(key).as_deref() == Some(hash.as_str()) {
@@ -86,7 +85,7 @@ mod tests {
     use super::*;
     use crate::test_support::temp_dir;
 
-    // @zen-test: KIT-12_AC-2
+    // sokf-tests: KIT-12_AC-2
     #[test]
     fn reads_what_it_wrote_per_key() {
         let dir = temp_dir("guard");
@@ -109,7 +108,7 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    // @zen-test: KIT-12_AC-1
+    // sokf-tests: KIT-12_AC-1
     #[test]
     fn blocks_once_per_text() {
         let dir = temp_dir("guard-block");
@@ -123,7 +122,7 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    // @zen-test: KIT-12_AC-2
+    // sokf-tests: KIT-12_AC-2
     #[test]
     fn an_unwritable_directory_is_silent() {
         let dir = temp_dir("guard-unwritable");
@@ -140,7 +139,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(64))]
 
-        // @zen-test: KIT_P-7
+        // sokf-tests: KIT_P-7
         #[test]
         fn the_guard_blocks_once_per_text(texts in prop::collection::vec(prop::sample::select(vec!["", "1 error", "2 errors"]), 1..10)) {
             let dir = temp_dir("guard-prop");

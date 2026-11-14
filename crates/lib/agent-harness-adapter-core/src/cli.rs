@@ -1,6 +1,5 @@
 //! CLI conventions: the exit codes, buffered stdout, broken-pipe detection
 //! and the `error: <message>` runner.
-// @zen-component: KIT-Cli
 
 use std::{
     error::Error as StdError,
@@ -10,18 +9,20 @@ use std::{
 
 use serde::Serialize;
 
-// @zen-impl: KIT-14_AC-1
+// sokf:begin exit-codes
+// sokf-implements: KIT-14_AC-1
 /// Exit code: no error.
 pub const EXIT_OK: u8 = 0;
 /// Exit code: errors found (e.g. findings at error level, a failed hook).
 pub const EXIT_ERRORS: u8 = 1;
 /// Exit code: a usage or internal error, reported on stderr.
 pub const EXIT_FAILURE: u8 = 2;
+// sokf:end exit-codes
 
 /// Write a fully rendered buffer to stdout and flush it. The explicit flush
 /// matters: the runtime's flush at exit discards its error, so a broken
 /// pipe would surface only when the buffer happened to fill mid-render.
-// @zen-impl: KIT-14_AC-3
+// sokf-implements: KIT-14_AC-3
 pub fn write_stdout(bytes: &[u8]) -> io::Result<()> {
     write_all(&mut io::stdout().lock(), bytes)
 }
@@ -56,7 +57,7 @@ pub fn is_broken_pipe(error: &(dyn StdError + 'static)) -> bool {
 /// The exit code of a command's result, writing `error: <message>` to
 /// `stderr` for a failure. A broken pipe is a clean exit, as in ripgrep
 /// and friends: the reader went away (`| head`), which is not our failure.
-// @zen-impl: KIT-14_AC-2
+// sokf-implements: KIT-14_AC-2
 pub fn exit_code<E: StdError + 'static>(result: Result<u8, E>, stderr: &mut impl Write) -> u8 {
     match result {
         Ok(code) => code,
@@ -79,7 +80,7 @@ mod tests {
     use super::*;
     use crate::Error;
 
-    // @zen-test: KIT-14_AC-2
+    // sokf-tests: KIT-14_AC-2
     #[test]
     fn broken_pipe_is_the_only_error_treated_as_clean() {
         let epipe = Error::io(
@@ -99,15 +100,15 @@ mod tests {
         assert!(!is_broken_pipe(&Error::Refused("no".into())));
     }
 
-    // @zen-test: KIT-14_AC-1
-    // @zen-test: KIT-14_AC-2
+    // sokf-tests: KIT-14_AC-1
+    // sokf-tests: KIT-14_AC-2
     #[test]
     fn exit_codes_and_the_error_line() {
         let mut err = Vec::new();
         assert_eq!(exit_code::<Error>(Ok(EXIT_ERRORS), &mut err), 1);
         let pipe = Error::io("<stdout>", io::Error::from(io::ErrorKind::BrokenPipe));
         assert_eq!(exit_code(Err(pipe), &mut err), 0);
-        assert!(err.is_empty());
+        assert!(err.is_empty(), "{err:?}");
         assert_eq!(
             exit_code(
                 Err(Error::UnknownHarness {
@@ -124,7 +125,7 @@ mod tests {
         assert_eq!(finish::<Error>(Ok(0)), ExitCode::from(0));
     }
 
-    // @zen-test: KIT-14_AC-3
+    // sokf-tests: KIT-14_AC-3
     #[test]
     fn stdout_helpers() {
         assert!(write_stdout(b"").is_ok());

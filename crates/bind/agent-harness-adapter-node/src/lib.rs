@@ -1,6 +1,11 @@
 //! The Node addon: the bindings' glue with strings across the boundary;
-//! `packages/agent-harness-adapter-node/index.js` makes it idiomatic.
-// @zen-component: BND-Node
+//! `bindings/packages/agent-harness-adapter-node/index.js` makes it idiomatic.
+#![expect(
+    clippy::needless_pass_by_value,
+    reason = "napi converts JavaScript strings into owned values and rejects `&str`; the \
+              expectation sits on the crate, as `#[napi]` copies a function's attributes onto \
+              its generated wrapper, where the lint never fires"
+)]
 
 use agent_harness_adapter_bind::{self as bind, Options, Source};
 use napi::{Error, Result};
@@ -20,7 +25,7 @@ fn source(path: Option<String>, json: Option<String>) -> Result<Source> {
 }
 
 /// Install: `options` is JSON; returns the result as JSON.
-// @zen-impl: BND-1_AC-3
+// sokf-implements: BND-1_AC-3
 #[napi]
 pub fn install(path: Option<String>, json: Option<String>, options: String) -> Result<String> {
     let o = Options::parse(&options).map_err(err)?;
@@ -54,6 +59,30 @@ pub fn edits(path: Option<String>, json: Option<String>, options: String) -> Res
     bind::edits(source(path, json)?, &o)
         .map(|v| v.to_string())
         .map_err(err)
+}
+
+/// Keep `text` as the project's own beside the tool's block: `options` is
+/// JSON; returns `{report}`, the report of what it kept, as JSON.
+// sokf-implements: BND-1_AC-6
+#[napi]
+pub fn keep_instructions(
+    path: Option<String>,
+    json: Option<String>,
+    text: String,
+    options: String,
+) -> Result<String> {
+    let o = Options::parse(&options).map_err(err)?;
+    bind::keep_instructions(source(path, json)?, &text, &o)
+        .map(|v| v.to_string())
+        .map_err(err)
+}
+
+/// Follow the project (KIT-28): `options` is JSON; returns `{report, exit}`
+/// as JSON.
+// sokf-implements: BND-1_AC-7
+#[napi]
+pub fn follow(tool: String, options: String) -> String {
+    bind::follow(&tool, &options).to_string()
 }
 
 /// The hook contract's input (Claude Code's), as JSON.

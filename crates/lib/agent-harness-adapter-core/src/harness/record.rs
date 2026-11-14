@@ -1,7 +1,7 @@
 //! The record: for each installed harness, the hash of each part the tool
 //! wrote. A TOML file whose path and header line the tool supplies.
 
-use std::{collections::BTreeMap, path::Path};
+use std::{collections::BTreeMap, fmt::Write as _, path::Path};
 
 use crate::{Error, Result, fs::read_text, harness::parse_toml};
 
@@ -41,14 +41,14 @@ pub(crate) fn read_record(path: &Path, display: &str) -> Result<Record> {
 /// The record file's text: `header`, then one table per harness in name
 /// order, keys in name order, LF. A harness with no hash (every part shared
 /// or declined) keeps an empty table: it is installed, and stays in the set.
-// @zen-impl: KIT-19_AC-1
-// @zen-impl: KIT-7_AC-2
+// sokf-implements: KIT-19_AC-1
+// sokf-implements: KIT-7_AC-2
 pub(crate) fn render_record(record: &Record, header: &str) -> String {
     let mut out = format!("{header}\n");
     for (name, parts) in &record.harnesses {
-        out.push_str(&format!("\n[{name}]\n"));
+        let _ = writeln!(out, "\n[{name}]");
         for (part, hash) in parts {
-            out.push_str(&format!("{part} = \"{hash}\"\n"));
+            let _ = writeln!(out, "{part} = \"{hash}\"");
         }
     }
     out
@@ -63,7 +63,7 @@ mod tests {
 
     const HEADER: &str = "# Written by tool harness install. Do not edit.";
 
-    // @zen-test: KIT-7_AC-2
+    // sokf-tests: KIT-7_AC-2
     #[test]
     fn reads_and_renders_the_record() {
         let dir = temp_dir("record-rw");

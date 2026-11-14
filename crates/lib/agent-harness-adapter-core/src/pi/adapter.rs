@@ -5,14 +5,13 @@
 //! `prompt-templates.md`, `mcp.md`, `security.md`, `session-format.md`) and
 //! the package's `dist/core/extensions/types.d.ts`, version 1.0.4 (checked
 //! 2026-10-07).
-// @zen-component: HAR-Pi
 
 use crate::{
     Result,
     common::{extension, parts},
     harness::{Context, Harness, Part, PartResult, Reads, Scope},
     hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
-    integration::{Integration, Item},
+    integration::{Command, Integration, Item, McpServer},
 };
 
 /// Pi (`pi`).
@@ -34,7 +33,7 @@ fn base(scope: Scope) -> &'static str {
 /// The instructions file: the first of `AGENTS.override.md`, `AGENTS.md`,
 /// `CLAUDE.md` that exists in the directory, else `AGENTS.md`. Pi loads only
 /// that one.
-// @zen-impl: HAR-7_AC-2
+// sokf-implements: HAR-7_AC-2
 fn instructions_file(cx: &Context) -> String {
     let dir = match cx.scope {
         Scope::User => ".pi/agent/",
@@ -48,7 +47,7 @@ fn instructions_file(cx: &Context) -> String {
 }
 
 /// The extension that runs the integration's hooks.
-// @zen-impl: HAR-7_AC-3
+// sokf-implements: HAR-7_AC-3
 fn extension(tool: &str, integration: &Integration) -> String {
     extension::fill(TEMPLATE, ID, tool, integration)
 }
@@ -77,7 +76,7 @@ fn location(item: Item, cx: &Context) -> Option<String> {
 }
 
 /// Claude Code's name for one of its tools (HAR-15_AC-2).
-// @zen-impl: HAR-15_AC-2
+// sokf-implements: HAR-15_AC-2
 fn claude_name(name: &str) -> Option<&'static str> {
     match name {
         "bash" | "powershell" => Some("Bash"),
@@ -96,7 +95,7 @@ impl Harness for Pi {
         ID
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("pi")
     }
@@ -105,13 +104,18 @@ impl Harness for Pi {
         claude_names::named(call, claude_name(&call.name))
     }
 
-    // @zen-impl: HAR-7_AC-1
+    // sokf-implements: HAR-7_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User]
     }
 
-    // @zen-impl: HAR-7_AC-5
-    // @zen-impl: HAR-7_AC-6
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &[".pi"], &[".pi"])
+    }
+
+    // sokf-implements: HAR-7_AC-5
+    // sokf-implements: HAR-7_AC-6
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
         let mut out = Vec::new();
         for item in integration.items() {
@@ -128,8 +132,8 @@ impl Harness for Pi {
                     at,
                     vec![(format!("{}.ts", cx.tool), extension(&cx.tool, integration))],
                 ),
-                Item::Mcp => parts::mcp(&at, "mcpServers", integration, |s| s.to_json()),
-                Item::Commands => parts::commands(&at, ".md", integration, |c| c.to_markdown()),
+                Item::Mcp => parts::mcp(&at, "mcpServers", integration, McpServer::to_json),
+                Item::Commands => parts::commands(&at, ".md", integration, Command::to_markdown),
                 _ => continue,
             });
         }
@@ -140,17 +144,17 @@ impl Harness for Pi {
         Ok(Reads::always(location(item, cx)))
     }
 
-    // @zen-impl: HAR-7_AC-4
+    // sokf-implements: HAR-7_AC-4
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
         extension::parse(ID, event, text, tool_kind)
     }
 
-    // @zen-impl: AHA-2_AC-3
+    // sokf-implements: AHA-2_AC-3
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
         extension::answer(ID, event, answer)
     }
 
-    // @zen-impl: HAR-7_AC-7
+    // sokf-implements: HAR-7_AC-7
     fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
         if !parts.iter().any(PartResult::changed) {
             return Vec::new();
@@ -190,10 +194,10 @@ mod tests {
             .command(Command::new("c", "Checks.", "Check $ARGUMENTS.\n"))
     }
 
-    // @zen-test: HAR-7_AC-1
-    // @zen-test: HAR-7_AC-3
-    // @zen-test: HAR-7_AC-5
-    // @zen-test: HAR-7_AC-6
+    // sokf-tests: HAR-7_AC-1
+    // sokf-tests: HAR-7_AC-3
+    // sokf-tests: HAR-7_AC-5
+    // sokf-tests: HAR-7_AC-6
     #[test]
     fn renders_every_item_per_scope() {
         let names = |scope| -> Vec<String> {
@@ -250,7 +254,7 @@ mod tests {
         assert!(!ts.contains("__"), "every placeholder filled: {ts}");
     }
 
-    // @zen-test: HAR-7_AC-2
+    // sokf-tests: HAR-7_AC-2
     #[test]
     fn the_first_instructions_file_wins() {
         let dir = temp_dir("pi-rule");
@@ -269,7 +273,7 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    // @zen-test: HAR-7_AC-4
+    // sokf-tests: HAR-7_AC-4
     #[test]
     fn input_and_answers() {
         let i = Pi
@@ -323,7 +327,7 @@ mod tests {
         assert!(out(Event::PromptSubmit, Answer::Deny { reason: "r".into() }).is_err());
     }
 
-    // @zen-test: HAR-7_AC-7
+    // sokf-tests: HAR-7_AC-7
     #[test]
     fn notes_after_writes() {
         let part = |action| PartResult {
@@ -335,7 +339,8 @@ mod tests {
             in_place: false,
         };
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
-        assert!(Pi.notes(&cx, &[part(None)]).is_empty());
+        let notes = Pi.notes(&cx, &[part(None)]);
+        assert!(notes.is_empty(), "{notes:?}");
         assert_eq!(Pi.notes(&cx, &[part(Some(Action::Created))]).len(), 2);
         assert_eq!(
             Pi.notes(&cx, &[part(Some(Action::Removed))]),

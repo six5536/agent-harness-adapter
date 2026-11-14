@@ -13,3 +13,6 @@ publish = false
 agent-harness-adapter-core = { workspace = true, features = ["schemars"] }
 serde.workspace = true
 serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,24 @@
+[tasks.publish]
+description = "Publish the project to its registries"
+run = "node .config/mise/scripts/publish.mts"
+
+[tasks."changelog:check"]
+description = "Fail if a version has no release notes"
+usage = 'arg "<version>"'
+run = 'node .config/mise/scripts/changelog.mts check "${usage_version?}"'
+
+[tasks."publish:github"]
+hide = true
+run = "node .config/mise/scripts/github-publish.mts"
+
+[tasks."ci:matrix:build"]
+description = "Print the jobs of build.yml as JSON"
+run = "node .config/mise/scripts/ci-matrix-build.mts"
+
+[tasks."test:fast:ci-matrix-build"]
+hide = true
+run = "node --test .config/mise/scripts/ci-matrix-build.test.mts"
+
+[tasks."coverage:check:ci-matrix-build"]
+hide = true
+depends = ["test:fast:ci-matrix-build"]

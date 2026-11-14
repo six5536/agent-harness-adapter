@@ -7,7 +7,6 @@
 //! <https://cursor.com/docs/cli/reference/configuration>,
 //! <https://cursor.com/docs/cli/reference/permissions> and
 //! <https://cursor.com/docs/cli/changelog> (checked 2026-10-06).
-// @zen-component: HAR-Cursor
 
 use serde_json::{Value, json};
 
@@ -16,7 +15,7 @@ use crate::{
     common::{parts, protocol},
     harness::{Context, Harness, MergeOp, Part, Reads, Scope},
     hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
-    integration::{Hook, Integration, Item},
+    integration::{Hook, Integration, Item, McpServer},
 };
 
 /// Cursor (`cursor`).
@@ -27,9 +26,9 @@ const ID: &str = "cursor";
 const HOOKS: &str = ".cursor/hooks.json";
 
 /// Cursor's name for `event`.
-// @zen-impl: HAR-6_AC-3
-fn event_name(event: Event) -> Option<&'static str> {
-    Some(match event {
+// sokf-implements: HAR-6_AC-3
+fn event_name(event: Event) -> &'static str {
+    match event {
         Event::SessionStart => "sessionStart",
         Event::SessionEnd => "sessionEnd",
         Event::PromptSubmit => "beforeSubmitPrompt",
@@ -37,7 +36,7 @@ fn event_name(event: Event) -> Option<&'static str> {
         Event::PostTool => "postToolUse",
         Event::Stop => "stop",
         Event::PreCompact => "preCompact",
-    })
+    }
 }
 
 /// Cursor's tool names are not confirmed: classify by what they say.
@@ -64,9 +63,7 @@ fn hook_ops(integration: &Integration) -> Result<Vec<MergeOp>> {
     let owned = parts::owner(integration, &hooks)?;
     let mut ops = vec![MergeOp::object_member(Vec::<String>::new(), "version", 1)];
     for event in Event::ALL {
-        let Some(name) = event_name(event) else {
-            continue;
-        };
+        let name = event_name(event);
         let entries = hooks
             .iter()
             .filter(|h| h.event() == event)
@@ -106,7 +103,7 @@ fn location(item: Item, cx: &Context) -> Option<&'static str> {
 
 /// Claude Code's name for one of its tools, told by the words in the name
 /// as `tool_kind` tells its kind (HAR-15_AC-2).
-// @zen-impl: HAR-15_AC-2
+// sokf-implements: HAR-15_AC-2
 fn claude_name(name: &str) -> Option<&'static str> {
     let n = name.to_ascii_lowercase();
     let has = |w: &str| n.contains(w);
@@ -126,7 +123,7 @@ impl Harness for Cursor {
         ID
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("cursor-agent")
     }
@@ -135,15 +132,20 @@ impl Harness for Cursor {
         claude_names::named(call, claude_name(&call.name))
     }
 
-    // @zen-impl: HAR-6_AC-1
+    // sokf-implements: HAR-6_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User]
     }
 
-    // @zen-impl: HAR-6_AC-2
-    // @zen-impl: HAR-6_AC-6
-    // @zen-impl: HAR-6_AC-7
-    // @zen-impl: HAR-6_AC-8
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &[".cursor"], &[".cursor"])
+    }
+
+    // sokf-implements: HAR-6_AC-2
+    // sokf-implements: HAR-6_AC-6
+    // sokf-implements: HAR-6_AC-7
+    // sokf-implements: HAR-6_AC-8
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
         let mut out = Vec::new();
         for item in integration.items() {
@@ -156,7 +158,7 @@ impl Harness for Cursor {
                 }
                 Item::Skills => parts::skills(at, integration),
                 Item::Hooks => Part::merge(item.as_str(), at, hook_ops(integration)?),
-                Item::Mcp => parts::mcp(at, "mcpServers", integration, |s| s.to_json()),
+                Item::Mcp => parts::mcp(at, "mcpServers", integration, McpServer::to_json),
                 Item::Permissions => Part::merge(
                     item.as_str(),
                     at,
@@ -197,7 +199,7 @@ impl Harness for Cursor {
         })
     }
 
-    // @zen-impl: HAR-6_AC-4
+    // sokf-implements: HAR-6_AC-4
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
         let raw = protocol::raw_object(text)?;
         let mut input = HookInput::new(ID, event, raw.clone());
@@ -222,7 +224,7 @@ impl Harness for Cursor {
         Ok(input)
     }
 
-    // @zen-impl: HAR-6_AC-5
+    // sokf-implements: HAR-6_AC-5
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
         Ok(match (answer, event) {
             (Answer::Allow { stderr }, _) => Output::json(json!({})).stderr(stderr.clone()),
@@ -268,12 +270,12 @@ mod tests {
             .command(Command::new("c", "Checks.", "Check $ARGUMENTS.\n"))
     }
 
-    // @zen-test: HAR-6_AC-1
-    // @zen-test: HAR-6_AC-2
-    // @zen-test: HAR-6_AC-3
-    // @zen-test: HAR-6_AC-6
-    // @zen-test: HAR-6_AC-7
-    // @zen-test: HAR-6_AC-8
+    // sokf-tests: HAR-6_AC-1
+    // sokf-tests: HAR-6_AC-2
+    // sokf-tests: HAR-6_AC-3
+    // sokf-tests: HAR-6_AC-6
+    // sokf-tests: HAR-6_AC-7
+    // sokf-tests: HAR-6_AC-8
     #[test]
     fn renders_every_item() {
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
@@ -351,7 +353,7 @@ mod tests {
         assert_eq!(Cursor.scopes(), [Scope::Project, Scope::User]);
     }
 
-    // @zen-test: HAR-6_AC-4
+    // sokf-tests: HAR-6_AC-4
     #[test]
     fn input_is_read() {
         let i = Cursor
@@ -383,7 +385,7 @@ mod tests {
         }
     }
 
-    // @zen-test: HAR-6_AC-5
+    // sokf-tests: HAR-6_AC-5
     #[test]
     fn answers() {
         let out = |e, a: Answer| Cursor.answer(e, &a).map(|o| o.stdout);

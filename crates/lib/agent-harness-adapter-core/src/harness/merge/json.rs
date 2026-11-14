@@ -1,7 +1,6 @@
 //! The JSON merge: the tool's entries applied to the user's JSON file,
 //! named by data-driven operations. Key order, the file's indent and its
 //! trailing newline are kept.
-// @zen-component: KIT-Merge
 
 use serde::Serialize;
 use serde_json::{Map, Value, ser::PrettyFormatter};
@@ -143,12 +142,12 @@ fn array_at<'a>(doc: &'a mut Value, path: &[String], display: &str) -> Result<&'
 
 /// Set the tool's part of `op` in `doc`. Containers are created when
 /// absent; a container of another type is a refusal naming `display`.
-// @zen-impl: KIT-10_AC-2
-// @zen-impl: KIT-10_AC-3
-// @zen-impl: KIT-10_AC-4
+// sokf-implements: KIT-10_AC-2
+// sokf-implements: KIT-10_AC-3
+// sokf-implements: KIT-10_AC-4
 fn apply(doc: &mut Value, op: &MergeOp, display: &str) -> Result<()> {
     // An op that only removes the tool's old entries creates nothing.
-    // @zen-impl: KIT-10_AC-6
+    // sokf-implements: KIT-10_AC-6
     if op.expects_nothing() && get(doc, op.path()).is_none() {
         return Ok(());
     }
@@ -252,7 +251,7 @@ pub(super) fn json_text(doc: &Value, indent: &str, trailing_newline: bool) -> St
 /// style: its indent (two spaces for a new file) and its trailing newline
 /// (one for a new file). `None` when nothing changes. `display` names the
 /// file in a refusal.
-// @zen-impl: KIT-10_AC-1
+// sokf-implements: KIT-10_AC-1
 pub(crate) fn render_merge(
     existing: Option<&str>,
     ops: &[MergeOp],

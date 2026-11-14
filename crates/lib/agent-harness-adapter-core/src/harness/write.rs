@@ -9,6 +9,7 @@ use std::{
 
 use crate::{Error, Result, fs::write_atomic, harness::ExternalPart};
 
+// sokf:begin plan
 /// Everything `install` or `uninstall` will write, computed before any
 /// write.
 #[derive(Debug, Clone, Default)]
@@ -28,10 +29,15 @@ pub(crate) struct Plan {
     /// changes.
     pub(crate) record: Option<(PathBuf, Option<String>)>,
 }
+// sokf:end plan
 
 impl Plan {
     /// The planned content of `path`, when a part planned it already:
     /// `Some(None)` for a planned deletion.
+    #[expect(
+        clippy::option_option,
+        reason = "the three states are not planned, a planned deletion, and a planned text"
+    )]
     pub(crate) fn pending(&self, path: &Path) -> Option<Option<&str>> {
         if self.deletes.iter().any(|p| p == path) {
             return Some(None);
@@ -61,7 +67,7 @@ impl Plan {
 }
 
 /// Write `text` to `path` unless it is already there ([`write_atomic`]).
-// @zen-impl: KIT-7_AC-1
+// sokf-implements: KIT-7_AC-1
 pub(crate) fn write_if_changed(path: &Path, text: &str) -> Result<()> {
     if fs::read_to_string(path).ok().as_deref() == Some(text) {
         return Ok(());
@@ -73,8 +79,8 @@ pub(crate) fn write_if_changed(path: &Path, text: &str) -> Result<()> {
 /// likeliest to fail, so a failure leaves every file as found), then the
 /// files in order, then the record. A file whose text is already on disk is
 /// left untouched.
-// @zen-impl: KIT-6_AC-2
-// @zen-impl: KIT-22_AC-8
+// sokf-implements: KIT-6_AC-2
+// sokf-implements: KIT-22_AC-8
 pub(crate) fn apply_plan(plan: &Plan) -> Result<()> {
     for ext in &plan.externals {
         ext.write()?;
@@ -117,7 +123,7 @@ fn delete(path: &Path) -> Result<()> {
 
 /// Remove each directory above `path` that is empty, stopping at the first
 /// that is not, or at `root`.
-// @zen-impl: KIT-22_AC-1
+// sokf-implements: KIT-22_AC-1
 fn prune(root: &Path, path: &Path) {
     let mut dir = path.parent();
     while let Some(d) = dir {
@@ -149,10 +155,10 @@ mod tests {
         assert_eq!((plan.files.len(), plan.deletes.len()), (1, 1));
         plan.set("/a".into(), "4".into());
         assert_eq!(plan.pending(Path::new("/a")), Some(Some("4")));
-        assert!(plan.deletes.is_empty());
+        assert!(plan.deletes.is_empty(), "{:?}", plan.deletes);
     }
 
-    // @zen-test: KIT-22_AC-1
+    // sokf-tests: KIT-22_AC-1
     #[test]
     fn deletions_take_the_directories_they_empty() {
         let dir = temp_dir("write-delete");
@@ -177,7 +183,7 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    // @zen-test: KIT-7_AC-1
+    // sokf-tests: KIT-7_AC-1
     #[test]
     fn writes_files_and_record_creating_directories() {
         let dir = temp_dir("write");
@@ -231,7 +237,7 @@ mod tests {
         }
     }
 
-    // @zen-test: KIT-6_AC-2
+    // sokf-tests: KIT-6_AC-2
     #[test]
     fn a_failing_external_part_leaves_every_file_as_found() {
         let dir = temp_dir("write-external");

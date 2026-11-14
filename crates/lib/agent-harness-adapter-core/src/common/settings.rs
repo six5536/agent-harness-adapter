@@ -73,7 +73,7 @@ pub(crate) fn context_files(cx: &Context, layout: &ContextLayout) -> Result<(Str
 /// agent's default context files, its name and the defaults as entries of
 /// `context.fileName`. The entries are always the same, so the choice never
 /// depends on what an earlier install wrote.
-// @zen-impl: HAR-14_AC-2
+// sokf-implements: HAR-14_AC-2
 pub(crate) fn context_reference(
     integration: &Integration,
     cx: &Context,

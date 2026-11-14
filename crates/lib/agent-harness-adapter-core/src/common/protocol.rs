@@ -1,4 +1,4 @@
-//! The Claude-family hook protocol: snake_case input fields, exit 0 with a
+//! The Claude-family hook protocol: `snake_case` input fields, exit 0 with a
 //! JSON answer. Claude Code, Codex and Factory speak it; Gemini CLI reads
 //! the same fields with a few of its own.
 

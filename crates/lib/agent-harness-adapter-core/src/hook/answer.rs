@@ -12,13 +12,14 @@ use crate::{
     hook::Event,
 };
 
+// sokf:begin answer
 /// What a hook decides. Each harness renders it in its own form
 /// (`Harness::answer`).
 ///
 /// As JSON (the hook contract's answer): `{"answer": "allow",
 /// "stderr"?}`, `{"answer": "deny", "reason"}`, `{"answer": "continue",
 /// "reason"}` or `{"answer": "context", "text"}`.
-// @zen-impl: KIT-11_AC-4
+// sokf-implements: KIT-11_AC-4
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "answer", rename_all = "lowercase")]
@@ -81,9 +82,14 @@ pub struct Output {
     /// The exit code.
     pub exit: u8,
 }
+// sokf:end answer
 
 impl Output {
     /// `value` as compact JSON on stdout, exit 0.
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "a public signature of the published crate"
+    )]
     pub fn json(value: Value) -> Self {
         Output {
             stdout: value.to_string(),
@@ -112,7 +118,7 @@ impl Output {
 /// and the harness's exit code. A failure, or an answer the harness cannot
 /// express for `event`: `error: <message>` on stderr, nothing on stdout,
 /// exit 1.
-// @zen-impl: KIT-11_AC-5
+// sokf-implements: KIT-11_AC-5
 pub fn emit<E: Display>(
     harness: &dyn Harness,
     event: Event,

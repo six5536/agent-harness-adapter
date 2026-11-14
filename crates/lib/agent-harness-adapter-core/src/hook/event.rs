@@ -7,9 +7,10 @@ use serde_json::Value;
 
 use crate::Error;
 
+// sokf:begin event
 /// A hook event. Each harness installs it under its own name and leaves out
 /// the events it lacks.
-// @zen-impl: KIT-11_AC-1
+// sokf-implements: KIT-11_AC-1
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -30,6 +31,7 @@ pub enum Event {
     /// Before the context is compacted.
     PreCompact,
 }
+// sokf:end event
 
 impl Event {
     /// Every event, in this order.
@@ -77,8 +79,9 @@ impl FromStr for Event {
     }
 }
 
+// sokf:begin tool-call
 /// What a tool call does, from the harness's tool name.
-// @zen-impl: KIT-11_AC-6
+// sokf-implements: KIT-11_AC-6
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -122,6 +125,7 @@ pub struct ToolCall {
     #[serde(default)]
     pub input: Value,
 }
+// sokf:end tool-call
 
 impl ToolCall {
     /// A tool call.

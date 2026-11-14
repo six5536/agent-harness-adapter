@@ -6,16 +6,20 @@ mod op;
 mod remove;
 mod toml;
 
-use serde_json::Value;
-
 use json::parse_json;
 pub use op::{EntryMatch, MergeOp};
 pub(crate) use remove::render_unmerge;
+use serde_json::Value;
 pub(crate) use toml::parse_toml;
 
 use crate::Result;
 
 /// Whether `file` is merged as TOML (by its extension), else JSON.
+#[expect(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "the parts' paths are the harnesses' own lower-case names, and `.toml` alone is \
+              a TOML file"
+)]
 fn is_toml(file: &str) -> bool {
     file.ends_with(".toml")
 }

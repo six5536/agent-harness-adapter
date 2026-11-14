@@ -2,7 +2,6 @@
 //! `.agents/agent-harness-adapter.toml` (or `.json`) under the project root,
 //! or under the home directory at user scope. Found here, so the CLI and the
 //! bindings find it the same way.
-// @zen-component: AHA-Config
 
 use std::path::{Path, PathBuf};
 
@@ -14,6 +13,7 @@ pub const CONFIG_DIR: &str = ".agents";
 /// The CONFIG's file name without its extension.
 pub const CONFIG_NAME: &str = "agent-harness-adapter";
 
+// sokf:begin find-config
 /// A CONFIG found: its path, and the root its paths are read from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -31,9 +31,9 @@ pub struct Found {
 ///
 /// [`Error::File`] when one `.agents` holds both a `.toml` and a `.json`
 /// CONFIG.
-// @zen-impl: AHA-7_AC-1
-// @zen-impl: AHA-7_AC-2
-// @zen-impl: AHA-7_AC-3
+// sokf-implements: AHA-7_AC-1
+// sokf-implements: AHA-7_AC-2
+// sokf-implements: AHA-7_AC-3
 pub fn find_config(
     scope: Scope,
     root: Option<&Path>,
@@ -53,6 +53,7 @@ pub fn find_config(
     }
     Ok(None)
 }
+// sokf:end find-config
 
 /// The directories a project's file (under `marker`, e.g. `.agents`) is
 /// looked for in, from `start` upwards, never at or above `home`: in a git
@@ -119,9 +120,9 @@ pub fn standard_sources(scope: Scope) -> [(Item, &'static str); 5] {
 
 /// The text of a new CONFIG named `name` for `scope`: every item from its
 /// standard SOURCE (AHA-8_AC-1).
-// @zen-impl: AHA-8_AC-1
+// sokf-implements: AHA-8_AC-1
 pub fn config_text(scope: Scope, name: &str) -> String {
-    let [i, s, h, m, a] = standard_sources(scope).map(|(_, path)| path);
+    let [instructions, skills, hooks, mcp, agents] = standard_sources(scope).map(|(_, path)| path);
     format!(
         "# agent-harness-adapter: one agent setup for every coding agent.\n\
          # Edit the files below; `agent-harness-adapter install` brings them to\n\
@@ -129,11 +130,11 @@ pub fn config_text(scope: Scope, name: &str) -> String {
          version = 1\n\
          name = \"{name}\"\n\
          \n\
-         instructions = {{ from = \"{i}\" }}\n\
-         skills       = {{ from = \"{s}\" }}\n\
-         hooks        = {{ from = \"{h}\" }}\n\
-         mcp_servers  = {{ from = \"{m}\" }}\n\
-         agents       = {{ from = \"{a}\" }}\n"
+         instructions = {{ from = \"{instructions}\" }}\n\
+         skills       = {{ from = \"{skills}\" }}\n\
+         hooks        = {{ from = \"{hooks}\" }}\n\
+         mcp_servers  = {{ from = \"{mcp}\" }}\n\
+         agents       = {{ from = \"{agents}\" }}\n"
     )
 }
 
@@ -157,7 +158,7 @@ mod tests {
         p
     }
 
-    // @zen-test: AHA-7_AC-1
+    // sokf-tests: AHA-7_AC-1
     #[test]
     fn found_upwards_until_the_repository() {
         let home = tmp("find");
@@ -215,8 +216,8 @@ mod tests {
         );
     }
 
-    // @zen-test: AHA-7_AC-2
-    // @zen-test: AHA-7_AC-3
+    // sokf-tests: AHA-7_AC-2
+    // sokf-tests: AHA-7_AC-3
     #[test]
     fn user_scope_and_two_configs() {
         let home = tmp("user");
@@ -236,7 +237,7 @@ mod tests {
         assert!(e.contains("two configs"), "{e}");
     }
 
-    // @zen-test: AHA-8_AC-1
+    // sokf-tests: AHA-8_AC-1
     #[test]
     fn the_new_config_names_the_standard_sources() {
         let t = config_text(Scope::Project, "agents");

@@ -16,8 +16,9 @@ use crate::{
     hash::{Fnv, normalise},
 };
 
+// sokf:begin state
 /// The state of a part.
-// @zen-impl: KIT-3_AC-1
+// sokf-implements: KIT-3_AC-1
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -38,6 +39,7 @@ pub enum State {
     /// Differs from both, or present with no recorded hash.
     Edited,
 }
+// sokf:end state
 
 impl State {
     /// The state's name in a report.
@@ -53,6 +55,7 @@ impl State {
     }
 }
 
+// sokf:begin found
 /// A part's content in a comparable form: what the tool wants, or what the
 /// tree holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,6 +69,7 @@ pub(crate) enum Found {
     /// An `external` part's text.
     Text(String),
 }
+// sokf:end found
 
 /// What the tree holds for a part.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -143,7 +147,7 @@ fn words(text: &str) -> impl Iterator<Item = &str> {
 
 /// Whether two contents are equal: files and text line endings aside, a
 /// block by its words.
-// @zen-impl: KIT-3_AC-2
+// sokf-implements: KIT-3_AC-2
 fn equal(a: &Found, b: &Found) -> bool {
     match (a, b) {
         (Found::Files(x), Found::Files(y)) => {
@@ -231,7 +235,7 @@ mod tests {
         assert_eq!(hash(&Found::Text("t\r\n".into())), hash_text("t\n"));
     }
 
-    // @zen-test: KIT-3_AC-2
+    // sokf-tests: KIT-3_AC-2
     #[test]
     fn a_block_is_compared_by_words() {
         let expected = block("Use the tool.\nAlways.\n");
@@ -241,7 +245,7 @@ mod tests {
         assert_eq!(state(&other, &expected, None, false), State::Edited);
     }
 
-    // @zen-test: KIT-3_AC-1
+    // sokf-tests: KIT-3_AC-1
     #[test]
     fn each_row_of_the_state_table() {
         let expected = block("new\n");
@@ -321,7 +325,7 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(256))]
 
-        // @zen-test: KIT_P-3
+        // sokf-tests: KIT_P-3
         #[test]
         fn states_partition(found in prop::option::of(arb_block()), recorded_of_found in any::<bool>(), declined in any::<bool>()) {
             let expected = Found::Block("embedded\n".into());
@@ -350,7 +354,7 @@ mod tests {
             prop_assert_eq!(state(&Observed::Present(expected.clone()), &expected, Some(&h), false), State::Current);
         }
 
-        // @zen-test: KIT_P-4
+        // sokf-tests: KIT_P-4
         #[test]
         fn a_reflowed_block_is_current(block in arb_block(), seps in prop::collection::vec(prop::sample::select(vec![" ", "  ", "\n", "\r\n", "\t", " \n\n"]), 1..40)) {
             let words: Vec<&str> = block.split_whitespace().collect();

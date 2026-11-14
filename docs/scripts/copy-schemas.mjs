@@ -1,5 +1,5 @@
 // Copies the published JSON schemas (../schema) to public/schema, where the
-// site serves them (PLAN-016 F12); run before every build.
+// site serves them; run before every build.
 import fs from "node:fs";
 
 const from = new URL("../../schema/", import.meta.url);

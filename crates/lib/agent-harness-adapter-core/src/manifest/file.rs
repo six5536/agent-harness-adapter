@@ -9,7 +9,10 @@ use serde::{
 };
 use serde_json::Value;
 
-use crate::hook::{Event, ToolKind};
+use crate::{
+    hook::{Event, ToolKind},
+    integration::BlockOrder,
+};
 
 /// Only the version, read first so a manifest of another version is
 /// refused for that, not for its other keys.
@@ -450,12 +453,16 @@ macro_rules! with_items {
     };
 }
 
+// sokf:begin items
 with_items! {
     /// The instructions block, placed between the tool's markers in the
     /// file each harness reads.
     instructions: Text,
     /// Which hook entries are the tool's, for hooks without `owned`.
     hook_match: Match,
+    /// Where the tool's blocks stand among other tools' blocks in a file:
+    /// `"installed"` (the default), or `"last"`, after every other tool's.
+    block_order: BlockOrder,
     /// Agent skills, or `{ from = "<dir>" }`.
     skills: Many<SkillFile>,
     /// Hooks, or `{ from = "<hooks file>" }`.
@@ -473,6 +480,7 @@ with_items! {
     /// Raw parts for one harness.
     parts: Vec<PartFile>,
 }
+// sokf:end items
 
 /// The scope tables.
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

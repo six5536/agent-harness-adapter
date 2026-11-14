@@ -4,7 +4,6 @@
 //! `tool_kind`) and answers as Claude Code reads an answer: its exit code,
 //! stdout and stderr. `agent-harness-adapter hook` and the language
 //! bindings speak it, so a hook in any language sees one format.
-// @zen-component: KIT-Wire
 
 use serde_json::{Map, Value};
 
@@ -38,8 +37,8 @@ pub fn event_from_name(name: &str) -> Option<Event> {
 /// Code, its own JSON with `harness` and `tool_kind` added; for any other
 /// harness, Claude Code's fields built from the parsed input, absent values
 /// left out.
-// @zen-impl: AHA-2_AC-1
-// @zen-impl: AHA-2_AC-5
+// sokf-implements: AHA-2_AC-1
+// sokf-implements: AHA-2_AC-5
 pub fn input_json(harness: &dyn Harness, input: &HookInput) -> Value {
     // The harness that parsed the input: the Cursor CLI runs Claude Code's
     // hooks with its own input, which Claude Code's parser hands to Cursor's.
@@ -86,6 +85,7 @@ fn built(harness: &dyn Harness, input: &HookInput) -> Map<String, Value> {
     out
 }
 
+// sokf:begin reply
 /// A hook's answer as the contract reads it, and the parts of it the
 /// answer model cannot carry (AHA-2_AC-4), by name.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,13 +96,14 @@ pub struct Reply {
     /// What was left out, e.g. `permissionDecision: ask`.
     pub dropped: Vec<&'static str>,
 }
+// sokf:end reply
 
 /// A hook's exit code, stdout and stderr for `event`, read as Claude Code
 /// reads them. Never fails: anything it cannot read allows, with the
 /// hook's stderr passed on.
-// @zen-impl: AHA-2_AC-2
-// @zen-impl: AHA-2_AC-3
-// @zen-impl: AHA-2_AC-4
+// sokf-implements: AHA-2_AC-2
+// sokf-implements: AHA-2_AC-3
+// sokf-implements: AHA-2_AC-4
 pub fn parse_answer(event: Event, exit: i32, stdout: &str, stderr: &str) -> Reply {
     let err = (!stderr.trim().is_empty()).then(|| stderr.to_string());
     let allow = || Answer::Allow {
@@ -194,7 +195,7 @@ fn non_empty(s: &str) -> Option<&str> {
 
 /// `answer` to `event` as Claude Code's answer JSON (exit 0); an answer
 /// Claude Code cannot give for the event is an error.
-// @zen-impl: AHA-2_AC-6
+// sokf-implements: AHA-2_AC-6
 pub fn answer_json(event: Event, answer: &Answer) -> Result<Value> {
     let out = protocol::answer("claude", event, event_name(event), answer)?;
     Ok(serde_json::from_str(&out.stdout).expect("the Claude answer is JSON"))

@@ -12,9 +12,13 @@ publish = false
 [lib]
 name = "_native"
 crate-type = ["cdylib", "rlib"]
+# No Rust test: the tests are in Python (tests/), and a test binary would
+# need libpython at run time.
+test = false
+doctest = false
 
 [dependencies]
-agent-harness-adapter-bind = { path = "../agent-harness-adapter-bind" }
+agent-harness-adapter-bind.workspace = true
 pyo3 = { workspace = true }
 
 [build-dependencies]
@@ -23,3 +27,6 @@ pyo3-build-config = { workspace = true }
 [features]
 # maturin turns it on for wheels.
 extension-module = ["pyo3/extension-module"]
+
+[lints]
+workspace = true

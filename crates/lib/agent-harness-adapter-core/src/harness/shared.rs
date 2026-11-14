@@ -1,6 +1,5 @@
 //! The shared-location choice: per item, the fewest locations every
 //! harness in the set loads, so shared content is written once.
-// @zen-component: KIT-Shared
 
 use std::collections::BTreeSet;
 
@@ -9,6 +8,7 @@ use crate::{
     harness::{Part, Reads},
 };
 
+// sokf:begin roles
 /// One harness's part for an item.
 #[derive(Debug, Clone)]
 pub(crate) struct Candidate<'a> {
@@ -41,6 +41,7 @@ pub(crate) struct Choice {
     pub(crate) roles: Vec<Role>,
     pub(crate) warnings: Vec<String>,
 }
+// sokf:end roles
 
 /// At most this many distinct locations are searched for the smallest
 /// cover; more (never the case for the built-in harnesses) keep every
@@ -51,9 +52,9 @@ const MAX_SEARCH: usize = 16;
 /// harness order, when the item was read from `source` (its root-relative
 /// location): the SOURCE is chosen already and written by nobody, a
 /// REFERENCE part is always written, and the rest are covered as without
-/// one. See DESIGN-KIT-sources KIT-SharedSources.
-// @zen-impl: KIT-19_AC-8
-// @zen-impl: KIT-23_AC-1
+/// one. The design of the sources describes it.
+// sokf-implements: KIT-19_AC-8
+// sokf-implements: KIT-23_AC-1
 pub(crate) fn choose(
     item: &str,
     candidates: &[Candidate<'_>],
@@ -67,11 +68,11 @@ pub(crate) fn choose(
     for (i, c) in candidates.iter().enumerate() {
         if c.part.is_reference() {
             // A REFERENCE or a copy is a file the core writes: never a link.
-            // @zen-impl: KIT-23_AC-3
+            // sokf-implements: KIT-23_AC-3
             roles[i] = Some(Role::Write);
         } else if c.reads.loads(src) || c.part.location() == src {
-            // @zen-impl: HAR-14_AC-4
-            // @zen-impl: KIT-24_AC-3
+            // sokf-implements: HAR-14_AC-4
+            // sokf-implements: KIT-24_AC-3
             roles[i] = Some(Role::InPlace {
                 location: src.to_string(),
             });
@@ -131,12 +132,12 @@ fn roles_of(idx: &[usize], roles: &[Option<Role>]) -> Vec<Role> {
         .collect()
 }
 
-/// The set cover of DESIGN-KIT KIT-Shared.
-// @zen-impl: KIT-19_AC-2
-// @zen-impl: KIT-19_AC-3
-// @zen-impl: KIT-19_AC-4
-// @zen-impl: KIT-19_AC-5
-// @zen-impl: KIT-19_AC-7
+/// The set cover that the design of the harness core describes.
+// sokf-implements: KIT-19_AC-2
+// sokf-implements: KIT-19_AC-3
+// sokf-implements: KIT-19_AC-4
+// sokf-implements: KIT-19_AC-5
+// sokf-implements: KIT-19_AC-7
 fn cover(item: &str, candidates: &[Candidate<'_>]) -> Result<Choice> {
     // Distinct locations in first-seen order; equal locations, equal parts.
     let mut locations: Vec<String> = Vec::new();
@@ -254,8 +255,8 @@ mod tests {
         }
     }
 
-    // @zen-test: KIT-19_AC-2
-    // @zen-test: KIT-19_AC-3
+    // sokf-tests: KIT-19_AC-2
+    // sokf-tests: KIT-19_AC-3
     #[test]
     fn two_harnesses_reading_agents_md_share_one_copy() {
         let agents = region("AGENTS.md");
@@ -276,7 +277,7 @@ mod tests {
                 }
             ]
         );
-        assert!(c.warnings.is_empty());
+        assert!(c.warnings.is_empty(), "{:?}", c.warnings);
     }
 
     // A harness that also loads another's location is covered by it.
@@ -305,7 +306,7 @@ mod tests {
             }
         );
         // With codex too, both files are needed and copilot loads both.
-        // @zen-test: KIT-19_AC-4
+        // sokf-tests: KIT-19_AC-4
         let c = choose(
             "instructions",
             &[
@@ -349,7 +350,7 @@ mod tests {
         );
     }
 
-    // @zen-test: KIT-19_AC-5
+    // sokf-tests: KIT-19_AC-5
     #[test]
     fn different_parts_at_one_location_are_refused() {
         let a = Part::region("instructions", "AGENTS.md", "a\n");
@@ -373,7 +374,7 @@ mod tests {
         let mut unnamed = cand("cursor", &cursor, &ru);
         unnamed.named = false;
         let c = choose("hooks", &[cand("claude", &claude, &rc), unnamed], None).unwrap();
-        assert!(c.warnings.is_empty());
+        assert!(c.warnings.is_empty(), "{:?}", c.warnings);
     }
 
     // A named harness writes a location before one only in the record.
@@ -430,8 +431,8 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(256))]
 
-        // @zen-test: KIT_P-9
-        // @zen-test: KIT_P-10
+        // sokf-tests: KIT_P-9
+        // sokf-tests: KIT_P-10
         #[test]
         fn minimal_cover(world in arb_world()) {
             let names: Vec<String> = (0..world.len()).map(|i| format!("h{i}")).collect();

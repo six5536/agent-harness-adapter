@@ -9,7 +9,6 @@
 //! <https://docs.devin.ai/cli/reference/configuration/read-config-from> and
 //! <https://docs.devin.ai/cli/subagents>, for Devin CLI 3000.11.3 (checked
 //! 2026-10-07).
-// @zen-component: HAR-Devin
 
 use serde_json::json;
 
@@ -21,7 +20,7 @@ use crate::{
     },
     harness::{Context, Harness, MergeOp, Part, PartResult, Reads, Scope},
     hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
-    integration::{Integration, Item},
+    integration::{Integration, Item, McpServer},
 };
 
 /// Devin CLI and Devin Local (`devin`).
@@ -32,7 +31,7 @@ const ID: &str = "devin";
 
 /// Devin's name for `event`: Claude Code's names; it has no event before
 /// compaction.
-// @zen-impl: HAR-11_AC-3
+// sokf-implements: HAR-11_AC-3
 fn event_name(event: Event) -> Option<&'static str> {
     Some(match event {
         Event::SessionStart => "SessionStart",
@@ -80,6 +79,10 @@ const USER_HOOKS: GroupHooks = GroupHooks {
     ..PROJECT_HOOKS
 };
 
+#[expect(
+    clippy::match_same_arms,
+    reason = "one arm for each item and scope reads as a table of the paths"
+)]
 fn location(item: Item, cx: &Context) -> Option<&'static str> {
     let user = cx.scope == Scope::User;
     Some(match item {
@@ -100,7 +103,7 @@ fn location(item: Item, cx: &Context) -> Option<&'static str> {
 }
 
 /// Claude Code's name for one of its tools (HAR-15_AC-2).
-// @zen-impl: HAR-15_AC-2
+// sokf-implements: HAR-15_AC-2
 fn claude_name(name: &str) -> Option<&'static str> {
     match name {
         "exec" => Some("Bash"),
@@ -120,7 +123,7 @@ impl Harness for Devin {
     }
 
     /// Every event but one: no event before compaction.
-    // @zen-impl: HAR-11_AC-3
+    // sokf-implements: HAR-11_AC-3
     fn hook_events(&self) -> &[Event] {
         &[
             Event::SessionStart,
@@ -132,7 +135,7 @@ impl Harness for Devin {
         ]
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("devin")
     }
@@ -141,15 +144,20 @@ impl Harness for Devin {
         claude_names::named(call, claude_name(&call.name))
     }
 
-    // @zen-impl: HAR-11_AC-1
+    // sokf-implements: HAR-11_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User]
     }
 
-    // @zen-impl: HAR-11_AC-2
-    // @zen-impl: HAR-11_AC-6
-    // @zen-impl: HAR-11_AC-7
-    // @zen-impl: HAR-11_AC-8
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &[".devin"], &[".config/devin"])
+    }
+
+    // sokf-implements: HAR-11_AC-2
+    // sokf-implements: HAR-11_AC-6
+    // sokf-implements: HAR-11_AC-7
+    // sokf-implements: HAR-11_AC-8
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
         let mut out = Vec::new();
         for item in integration.items() {
@@ -169,7 +177,7 @@ impl Harness for Devin {
                     };
                     Part::merge(item.as_str(), at, parts::group_hooks(layout, integration)?)
                 }
-                Item::Mcp => parts::mcp(at, "mcpServers", integration, |s| s.to_json()),
+                Item::Mcp => parts::mcp(at, "mcpServers", integration, McpServer::to_json),
                 Item::Permissions => Part::merge(
                     item.as_str(),
                     at,
@@ -221,7 +229,7 @@ impl Harness for Devin {
         })
     }
 
-    // @zen-impl: HAR-11_AC-4
+    // sokf-implements: HAR-11_AC-4
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
         let mut input = protocol::parse(ID, event, text, tool_kind, "last_assistant_message")?;
         // Devin sends no working directory; it sets DEVIN_PROJECT_DIR.
@@ -231,7 +239,7 @@ impl Harness for Devin {
         Ok(input)
     }
 
-    // @zen-impl: HAR-11_AC-5
+    // sokf-implements: HAR-11_AC-5
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
         Ok(match (answer, event) {
             (Answer::Allow { stderr }, _) => Output::json(json!({})).stderr(stderr.clone()),
@@ -252,7 +260,7 @@ impl Harness for Devin {
         })
     }
 
-    // @zen-impl: HAR-11_AC-9
+    // sokf-implements: HAR-11_AC-9
     fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
         let mut out = Vec::new();
         if !parts.iter().any(PartResult::changed) {

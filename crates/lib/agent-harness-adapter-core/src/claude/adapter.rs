@@ -5,7 +5,6 @@
 //! <https://code.claude.com/docs/en/memory>, <https://code.claude.com/docs/en/skills>,
 //! <https://code.claude.com/docs/en/sub-agents>, <https://code.claude.com/docs/en/slash-commands>
 //! and <https://code.claude.com/docs/en/mcp>.
-// @zen-component: HAR-Claude
 
 use std::path::Path;
 
@@ -17,7 +16,7 @@ use crate::{
     },
     harness::{Context, Harness, Markers, MergeOp, Part, Reads, Scope},
     hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind},
-    integration::{Integration, Item},
+    integration::{Command, Integration, Item, McpServer},
 };
 
 /// Claude Code (`claude`).
@@ -32,7 +31,7 @@ const ID: &str = "claude";
 /// absent. An install also keeps the tool's region in a `CLAUDE.md` that
 /// imports `AGENTS.md` and already holds it, which this, knowing no tool,
 /// cannot see.
-// @zen-impl: HAR-1_AC-2
+// sokf-implements: HAR-1_AC-2
 pub fn instructions_file(root: &Path) -> Result<&'static str> {
     chosen_file(root, root.join("AGENTS.md").is_file(), None)
 }
@@ -70,7 +69,7 @@ fn imports_agents(text: &str) -> bool {
 
 /// Where Claude Code loads the instructions at `cx`: the chosen file, and
 /// `AGENTS.md` too when the chosen file is a `CLAUDE.md` that imports it.
-// @zen-impl: HAR-1_AC-2
+// sokf-implements: HAR-1_AC-2
 fn instructions_reads(cx: &Context) -> Result<Reads> {
     let own = location(Item::Instructions, cx)?;
     let imported = cx.scope == Scope::Project
@@ -84,7 +83,7 @@ fn instructions_reads(cx: &Context) -> Result<Reads> {
 /// Claude Code reads (`CLAUDE.md`, `.claude/CLAUDE.md` at user scope) and
 /// its import line, `@<path>` (`@~/<path>` at user scope); `None` when the
 /// SOURCE is that file or outside the root.
-// @zen-impl: HAR-14_AC-1
+// sokf-implements: HAR-14_AC-1
 fn reference(integration: &Integration, cx: &Context) -> Option<(&'static str, String)> {
     let rel = cx.relative(&integration.source(Item::Instructions)?.path)?;
     match cx.scope {
@@ -97,7 +96,11 @@ fn reference(integration: &Integration, cx: &Context) -> Option<(&'static str, S
 }
 
 /// Claude Code's name for `event`.
-// @zen-impl: HAR-1_AC-3
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "`GroupHooks::event` takes this shape, as some harnesses lack an event"
+)]
+// sokf-implements: HAR-1_AC-3
 fn event_name(event: Event) -> Option<&'static str> {
     Some(match event {
         Event::SessionStart => "SessionStart",
@@ -180,7 +183,7 @@ impl Harness for Claude {
         ID
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("claude")
     }
@@ -190,14 +193,19 @@ impl Harness for Claude {
         call.clone()
     }
 
-    // @zen-impl: HAR-1_AC-1
+    // sokf-implements: HAR-1_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User, Scope::Local]
     }
 
-    // @zen-impl: HAR-1_AC-6
-    // @zen-impl: HAR-1_AC-7
-    // @zen-impl: HAR-1_AC-8
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &["CLAUDE.md", ".claude"], &[".claude"])
+    }
+
+    // sokf-implements: HAR-1_AC-6
+    // sokf-implements: HAR-1_AC-7
+    // sokf-implements: HAR-1_AC-8
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
         let mut out = Vec::new();
         for item in integration.items() {
@@ -210,7 +218,7 @@ impl Harness for Claude {
                         parts::instructions(file, &format!("{line}\n")).reference()
                     }
                     // A copy where there is no reference to make.
-                    // @zen-impl: HAR-14_AC-3
+                    // sokf-implements: HAR-14_AC-3
                     None => parts::instructions(
                         &at,
                         integration.instructions_block().unwrap_or_default(),
@@ -220,7 +228,7 @@ impl Harness for Claude {
                 Item::Hooks => {
                     Part::merge(item.as_str(), at, parts::group_hooks(&LAYOUT, integration)?)
                 }
-                Item::Mcp => parts::mcp(&at, "mcpServers", integration, |s| s.to_json()),
+                Item::Mcp => parts::mcp(&at, "mcpServers", integration, McpServer::to_json),
                 Item::Permissions => Part::merge(
                     item.as_str(),
                     at,
@@ -238,7 +246,7 @@ impl Harness for Claude {
                         .collect(),
                 ),
                 Item::Agents => parts::agents(&at, ".md", integration, |a| a.to_markdown(&[])),
-                Item::Commands => parts::commands(&at, ".md", integration, |c| c.to_markdown()),
+                Item::Commands => parts::commands(&at, ".md", integration, Command::to_markdown),
             });
         }
         Ok(out)
@@ -251,8 +259,8 @@ impl Harness for Claude {
         }
     }
 
-    // @zen-impl: HAR-1_AC-4
-    // @zen-impl: HAR-9_AC-2
+    // sokf-implements: HAR-1_AC-4
+    // sokf-implements: HAR-9_AC-2
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
         // The Cursor CLI runs Claude Code's hooks with its own input.
         if protocol::raw_object(text)?.get("cursor_version").is_some() {
@@ -261,7 +269,7 @@ impl Harness for Claude {
         protocol::parse(ID, event, text, tool_kind, "last_assistant_message")
     }
 
-    // @zen-impl: HAR-1_AC-5
+    // sokf-implements: HAR-1_AC-5
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
         let name = event_name(event).unwrap_or_default();
         protocol::answer(ID, event, name, answer)
@@ -282,7 +290,7 @@ mod tests {
         test_support::temp_dir,
     };
 
-    // @zen-test: HAR-1_AC-2
+    // sokf-tests: HAR-1_AC-2
     #[test]
     fn the_instructions_rule() {
         let dir = temp_dir("claude-rule");
@@ -307,8 +315,8 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    // @zen-test: HAR-1_AC-2
-    // @zen-test: KIT-19_AC-9
+    // sokf-tests: HAR-1_AC-2
+    // sokf-tests: KIT-19_AC-9
     #[test]
     fn an_agents_md_another_harness_renders_counts_as_there() {
         let dir = temp_dir("claude-rendered");
@@ -355,7 +363,7 @@ mod tests {
         assert_eq!(instructions_file(&dir).unwrap(), "AGENTS.md");
         fs::remove_dir(dir.join("CLAUDE.md")).unwrap();
         // Invalid UTF-8 cannot be read as text.
-        fs::write(dir.join("CLAUDE.md"), [0xff, 0xfe]).unwrap();
+        fs::write(dir.join("CLAUDE.md"), [0xFF, 0xFE]).unwrap();
         assert!(matches!(instructions_file(&dir), Err(Error::Io { .. })));
         fs::remove_dir_all(&dir).unwrap();
     }
@@ -386,13 +394,13 @@ mod tests {
         p
     }
 
-    // @zen-test: HAR-1_AC-1
-    // @zen-test: HAR-1_AC-3
-    // @zen-test: KIT-11_AC-1
-    // @zen-test: KIT-17_AC-2
-    // @zen-test: HAR-1_AC-6
-    // @zen-test: HAR-1_AC-7
-    // @zen-test: HAR-1_AC-8
+    // sokf-tests: HAR-1_AC-1
+    // sokf-tests: HAR-1_AC-3
+    // sokf-tests: KIT-11_AC-1
+    // sokf-tests: KIT-17_AC-2
+    // sokf-tests: HAR-1_AC-6
+    // sokf-tests: HAR-1_AC-7
+    // sokf-tests: HAR-1_AC-8
     #[test]
     fn renders_every_item_per_scope() {
         let p = rendered(Scope::Project);
@@ -495,9 +503,9 @@ mod tests {
         );
     }
 
-    // @zen-test: HAR-1_AC-4
-    // @zen-test: KIT-11_AC-3
-    // @zen-test: KIT-11_AC-6
+    // sokf-tests: HAR-1_AC-4
+    // sokf-tests: KIT-11_AC-3
+    // sokf-tests: KIT-11_AC-6
     #[test]
     fn input_is_read_and_tools_classified() {
         let i = Claude
@@ -523,7 +531,7 @@ mod tests {
                 .continuing
         );
         // A Cursor payload is read as Cursor's.
-        // @zen-test: HAR-9_AC-2
+        // sokf-tests: HAR-9_AC-2
         let i = Claude
             .parse_hook(
                 Event::Stop,
@@ -533,8 +541,8 @@ mod tests {
         assert_eq!((i.harness.as_str(), i.continuing), ("cursor", true));
     }
 
-    // @zen-test: HAR-1_AC-5
-    // @zen-test: KIT-11_AC-4
+    // sokf-tests: HAR-1_AC-5
+    // sokf-tests: KIT-11_AC-4
     #[test]
     fn each_answer_in_claudes_form() {
         let out = |e, a: Answer| Claude.answer(e, &a).map(|o| o.stdout);
@@ -564,7 +572,7 @@ mod tests {
         assert!(out(Event::Stop, Answer::Context { text: "t".into() }).is_err());
     }
 
-    // @zen-test: KIT-11_AC-5
+    // sokf-tests: KIT-11_AC-5
     #[test]
     fn emit_writes_the_answer_or_the_error() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
@@ -592,7 +600,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(code, 1);
-        assert!(out.is_empty());
+        assert!(out.is_empty(), "{out:?}");
         assert_eq!(String::from_utf8(err).unwrap(), "error: no config\n");
         // An answer the harness cannot give is a failure too.
         let (mut out, mut err) = (Vec::new(), Vec::new());
@@ -605,7 +613,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(code, 1);
-        assert!(out.is_empty());
+        assert!(out.is_empty(), "{out:?}");
         assert_eq!(
             String::from_utf8(err).unwrap(),
             "error: harness `claude` cannot answer deny at stop\n"

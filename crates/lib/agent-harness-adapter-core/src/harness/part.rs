@@ -5,9 +5,10 @@ use std::{fmt, sync::Arc};
 
 use crate::{Result, harness::MergeOp};
 
+// sokf:begin external-part
 /// A part the library does not write as a file: the tool reads and writes it
 /// itself, e.g. by running `claude mcp add-json --scope user`.
-// @zen-impl: KIT-2_AC-4
+// sokf-implements: KIT-2_AC-4
 pub trait ExternalPart: fmt::Debug + Send + Sync {
     /// Where the part lives, as the report shows it, e.g. `claude mcp (user)`.
     fn location(&self) -> String;
@@ -24,7 +25,7 @@ pub trait ExternalPart: fmt::Debug + Send + Sync {
     /// it, uninstall keeps the part and warns.
     ///
     /// [`remove`]: ExternalPart::remove
-    // @zen-impl: KIT-22_AC-5
+    // sokf-implements: KIT-22_AC-5
     fn removable(&self) -> bool {
         false
     }
@@ -37,6 +38,7 @@ pub trait ExternalPart: fmt::Debug + Send + Sync {
         )))
     }
 }
+// sokf:end external-part
 
 /// A part's kind and the content the tool wants there.
 #[derive(Debug, Clone)]
@@ -75,7 +77,7 @@ impl Part {
     /// The part as a REFERENCE: it points its harness at the item's SOURCE
     /// (e.g. `@AGENTS.md`), so it is always written, never shared or in
     /// place (KIT-23).
-    // @zen-impl: KIT-23_AC-2
+    // sokf-implements: KIT-23_AC-2
     #[must_use]
     pub fn reference(mut self) -> Self {
         self.reference = true;
@@ -89,7 +91,7 @@ impl Part {
 
     /// A `file` part: `files` (relative path, text) under the directory
     /// `dir`, written with LF line endings.
-    // @zen-impl: KIT-2_AC-1
+    // sokf-implements: KIT-2_AC-1
     pub fn files(
         name: impl Into<String>,
         dir: impl Into<String>,
@@ -106,7 +108,7 @@ impl Part {
 
     /// A `region` part in `file`. A harness picks the file when it renders,
     /// from the tree under the root.
-    // @zen-impl: KIT-2_AC-2
+    // sokf-implements: KIT-2_AC-2
     pub fn region(
         name: impl Into<String>,
         file: impl Into<String>,
@@ -229,9 +231,9 @@ mod tests {
         }
     }
 
-    // @zen-test: KIT-2_AC-1
-    // @zen-test: KIT-2_AC-2
-    // @zen-test: KIT-2_AC-4
+    // sokf-tests: KIT-2_AC-1
+    // sokf-tests: KIT-2_AC-2
+    // sokf-tests: KIT-2_AC-4
     #[test]
     fn constructors_set_the_kind() {
         let p = Profile::new(vec![

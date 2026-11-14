@@ -1,6 +1,7 @@
 //! `Report`: the findings of a run, always ordered, and its text and JSON
 //! forms.
-// @zen-component: KIT-Report
+
+use std::fmt::Write as _;
 
 use serde::{
     Serialize,
@@ -26,7 +27,7 @@ fn key(f: &Finding) -> (&str, Option<usize>, &str) {
 impl Report {
     /// Add a finding to the list its severity selects, at its place in the
     /// order; an exact duplicate is dropped.
-    // @zen-impl: KIT-13_AC-2
+    // sokf-implements: KIT-13_AC-2
     pub fn push(&mut self, finding: Finding) {
         let list = match finding.severity {
             Severity::Error => &mut self.errors,
@@ -65,7 +66,7 @@ impl Report {
     /// `show` names their severity, ordered together by path then line, one
     /// `<path>:<line>: <level>: <message> (<authority>)` line each; then the
     /// counts line, e.g. `1 error, 0 warnings, 2 info`.
-    // @zen-impl: KIT-13_AC-3
+    // sokf-implements: KIT-13_AC-3
     pub fn to_text(&self, show: &[Severity]) -> String {
         let mut findings: Vec<&Finding> = self.errors.iter().collect();
         if show.contains(&Severity::Warning) {
@@ -80,12 +81,13 @@ impl Report {
             out.push_str(&f.to_line());
             out.push('\n');
         }
-        out.push_str(&format!(
-            "{}, {}, {} info\n",
+        let _ = writeln!(
+            out,
+            "{}, {}, {} info",
             plural(self.errors.len(), "error"),
             plural(self.warnings.len(), "warning"),
             self.info.len()
-        ));
+        );
         out
     }
 }
@@ -146,7 +148,7 @@ impl Serialize for Entries<'_> {
 }
 
 /// `{"errors": [...], "warnings": [...], "info": [...]}`.
-// @zen-impl: KIT-13_AC-4
+// sokf-implements: KIT-13_AC-4
 impl Serialize for Report {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         let mut st = s.serialize_struct("Report", 3)?;
@@ -173,7 +175,7 @@ mod tests {
         .collect()
     }
 
-    // @zen-test: KIT-13_AC-4
+    // sokf-tests: KIT-13_AC-4
     #[test]
     fn json_has_three_lists() {
         let r: Report = [
@@ -195,7 +197,7 @@ mod tests {
         assert!(!Report::default().has_errors());
     }
 
-    // @zen-test: KIT-13_AC-3
+    // sokf-tests: KIT-13_AC-3
     #[test]
     fn errors_only_by_default() {
         insta::assert_snapshot!(report().to_text(&[]), @r"
@@ -204,7 +206,7 @@ mod tests {
         ");
     }
 
-    // @zen-test: KIT-13_AC-3
+    // sokf-tests: KIT-13_AC-3
     #[test]
     fn warnings_and_info_are_listed_in_path_order_when_asked() {
         insta::assert_snapshot!(report().to_text(&[Severity::Warning, Severity::Info]), @r"
@@ -242,8 +244,8 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(256))]
 
-        // @zen-test: KIT_P-8
-        // @zen-test: KIT-13_AC-2
+        // sokf-tests: KIT_P-8
+        // sokf-tests: KIT-13_AC-2
         #[test]
         fn pushes_keep_each_list_ordered_without_duplicates(findings in prop::collection::vec(arb_finding(), 0..12)) {
             let r: Report = findings.iter().cloned().collect();
@@ -264,7 +266,7 @@ mod tests {
             prop_assert_eq!(r.errors().len() + r.warnings().len() + r.info().len(), expected.len());
         }
 
-        // @zen-test: KIT-13_AC-4
+        // sokf-tests: KIT-13_AC-4
         #[test]
         fn json_shape(findings in prop::collection::vec(arb_finding(), 0..6)) {
             let r: Report = findings.into_iter().collect();

@@ -1,0 +1,15 @@
+[
+  "dist/",
+  "node_modules/",
+  "coverage/",
+  "*.lock",
+  ".github/",
+  ".claude/skills/",
+  "AGENTS.md",
+  "/schema/",
+  "/crates/",
+  "/docs/",
+  "/tests/agents/",
+  "/bindings/",
+  "/knowledge/contracts/contract-cli.md"
+]

@@ -1,0 +1,5 @@
+# Clippy's settings for the crates of agent-harness-adapter.
+
+# Product names that doc comments hold without backticks, beside clippy's own
+# list ("..").
+doc-valid-idents = ["OpenCode", "OpenAI", ".."]

@@ -1,7 +1,6 @@
 //! A tool's integration declared in a file (AHA-1), for tools not written in
 //! Rust: `agent-harness-adapter` and the language bindings load it, and [`ManifestTool`] makes
 //! it a [`Tool`].
-// @zen-component: AHA-Manifest
 
 mod build;
 mod config;
@@ -12,6 +11,10 @@ use std::{
     sync::Arc,
 };
 
+pub use config::{
+    CONFIG_DIR, CONFIG_NAME, Found, config_text, find_config, project_dirs, standard_sources,
+};
+use file::{Harnesses, ManifestFile, ScopeFile, VersionOnly};
 use serde_json::Value;
 
 use crate::{
@@ -19,11 +22,6 @@ use crate::{
     fs::read_text,
     harness::{self, DeclinedStore, Harness, Scope, TomlDeclined, Tool},
     integration::Integration,
-};
-use file::{Harnesses, ManifestFile, ScopeFile, VersionOnly};
-
-pub use config::{
-    CONFIG_DIR, CONFIG_NAME, Found, config_text, find_config, project_dirs, standard_sources,
 };
 
 /// The manifest format's version this library reads.
@@ -39,6 +37,7 @@ struct ScopeData {
     declined: String,
 }
 
+// sokf:begin manifest
 /// A loaded manifest: the tool's name, its harnesses, and per scope its
 /// integration and where it keeps its record and declined parts. Every TEXT
 /// file is read when it loads.
@@ -48,17 +47,18 @@ pub struct Manifest {
     harnesses: Vec<String>,
     scopes: Vec<ScopeData>,
 }
+// sokf:end manifest
 
 impl Manifest {
     /// The manifest at `path`: TOML, or JSON when the name ends in `.json`.
-    // @zen-impl: AHA-1_AC-1
+    // sokf-implements: AHA-1_AC-1
     pub fn load(path: &Path) -> Result<Manifest> {
         Self::load_in(path, path.parent().unwrap_or(Path::new(".")))
     }
 
     /// The manifest at `path`, its paths read from `dir` instead of its own
     /// directory: the CONFIG's paths are the project root's (AHA-1_AC-12).
-    // @zen-impl: AHA-1_AC-12
+    // sokf-implements: AHA-1_AC-12
     pub fn load_in(path: &Path, dir: &Path) -> Result<Manifest> {
         let display = path.display().to_string();
         let text = read_text(path)?.ok_or_else(|| Error::file(&display, "no such file"))?;
@@ -91,18 +91,13 @@ impl Manifest {
         Self::build(manifest, dir, display)
     }
 
-    // @zen-impl: AHA-1_AC-3
-    // @zen-impl: AHA-1_AC-6
+    // sokf-implements: AHA-1_AC-3
+    // sokf-implements: AHA-1_AC-6
     fn build(m: ManifestFile, dir: &Path, display: &str) -> Result<Manifest> {
         let err = |message: String| Error::file(display, message);
-        if m.name.is_empty()
-            || !m
-                .name
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
-        {
+        if !crate::harness::is_tool_name(&m.name) {
             return Err(err(format!(
-                "`name`: `{}` is not letters, digits, `-`, `_` and `.`",
+                "`name`: `{}` is not letters, digits, `-`, `_` and `.`, nor dots alone",
                 m.name
             )));
         }
@@ -153,14 +148,7 @@ impl Manifest {
                         },
                         (e, _) => e,
                     })?;
-            let record = table
-                .record
-                .clone()
-                .unwrap_or_else(|| match (scope, &m.record) {
-                    (Scope::Local, _) => format!(".{}/harness.local.toml", m.name),
-                    (_, Some(r)) => r.clone(),
-                    _ => format!(".{}/harness.toml", m.name),
-                });
+            let record = record_path(&m.name, m.record.as_deref(), table.record.as_deref(), scope);
             let declined = table
                 .declined
                 .clone()
@@ -206,11 +194,33 @@ impl Manifest {
     }
 }
 
+/// The record's path, relative to the scope's root, of the manifest named
+/// `name` whose top level gives `record` and whose scope table gives
+/// `scoped` (AHA-1_AC-3, AHA-1_AC-6): the scope's, else the top level's
+/// (not at local scope), else `.<name>/harness.toml`
+/// (`.<name>/harness.local.toml` at local scope).
+pub(crate) fn record_path(
+    name: &str,
+    record: Option<&str>,
+    scoped: Option<&str>,
+    scope: Scope,
+) -> String {
+    if let Some(r) = scoped {
+        return r.to_string();
+    }
+    match (scope, record) {
+        (Scope::Local, _) => format!(".{name}/harness.local.toml"),
+        (_, Some(r)) => r.to_string(),
+        _ => format!(".{name}/harness.toml"),
+    }
+}
+
 /// The scope table's name in an error, when it has items of its own.
 fn table_name(scope: Scope, table: &ScopeFile) -> Option<&'static str> {
     let items = table.items();
     let own = items.instructions.is_some()
         || items.hook_match.is_some()
+        || items.block_order.is_some()
         || items.skills.is_some()
         || items.hooks.is_some()
         || items.mcp_servers.is_some()
@@ -224,8 +234,8 @@ fn table_name(scope: Scope, table: &ScopeFile) -> Option<&'static str> {
 
 /// The manifest file: its version read first (`version`), so a manifest of
 /// another version is refused for that, then the whole (`full`).
-// @zen-impl: AHA-1_AC-2
-// @zen-impl: AHA-1_AC-7
+// sokf-implements: AHA-1_AC-2
+// sokf-implements: AHA-1_AC-7
 fn parse<E: std::fmt::Display>(
     display: &str,
     version: std::result::Result<VersionOnly, E>,
@@ -248,15 +258,17 @@ fn parse<E: std::fmt::Display>(
     Ok(m)
 }
 
+// sokf:begin manifest-tool
 /// A [`Manifest`] as a [`Tool`]: project and local scope under `project`,
 /// user scope under `home`.
-// @zen-impl: AHA-1_AC-9
+// sokf-implements: AHA-1_AC-9
 #[derive(Debug, Clone)]
 pub struct ManifestTool {
     manifest: Manifest,
     project: PathBuf,
     home: PathBuf,
 }
+// sokf:end manifest-tool
 
 impl ManifestTool {
     /// `manifest` for the project directory `project`, with the home

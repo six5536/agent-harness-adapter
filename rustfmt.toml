@@ -1,4 +1,4 @@
-# rustfmt doc - https://rust-lang.github.io/rustfmt/
+# The rustfmt documentation at https://rust-lang.github.io/rustfmt/ describes each option.
 
 # hard_tabs = true
 edition = "2024"

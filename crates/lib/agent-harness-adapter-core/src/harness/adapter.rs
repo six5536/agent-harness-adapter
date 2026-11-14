@@ -1,5 +1,4 @@
 //! The contract every harness implements, and the built-in harnesses.
-// @zen-component: KIT-Adapter
 
 use std::{
     collections::BTreeSet,
@@ -15,12 +14,13 @@ use crate::{
     integration::{Integration, Item},
 };
 
+// sokf:begin harness
 /// An agent harness: where it reads a tool's integration and how it talks
 /// to hooks. The library's own harnesses are in [`builtin`]; a tool may add its
 /// own, and [`install`](crate::harness::install), [`status`](crate::harness::status)
 /// and the hook functions work with it unchanged.
-// @zen-impl: KIT-18_AC-1
-// @zen-impl: KIT-18_AC-3
+// sokf-implements: KIT-18_AC-1
+// sokf-implements: KIT-18_AC-3
 pub trait Harness: Debug + Send + Sync {
     /// The harness's id, e.g. `claude`: the name users give, and `{harness}`
     /// in a hook command.
@@ -32,7 +32,7 @@ pub trait Harness: Debug + Send + Sync {
     /// The parts for `integration`'s items at `cx`, at most one per item,
     /// each named by its item ([`Item::as_str`]). An item the harness
     /// cannot take at the scope has no part.
-    // @zen-impl: KIT-18_AC-4
+    // sokf-implements: KIT-18_AC-4
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>>;
 
     /// The locations it loads for `item` at `cx`: those it always loads
@@ -55,7 +55,7 @@ pub trait Harness: Debug + Send + Sync {
 
     /// What the user still has to do after an install, from its parts'
     /// results, e.g. trust the folder.
-    // @zen-impl: KIT-20_AC-1
+    // sokf-implements: KIT-20_AC-1
     fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
         let _ = (cx, parts);
         Vec::new()
@@ -63,7 +63,7 @@ pub trait Harness: Debug + Send + Sync {
 
     /// The program that runs the harness, e.g. `claude`, looked for on
     /// `PATH` to tell whether the user has it; `None` when it has none.
-    // @zen-impl: KIT-18_AC-1
+    // sokf-implements: KIT-18_AC-1
     fn program(&self) -> Option<&str> {
         None
     }
@@ -73,8 +73,19 @@ pub trait Harness: Debug + Send + Sync {
     fn claude_tool(&self, call: &ToolCall) -> ToolCall {
         claude_names::by_kind(call)
     }
-}
 
+    /// Whether the files under `cx`'s root show the harness in use (its own
+    /// directory or instructions file), so a tool that follows the project
+    /// reaches it (HAR-16, KIT-28). By default, not in use.
+    // sokf-implements: HAR-16_AC-1
+    fn used(&self, cx: &Context) -> bool {
+        let _ = cx;
+        false
+    }
+}
+// sokf:end harness
+
+// sokf:begin context
 /// What a harness renders for and reads at: the tool, the scope and its
 /// root, and the user's home.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,6 +106,7 @@ pub struct Context {
     /// run.
     pub rendered: BTreeSet<String>,
 }
+// sokf:end context
 
 impl Context {
     /// A context.
@@ -131,7 +143,7 @@ impl Context {
 
     /// Whether `rel` is a file under the root, or a location where another
     /// harness of the run renders a part, so a file once the run installs.
-    // @zen-impl: KIT-19_AC-9
+    // sokf-implements: KIT-19_AC-9
     pub fn is_file_or_rendered(&self, rel: &str) -> bool {
         self.is_file(rel) || self.rendered.contains(rel)
     }
@@ -142,6 +154,7 @@ impl Context {
     }
 }
 
+// sokf:begin reads
 /// The locations a harness loads for an item, relative to the root.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[non_exhaustive]
@@ -151,6 +164,7 @@ pub struct Reads {
     /// Loaded in some setups (a setting, one of the harness's front ends).
     pub maybe: Vec<String>,
 }
+// sokf:end reads
 
 impl Reads {
     /// Always loads `locations`.
@@ -182,7 +196,7 @@ impl Reads {
 /// Every built-in harness, in a stable order: the most specific first, the
 /// generic `agents` last, so a shared location is written by a harness of
 /// its own.
-// @zen-impl: KIT-18_AC-2
+// sokf-implements: KIT-18_AC-2
 pub fn builtin() -> Vec<Arc<dyn Harness>> {
     vec![
         Arc::new(crate::claude::Claude),
@@ -227,7 +241,7 @@ mod tests {
         );
     }
 
-    // @zen-test: KIT-18_AC-2
+    // sokf-tests: KIT-18_AC-2
     #[test]
     fn built_in_harnesses_are_found_by_id() {
         let ids: Vec<_> = builtin().iter().map(|h| h.id().to_string()).collect();
@@ -319,7 +333,7 @@ mod properties {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(64))]
 
-        // @zen-test: HAR_P-1
+        // sokf-tests: HAR_P-1
         #[test]
         fn answers_are_well_formed(event in 0usize..7, answer in arb_answer()) {
             for h in builtin() {
@@ -335,7 +349,7 @@ mod properties {
             }
         }
 
-        // @zen-test: HAR_P-3
+        // sokf-tests: HAR_P-3
         #[test]
         fn any_object_parses(event in 0usize..7, raw in arb_object()) {
             for h in builtin() {
@@ -344,7 +358,7 @@ mod properties {
             }
         }
 
-        // @zen-test: HAR_P-2
+        // sokf-tests: HAR_P-2
         #[test]
         fn shared_locations_get_equal_parts(i in arb_integration(), user in any::<bool>()) {
             let dir = temp_dir("har-p2");

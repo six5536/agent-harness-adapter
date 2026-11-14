@@ -1,7 +1,6 @@
 //! The Python extension `agent_harness_adapter._native`: the bindings' glue
 //! with strings across the boundary; `agent_harness_adapter/__init__.py` makes
 //! it Pythonic.
-// @zen-component: BND-Python
 
 use agent_harness_adapter_bind::{self as bind, Options, Source};
 use pyo3::{exceptions::PyValueError, prelude::*};
@@ -24,7 +23,7 @@ fn serde_json_value(text: &str) -> PyResult<bind::Value> {
 }
 
 /// Install: `options` is JSON; returns the result as JSON.
-// @zen-impl: BND-1_AC-3
+// sokf-implements: BND-1_AC-3
 #[pyfunction]
 #[pyo3(signature = (path, json, options))]
 fn install(path: Option<String>, json: Option<String>, options: &str) -> PyResult<String> {
@@ -64,6 +63,31 @@ fn edits(path: Option<String>, json: Option<String>, options: &str) -> PyResult<
         .map_err(err)
 }
 
+/// Keep `text` as the project's own beside the tool's block: `options` is
+/// JSON; returns `{report}`, the report of what it kept, as JSON.
+// sokf-implements: BND-1_AC-6
+#[pyfunction]
+#[pyo3(signature = (path, json, text, options))]
+fn keep_instructions(
+    path: Option<String>,
+    json: Option<String>,
+    text: &str,
+    options: &str,
+) -> PyResult<String> {
+    let o = Options::parse(options).map_err(err)?;
+    bind::keep_instructions(source(path, json)?, text, &o)
+        .map(|v| v.to_string())
+        .map_err(err)
+}
+
+/// Follow the project (KIT-28): `options` is JSON; returns `{report, exit}`
+/// as JSON.
+// sokf-implements: BND-1_AC-7
+#[pyfunction]
+fn follow(tool: &str, options: &str) -> String {
+    bind::follow(tool, options).to_string()
+}
+
 /// The hook contract's input (Claude Code's), as JSON.
 #[pyfunction]
 fn parse_hook(harness: &str, event: &str, text: &str) -> PyResult<String> {
@@ -92,6 +116,8 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(status, m)?)?;
     m.add_function(wrap_pyfunction!(uninstall, m)?)?;
     m.add_function(wrap_pyfunction!(edits, m)?)?;
+    m.add_function(wrap_pyfunction!(keep_instructions, m)?)?;
+    m.add_function(wrap_pyfunction!(follow, m)?)?;
     m.add_function(wrap_pyfunction!(parse_hook, m)?)?;
     m.add_function(wrap_pyfunction!(answer_hook, m)?)?;
     m.add_function(wrap_pyfunction!(schema, m)?)?;

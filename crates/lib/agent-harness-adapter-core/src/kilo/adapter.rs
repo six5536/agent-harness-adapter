@@ -6,7 +6,6 @@
 //! its source (`config/paths.ts`, `config/plugin.ts`,
 //! `kilocode/config/config.ts`, `session/instruction.ts`, `skill/index.ts`,
 //! `cli/cmd/run.ts`), version 7.8.7 (checked 2026-10-07).
-// @zen-component: HAR-Kilo
 
 use crate::{
     Result,
@@ -27,8 +26,8 @@ const ID: &str = "kilo";
 /// `.opencode`). The instructions file is the first of `AGENTS.md`,
 /// `CLAUDE.md` that exists (`.config/kilo/AGENTS.md`, `.claude/CLAUDE.md` at
 /// user scope), else the first; Kilo loads only that one.
-// @zen-impl: HAR-12_AC-1
-// @zen-impl: HAR-12_AC-2
+// sokf-implements: HAR-12_AC-1
+// sokf-implements: HAR-12_AC-2
 const LAYOUT: plugin::Layout = plugin::Layout {
     harness: ID,
     agent: "Kilo Code",
@@ -45,7 +44,7 @@ impl Harness for Kilo {
     }
 
     /// Every event but one: no session end.
-    // @zen-impl: HAR-12_AC-3
+    // sokf-implements: HAR-12_AC-3
     fn hook_events(&self) -> &[Event] {
         &[
             Event::SessionStart,
@@ -57,7 +56,7 @@ impl Harness for Kilo {
         ]
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("kilo")
     }
@@ -66,33 +65,38 @@ impl Harness for Kilo {
         claude_names::named(call, plugin::claude_name(&call.name))
     }
 
-    // @zen-impl: HAR-12_AC-1
+    // sokf-implements: HAR-12_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User]
     }
 
-    // @zen-impl: HAR-12_AC-3
-    // @zen-impl: HAR-12_AC-5
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &["kilo.json", ".kilo"], &[".config/kilo"])
+    }
+
+    // sokf-implements: HAR-12_AC-3
+    // sokf-implements: HAR-12_AC-5
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
-        LAYOUT.render(integration, cx)
+        Ok(LAYOUT.render(integration, cx))
     }
 
     fn reads(&self, item: Item, cx: &Context) -> Result<Reads> {
         Ok(LAYOUT.reads(item, cx))
     }
 
-    // @zen-impl: HAR-12_AC-4
+    // sokf-implements: HAR-12_AC-4
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
         extension::parse(ID, event, text, plugin::tool_kind)
     }
 
-    // @zen-impl: HAR-12_AC-4
-    // @zen-impl: AHA-2_AC-3
+    // sokf-implements: HAR-12_AC-4
+    // sokf-implements: AHA-2_AC-3
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
         extension::answer(ID, event, answer)
     }
 
-    // @zen-impl: HAR-12_AC-6
+    // sokf-implements: HAR-12_AC-6
     fn notes(&self, _cx: &Context, parts: &[PartResult]) -> Vec<String> {
         if parts.iter().any(PartResult::changed) {
             vec!["restart Kilo Code to load the changes".into()]
@@ -121,10 +125,10 @@ mod tests {
             .command(Command::new("c", "Checks.", "Check $ARGUMENTS.\n"))
     }
 
-    // @zen-test: HAR-12_AC-1
-    // @zen-test: HAR-12_AC-2
-    // @zen-test: HAR-12_AC-3
-    // @zen-test: HAR-12_AC-5
+    // sokf-tests: HAR-12_AC-1
+    // sokf-tests: HAR-12_AC-2
+    // sokf-tests: HAR-12_AC-3
+    // sokf-tests: HAR-12_AC-5
     #[test]
     fn renders_into_kilos_paths() {
         let names = |scope| -> Vec<String> {
@@ -169,8 +173,8 @@ mod tests {
         assert_eq!(Kilo.scopes(), [Scope::Project, Scope::User]);
     }
 
-    // @zen-test: HAR-12_AC-4
-    // @zen-test: HAR-12_AC-6
+    // sokf-tests: HAR-12_AC-4
+    // sokf-tests: HAR-12_AC-6
     #[test]
     fn hooks_and_notes() {
         let i = Kilo
@@ -190,7 +194,8 @@ mod tests {
             in_place: false,
         };
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
-        assert!(Kilo.notes(&cx, &[part(None)]).is_empty());
+        let notes = Kilo.notes(&cx, &[part(None)]);
+        assert!(notes.is_empty(), "{notes:?}");
         assert_eq!(
             Kilo.notes(&cx, &[part(Some(Action::Created))]),
             ["restart Kilo Code to load the changes"]

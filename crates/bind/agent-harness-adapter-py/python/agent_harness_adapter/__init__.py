@@ -8,7 +8,6 @@ format in every harness, Claude Code's (``parse_hook`` / ``answer_hook`` /
 ``run_hook``). Errors raise ValueError with the library's message.
 """
 
-# @zen-component: BND-Python
 
 import json
 import os
@@ -21,6 +20,8 @@ __all__ = [
     "status",
     "uninstall",
     "edits",
+    "keep_instructions",
+    "follow",
     "parse_hook",
     "answer_hook",
     "run_hook",
@@ -45,16 +46,17 @@ def _source(manifest: Optional[Manifest]):
     return os.fspath(manifest), None
 
 
-def _options(harnesses, scope, root, home, force=False) -> str:
-    def path(p):
-        return None if p is None else os.fspath(p)
+def _path(p):
+    return None if p is None else os.fspath(p)
 
+
+def _options(harnesses, scope, root, home, force=False) -> str:
     return json.dumps(
         {
             "harnesses": list(harnesses or []),
             "scope": scope,
-            "root": path(root),
-            "home": path(home),
+            "root": _path(root),
+            "home": _path(home),
             "force": force if isinstance(force, bool) else list(force),
         }
     )
@@ -101,7 +103,7 @@ def uninstall(
     ``force``; what another installed harness reads stays. Returns the
     result, as ``agent-harness-adapter uninstall --json`` prints it.
     """
-    # @zen-impl: BND-1_AC-4
+    # sokf-implements: BND-1_AC-4
     path, text = _source(manifest)
     return json.loads(_native.uninstall(path, text, _options(harnesses, scope, root, home, force)))
 
@@ -130,9 +132,58 @@ def edits(
     """Each file of a part edited by hand, for ``harnesses`` or the
     installed ones: ``{"harness", "part", "path", "expected", "found"}``,
     the text install would write and the text found."""
-    # @zen-impl: BND-1_AC-5
+    # sokf-implements: BND-1_AC-5
     path, text = _source(manifest)
     return json.loads(_native.edits(path, text, _options(harnesses, scope, root, home)))
+
+
+def keep_instructions(
+    manifest: Optional[Manifest],
+    text: str,
+    *,
+    scope: str = "project",
+    root: PathLike = None,
+    home: PathLike = None,
+) -> Dict[str, Any]:
+    """Write ``text`` as the project's own: plain text right after the
+    tool's block in each file of an installed harness's instructions, once
+    each, or in ``AGENTS.md`` when no file holds the block (project scope
+    only; elsewhere it raises). A file that already has the text there is
+    not written. Returns ``{"report"}``, the report to print as it
+    stands."""
+    # sokf-implements: BND-1_AC-6
+    path, json_text = _source(manifest)
+    return json.loads(_native.keep_instructions(path, json_text, text, _options(None, scope, root, home)))
+
+
+def follow(
+    tool: str,
+    instructions: Optional[str] = None,
+    *,
+    keep: Optional[str] = None,
+    block_order: str = "installed",
+    scope: str = "project",
+    root: PathLike = None,
+    home: PathLike = None,
+) -> Dict[str, Any]:
+    """Hand over the tool's ``instructions`` (``None`` takes its block out
+    of every harness), a text to ``keep`` as the project's own, and whether
+    its block comes ``"last"``; the adapter decides every harness and file.
+    Returns ``{"report", "exit"}``: the report to print as it stands and the
+    command's exit code (0 done, 1 an edited block left, 2 a refusal). It
+    never raises for a refusal."""
+    # sokf-implements: BND-1_AC-7
+    if not isinstance(tool, str):
+        return {"report": "error: give the tool's name as a string\n", "exit": 2}
+    options = {
+        "instructions": instructions,
+        "keep": keep,
+        "block_order": block_order,
+        "scope": scope,
+        "root": _path(root),
+        "home": _path(home),
+    }
+    return json.loads(_native.follow(tool, json.dumps(options)))
 
 
 def parse_hook(harness: str, event: str, text: str) -> Dict[str, Any]:
@@ -151,7 +202,7 @@ def answer_hook(harness: str, event: str, answer: Dict[str, Any]) -> Dict[str, A
 
 
 def run_hook(harness: str, event: str, decide) -> int:
-    # @zen-impl: BND-2_AC-4
+    # sokf-implements: BND-2_AC-4
     """Be a hook command: read the harness's input on stdin, call
     ``decide(input) -> answer`` (Claude Code's answer JSON as a dict, or
     ``None`` to allow), write what the harness expects, and return the exit

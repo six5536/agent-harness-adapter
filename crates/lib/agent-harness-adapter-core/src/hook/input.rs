@@ -8,13 +8,14 @@ use crate::{
     hook::{Event, ToolCall},
 };
 
+// sokf:begin hook-input
 /// What a harness sends a hook command, parsed by that harness into one
 /// shape. Every field is optional; the raw JSON keeps the rest.
 ///
 /// As JSON (the hook contract's input), an absent value is left out:
 /// `continuing` when false and `raw` when null too.
-// @zen-impl: KIT-11_AC-3
-// @zen-impl: AHA-2_AC-1
+// sokf-implements: KIT-11_AC-3
+// sokf-implements: AHA-2_AC-1
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -57,6 +58,7 @@ pub struct HookInput {
     #[serde(skip_serializing_if = "Value::is_null")]
     pub raw: Value,
 }
+// sokf:end hook-input
 
 impl HookInput {
     /// `text` parsed by `harness` for `event`. Input that is not JSON is an

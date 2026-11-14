@@ -5,7 +5,7 @@ use serde_json::Value;
 /// Entries the tool owns in a JSON or TOML file, built by
 /// [`MergeOp::array_entry`], [`MergeOp::object_member`],
 /// [`MergeOp::owned_entries`] or [`MergeOp::group_entries`].
-// @zen-impl: KIT-2_AC-3
+// sokf-implements: KIT-2_AC-3
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MergeOp(pub(crate) Op);
 
@@ -35,6 +35,7 @@ pub(crate) enum Op {
     },
 }
 
+// sokf:begin entry-match
 /// Which entries are the tool's: those whose owning field matches. See
 /// [`MergeOp::owned_entries`] and [`MergeOp::group_entries`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,6 +49,7 @@ pub enum EntryMatch {
     /// Any of these matches.
     Any(Vec<EntryMatch>),
 }
+// sokf:end entry-match
 
 impl EntryMatch {
     /// Whether `text` matches.

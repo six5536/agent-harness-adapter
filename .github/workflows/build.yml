@@ -1,0 +1,69 @@
+name: Build
+
+on:
+  workflow_call:
+    secrets:
+      PRIVATE_REPO_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS: bash -c
+
+jobs:
+  list:
+    name: list the builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      jobs: ${{ steps.jobs.outputs.jobs }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Restore the tools
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.tools
+          key: tools-${{ runner.os }}
+      - uses: ./.github/actions/setup-tools
+        with:
+          tools: node
+      - id: jobs
+        shell: bash
+        env:
+          MISE_TASK_RUN_AUTO_INSTALL: "false"
+        run: |
+          jobs=$(mise run -q ci:matrix:build)
+          echo "jobs=$jobs" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.task }}
+    needs: list
+    if: needs.list.outputs.jobs != '[]'
+    strategy:
+      fail-fast: ${{ vars.CI_NO_FAIL_FAST != 'true' }}
+      matrix:
+        include: ${{ fromJSON(needs.list.outputs.jobs) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      TASK: ${{ matrix.task }}
+      PRIVATE_REPO_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - run: mise run -q setup:ci
+      - run: mise run "$TASK"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/
+          if-no-files-found: error

@@ -1,5 +1,7 @@
 [workspace]
 resolver = "3"
+# An explicit list, because a glob takes any folder under crates/, such as one
+# that a branch left behind, for a crate.
 members = [
   "crates/lib/agent-harness-adapter-core",
   "crates/app/agent-harness-adapter",
@@ -9,29 +11,92 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.1"
+version = "0.4.0"
 authors = ["six5536 <10079653+six5536@users.noreply.github.com>"]
 edition = "2024"
+# The oldest toolchain that the published crates support, which the task
+# release:check:msrv checks. It stays below the pack's toolchain, because the
+# library's users build it with their own.
 rust-version = "1.85"
 license = "MIT"
 repository = "https://github.com/six5536/agent-harness-adapter"
 homepage = "https://six5536.github.io/agent-harness-adapter/"
 
 [workspace.dependencies]
-agent-harness-adapter-core = { version = "0.3.1", path = "crates/lib/agent-harness-adapter-core" }
+# External dependencies (alphabetical)
 clap = { version = "4.6", features = ["derive"] }
 dialoguer = { version = "0.12", default-features = false }
-similar = "3.2"
+napi = { version = "3", default-features = false, features = ["napi4"] }
+napi-build = "2"
+napi-derive = "3"
+pyo3 = { version = "0.29", features = ["abi3-py39"] }
+pyo3-build-config = "0.29"
 regex = { version = "1.13", default-features = false, features = ["std", "unicode-perl"] }
+schemars = "1.2"
 serde = { version = "1", features = ["derive", "std"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
+similar = "3.2"
 toml_edit = { version = "0.25", features = ["serde"] }
-schemars = "1.2"
+
+# Development dependencies
 assert_cmd = "2"
 insta = "1.47"
 proptest = "1.11"
-pyo3 = { version = "0.29", features = ["abi3-py39"] }
-pyo3-build-config = "0.29"
-napi = { version = "3", default-features = false, features = ["napi4"] }
-napi-derive = "3"
-napi-build = "2"
+
+# Internal crates
+agent-harness-adapter-bind = { path = "crates/bind/agent-harness-adapter-bind", version = "0.4.0" }
+agent-harness-adapter-core = { path = "crates/lib/agent-harness-adapter-core", version = "0.4.0" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+# cargo-llvm-cov sets the `coverage_nightly` cfg in the task coverage:report:rust,
+# which runs on nightly. Declare it as expected, so that no toolchain warns that
+# it is unknown.
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(coverage_nightly)"] }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+struct_excessive_bools = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+similar_names = "allow"
+
+# Optimise release builds for size
+[profile.release]
+opt-level = "z" # optimise for size rather than speed
+strip = true # strip the debug information and symbols
+lto = true # optimise at link time across all the crates
+# No `panic = "abort"`: the Python and Node bindings turn a panic into an
+# exception of their language, which needs the panic to unwind.
+codegen-units = 1 # build one code generation unit, so the compiler can optimise across the whole crate
+
+# The bindings' own crates optimise for speed, because a tool calls them in
+# its own process, where the command's size matters to no one. Cargo sets LTO
+# for the whole profile, not for one package, so the bindings keep it, and it
+# lets the compiler inline the shared library across the crates. The core
+# library keeps the size profile, because the command links it too.
+[profile.release.package.agent-harness-adapter-bind]
+opt-level = 3
+
+[profile.release.package.agent-harness-adapter-node]
+opt-level = 3
+
+[profile.release.package.agent-harness-adapter-py]
+opt-level = 3
+
+[profile.test]
+opt-level = 0
+debug = 0
+split-debuginfo = "unpacked" # on macOS, the linker skips dsymutil, which makes linking faster
+
+# Optimise the dependencies of the tests, but not the workspace crates.
+# The tests and property tests call the dependencies, such as the parsers and
+# the regular expression engine, hundreds of times, so the dependencies build at
+# opt-level 2 instead of 0. Cargo builds them only once, and after a change to a
+# workspace crate it rebuilds only that crate, which stays quick because it is
+# not optimised.
+[profile.test.package."*"]
+opt-level = 2

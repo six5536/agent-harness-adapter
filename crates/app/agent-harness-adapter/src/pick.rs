@@ -1,6 +1,5 @@
 //! Which harnesses a command acts on (AHA-8): `--harness`, else the ones
 //! installed, else a question, only when there is a terminal to ask in.
-// @zen-component: AHA-Pick
 
 use std::{
     io::IsTerminal,
@@ -11,6 +10,7 @@ use agent_harness_adapter_core::{Scope, Tool, harness::expand, installed};
 
 use crate::error::{Error, Result};
 
+// sokf:begin choice
 /// Where the harnesses came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Choice {
@@ -21,6 +21,7 @@ pub enum Choice {
     /// The user's pick.
     Picked(Vec<String>),
 }
+// sokf:end choice
 
 impl Choice {
     /// The harness ids.
@@ -38,9 +39,9 @@ pub fn interactive() -> bool {
 
 /// The harnesses for `install`: `given` expanded; else the installed ones;
 /// else, when `interactive`, the user's pick; else a refusal.
-// @zen-impl: AHA-8_AC-2
-// @zen-impl: AHA-8_AC-3
-// @zen-impl: AHA-8_AC-5
+// sokf-implements: AHA-8_AC-2
+// sokf-implements: AHA-8_AC-3
+// sokf-implements: AHA-8_AC-5
 pub fn choose<T: Tool + ?Sized>(
     given: &[String],
     tool: &T,
@@ -176,9 +177,9 @@ mod tests {
         ManifestTool::new(m, dir, dir.join("home"))
     }
 
-    // @zen-test: AHA-8_AC-2
-    // @zen-test: AHA-8_AC-3
-    // @zen-test: AHA-8_AC-5
+    // sokf-tests: AHA-8_AC-2
+    // sokf-tests: AHA-8_AC-3
+    // sokf-tests: AHA-8_AC-5
     #[test]
     fn harnesses_come_from_the_flag_the_record_or_a_question() {
         let dir = std::env::temp_dir().join(format!("aha-pick-choose-{}", std::process::id()));

@@ -10,6 +10,7 @@ use crate::{
     install::{Common, load},
 };
 
+// sokf:begin args
 /// `agent-harness-adapter diff`.
 #[derive(Debug, Args)]
 pub struct DiffArgs {
@@ -19,8 +20,9 @@ pub struct DiffArgs {
     #[arg(long, value_name = "IDS", value_delimiter = ',')]
     pub harness: Vec<String>,
 }
+// sokf:end args
 
-// @zen-impl: AHA-3_AC-7
+// sokf-implements: AHA-3_AC-7
 pub fn run(args: &DiffArgs) -> Result<u8> {
     let loaded = load(&args.common, None)?;
     let tool = &loaded.tool;

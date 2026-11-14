@@ -7,7 +7,6 @@
 //! <https://docs.factory.com/cli/configuration/skills>,
 //! <https://docs.factory.com/cli/configuration/custom-slash-commands> and
 //! <https://docs.factory.com/harness/subagents> (checked 2026-10-06).
-// @zen-component: HAR-Factory
 
 use serde_json::{Value, json};
 
@@ -20,7 +19,7 @@ use crate::{
     fs::read_text,
     harness::{Context, Harness, Part, Reads, Scope},
     hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
-    integration::{Integration, Item, McpServer, Transport},
+    integration::{Command, Integration, Item, McpServer, Transport},
 };
 
 /// Factory Droid (`factory`).
@@ -32,6 +31,10 @@ const HOOKS_FILE: &str = ".factory/hooks.json";
 const SETTINGS: &str = ".factory/settings.json";
 
 /// Droid's name for `event`: Claude Code's names.
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "`GroupHooks::event` takes this shape, as some harnesses lack an event"
+)]
 fn event_name(event: Event) -> Option<&'static str> {
     Some(match event {
         Event::SessionStart => "SessionStart",
@@ -67,7 +70,7 @@ fn tool_kind(name: &str) -> ToolKind {
 /// Where hooks go: `.factory/hooks.json` (events at the top) unless it is
 /// absent and the settings file already holds a `hooks` key, which Droid
 /// then reads instead.
-// @zen-impl: HAR-3_AC-3
+// sokf-implements: HAR-3_AC-3
 fn hooks_in_settings(cx: &Context) -> Result<bool> {
     if cx.is_file(HOOKS_FILE) {
         return Ok(false);
@@ -94,7 +97,7 @@ const UNDER_HOOKS: GroupHooks = GroupHooks {
 };
 
 /// An MCP server with Droid's `type`.
-// @zen-impl: HAR-3_AC-5
+// sokf-implements: HAR-3_AC-5
 fn mcp_entry(s: &McpServer) -> Value {
     let mut v = json!({
         "type": match s.transport() {
@@ -126,7 +129,7 @@ fn location(item: Item, cx: &Context) -> Result<Option<&'static str>> {
 }
 
 /// Claude Code's name for one of its tools (HAR-15_AC-2).
-// @zen-impl: HAR-15_AC-2
+// sokf-implements: HAR-15_AC-2
 fn claude_name(name: &str) -> Option<&'static str> {
     match name {
         "Execute" => Some("Bash"),
@@ -145,7 +148,7 @@ impl Harness for Factory {
         ID
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("droid")
     }
@@ -154,14 +157,19 @@ impl Harness for Factory {
         claude_names::named(call, claude_name(&call.name))
     }
 
-    // @zen-impl: HAR-3_AC-1
+    // sokf-implements: HAR-3_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User]
     }
 
-    // @zen-impl: HAR-3_AC-2
-    // @zen-impl: HAR-3_AC-4
-    // @zen-impl: HAR-3_AC-6
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &[".factory"], &[".factory"])
+    }
+
+    // sokf-implements: HAR-3_AC-2
+    // sokf-implements: HAR-3_AC-4
+    // sokf-implements: HAR-3_AC-6
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
         let mut out = Vec::new();
         for item in integration.items() {
@@ -181,7 +189,7 @@ impl Harness for Factory {
                 Item::Agents => parts::agents(at, ".md", integration, |a| {
                     a.to_markdown(&[("model", "inherit")])
                 }),
-                Item::Commands => parts::commands(at, ".md", integration, |c| c.to_markdown()),
+                Item::Commands => parts::commands(at, ".md", integration, Command::to_markdown),
                 _ => continue,
             });
         }
@@ -236,12 +244,12 @@ mod tests {
             .collect()
     }
 
-    // @zen-test: HAR-3_AC-1
-    // @zen-test: HAR-3_AC-2
-    // @zen-test: HAR-3_AC-3
-    // @zen-test: HAR-3_AC-4
-    // @zen-test: HAR-3_AC-5
-    // @zen-test: HAR-3_AC-6
+    // sokf-tests: HAR-3_AC-1
+    // sokf-tests: HAR-3_AC-2
+    // sokf-tests: HAR-3_AC-3
+    // sokf-tests: HAR-3_AC-4
+    // sokf-tests: HAR-3_AC-5
+    // sokf-tests: HAR-3_AC-6
     #[test]
     fn renders_every_item_it_takes() {
         let dir = temp_dir("factory");

@@ -1,7 +1,6 @@
 //! `edits`: how each edited part differs from the tool's content, as the
 //! text `install` would write and the text found, for a consumer to show as
 //! a patch.
-// @zen-component: KIT-Edits
 
 use serde::Serialize;
 use serde_json::Value;
@@ -16,6 +15,7 @@ use crate::{
     hash::normalise,
 };
 
+// sokf:begin edit
 /// One file of an edited part: the text `install` would write, and the text
 /// found.
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -34,10 +34,11 @@ pub struct Edit {
     /// The text found; empty for a file of the part that is missing.
     pub found: String,
 }
+// sokf:end edit
 
 /// The edits of the parts of `harnesses` at `scope` whose state is edited,
 /// per file, in the order `status` reports the parts. Writes nothing.
-// @zen-impl: KIT-25_AC-1
+// sokf-implements: KIT-25_AC-1
 pub fn edits<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
     tool: &T,
     harnesses: I,
@@ -76,7 +77,7 @@ pub fn edits<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
 }
 
 /// Each file's path, expected text and found text for a part at `path`.
-// @zen-impl: KIT-25_AC-2
+// sokf-implements: KIT-25_AC-2
 fn texts(path: &str, want: Found, have: Option<Found>) -> Vec<(String, String, String)> {
     match (want, have) {
         (Found::Files(want), have) => {
@@ -94,7 +95,9 @@ fn texts(path: &str, want: Found, have: Option<Found>) -> Vec<(String, String, S
                 .map(|(rel, t)| (format!("{path}/{rel}"), t, text(&rel)))
                 .collect()
         }
-        (Found::Block(want), have) => vec![(path.to_string(), want, block(have))],
+        (Found::Block(want) | Found::Text(want), have) => {
+            vec![(path.to_string(), want, block(have))]
+        }
         (Found::Entries(want), have) => {
             let have = match have {
                 Some(Found::Entries(e)) => e,
@@ -102,7 +105,6 @@ fn texts(path: &str, want: Found, have: Option<Found>) -> Vec<(String, String, S
             };
             vec![(path.to_string(), pretty(want), pretty(have))]
         }
-        (Found::Text(want), have) => vec![(path.to_string(), want, block(have))],
     }
 }
 
@@ -126,7 +128,7 @@ mod tests {
 
     use super::*;
 
-    // @zen-test: KIT-25_AC-2
+    // sokf-tests: KIT-25_AC-2
     #[test]
     fn each_kind_gives_its_texts() {
         let files = texts(

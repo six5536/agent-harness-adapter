@@ -1,4 +1,4 @@
-// Runs the site's examples (PLAN-016 N2): each form installs mytool into a
+// Runs the site's examples: each form installs mytool into a
 // temporary project, then the hooks it installed for Claude Code and Codex
 // must refuse `rm -rf` and allow `ls`.
 //
@@ -16,7 +16,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const nodePackage = path.resolve(here, "../../packages/agent-harness-adapter-node");
+const nodePackage = path.resolve(here, "../../bindings/packages/agent-harness-adapter-node");
 const need = (name) => {
   const v = process.env[name];
   if (!v) throw new Error(`${name} is not set`);

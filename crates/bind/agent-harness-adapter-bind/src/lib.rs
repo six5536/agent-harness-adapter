@@ -1,15 +1,15 @@
-//! The JSON glue the language bindings share (REQ-BND): manifests in,
+//! The JSON glue the language bindings share: manifests in,
 //! results out, the hook contract, the schemas. Errors are the library's
 //! messages, for the binding to raise.
-// @zen-component: BND-Glue
 
 use std::path::PathBuf;
 
 use agent_harness_adapter_core::{
-    InstallOptions, InstallResult, Scope, UninstallOptions, fs,
+    BlockOrder, InstallOptions, InstallResult, Request, Scope, UninstallOptions, cli,
+    follow as kit_follow, fs,
     harness::{
-        self, edits as kit_edits, expand, install as kit_install, installed, status as kit_status,
-        uninstall as kit_uninstall,
+        self, edits as kit_edits, expand, install as kit_install, installed,
+        keep_instructions as kit_keep, status as kit_status, uninstall as kit_uninstall,
     },
     hook::{Answer, Event, HookInput, wire},
     manifest::{self, Manifest, ManifestTool, find_config},
@@ -21,6 +21,7 @@ use serde_json::json;
 /// The manifest format's version the bindings read.
 pub const MANIFEST_VERSION: u64 = manifest::VERSION;
 
+// sokf:begin source-options
 /// Where a manifest comes from.
 #[derive(Debug, Clone)]
 pub enum Source {
@@ -65,6 +66,7 @@ impl Default for ForceOption {
         ForceOption::Switch(false)
     }
 }
+// sokf:end source-options
 
 impl Options {
     /// `text` (a JSON object) as options.
@@ -85,7 +87,7 @@ fn msg(e: impl std::fmt::Display) -> String {
 }
 
 /// The manifest as a tool, and the scope.
-// @zen-impl: BND-1_AC-1
+// sokf-implements: BND-1_AC-1
 fn tool(source: Source, o: &Options) -> Result<(ManifestTool, Scope)> {
     let cwd = std::env::current_dir().map_err(msg)?;
     let scope: Scope = o
@@ -124,8 +126,8 @@ fn to_json(result: &InstallResult) -> Result<Value> {
 }
 
 /// Install `source`'s integration for `options.harnesses`.
-// @zen-impl: BND-1_AC-1
-// @zen-impl: BND-1_AC-3
+// sokf-implements: BND-1_AC-1
+// sokf-implements: BND-1_AC-3
 pub fn install(source: Source, options: &Options) -> Result<Value> {
     let (tool, scope) = tool(source, options)?;
     let opts = InstallOptions::new(expand(&tool, &options.harnesses, scope), scope);
@@ -138,7 +140,7 @@ pub fn install(source: Source, options: &Options) -> Result<Value> {
 
 /// Take `source`'s integration out of `options.harnesses` (`all`: the
 /// installed ones).
-// @zen-impl: BND-1_AC-4
+// sokf-implements: BND-1_AC-4
 pub fn uninstall(source: Source, options: &Options) -> Result<Value> {
     let (tool, scope) = tool(source, options)?;
     let ForceOption::Switch(force) = options.force else {
@@ -150,7 +152,7 @@ pub fn uninstall(source: Source, options: &Options) -> Result<Value> {
 
 /// The state of `options.harnesses`, or of the installed ones when none
 /// is named.
-// @zen-impl: BND-1_AC-2
+// sokf-implements: BND-1_AC-2
 pub fn status(source: Source, options: &Options) -> Result<Value> {
     let (tool, scope) = tool(source, options)?;
     let ids = if options.harnesses.is_empty() {
@@ -163,7 +165,7 @@ pub fn status(source: Source, options: &Options) -> Result<Value> {
 
 /// The edits of `options.harnesses`, or of the installed ones when none is
 /// named: each edited file's text `install` would write and the text found.
-// @zen-impl: BND-1_AC-5
+// sokf-implements: BND-1_AC-5
 pub fn edits(source: Source, options: &Options) -> Result<Value> {
     let (tool, scope) = tool(source, options)?;
     let ids = if options.harnesses.is_empty() {
@@ -172,6 +174,78 @@ pub fn edits(source: Source, options: &Options) -> Result<Value> {
         expand(&tool, &options.harnesses, scope)
     };
     serde_json::to_value(kit_edits(&tool, ids, scope).map_err(msg)?).map_err(msg)
+}
+
+/// Write `text` as the project's own beside the tool's block in each file of
+/// an installed harness's instructions (KIT-27): `{report}`, the report the
+/// tool prints as it stands.
+/// It takes the installed harnesses, so `harnesses` and `force` are refused.
+// sokf-implements: BND-1_AC-6
+pub fn keep_instructions(source: Source, text: &str, options: &Options) -> Result<Value> {
+    if !options.harnesses.is_empty() {
+        return Err(
+            "options: keep_instructions takes the installed harnesses: give no `harnesses`".into(),
+        );
+    }
+    if !matches!(&options.force, ForceOption::Switch(false))
+        && options.force != ForceOption::Parts(vec![])
+    {
+        return Err("options: keep_instructions takes no `force`".into());
+    }
+    let (tool, scope) = tool(source, options)?;
+    let kept = kit_keep(&tool, text, scope).map_err(msg)?;
+    Ok(json!({ "report": kept.to_text() }))
+}
+
+/// The options of [`follow`], as the bindings pass them.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct FollowOptions {
+    /// The tool's instructions; none takes its block out.
+    pub instructions: Option<String>,
+    /// A text the project keeps as its own beside the block.
+    pub keep: Option<String>,
+    /// `installed` (default) or `last`.
+    pub block_order: Option<BlockOrder>,
+    /// `project` (default), `user` or `local`.
+    pub scope: Option<String>,
+    /// The project directory (default: the nearest CONFIG's project above
+    /// the working directory, else the git repository's root, else the
+    /// working directory).
+    pub root: Option<PathBuf>,
+    /// The home directory (default: `HOME`, else `USERPROFILE`).
+    pub home: Option<PathBuf>,
+}
+
+/// The library's `follow` (KIT-28): `{report, exit}`; a refusal, or options
+/// that do not parse, is a report and exit 2, never an error.
+// sokf-implements: BND-1_AC-7
+pub fn follow(tool: &str, options: &str) -> Value {
+    let refused =
+        |e: String| json!({ "report": format!("error: {e}\n"), "exit": cli::EXIT_FAILURE });
+    let o: FollowOptions = match serde_json::from_str(options) {
+        Ok(o) => o,
+        Err(e) => return refused(format!("options: {e}")),
+    };
+    let scope: Scope = match o.scope.as_deref().unwrap_or("project").parse() {
+        Ok(s) => s,
+        Err(e) => return refused(msg(e)),
+    };
+    let mut r = Request::new(tool, scope).block_order(o.block_order.unwrap_or_default());
+    if let Some(t) = o.instructions {
+        r = r.instructions(t);
+    }
+    if let Some(k) = o.keep {
+        r = r.keep(k);
+    }
+    if let Some(d) = o.root {
+        r = r.root(d);
+    }
+    if let Some(d) = o.home {
+        r = r.home(d);
+    }
+    let out = kit_follow(&r);
+    json!({ "report": out.report, "exit": out.exit })
 }
 
 fn harness_event(
@@ -184,7 +258,7 @@ fn harness_event(
 }
 
 /// The hook contract's input for `harness`'s input `text` at `event`.
-// @zen-impl: BND-2_AC-1
+// sokf-implements: BND-2_AC-1
 pub fn parse_hook(harness: &str, event: &str, text: &str) -> Result<Value> {
     let (h, e) = harness_event(harness, event)?;
     let input = HookInput::parse(h.as_ref(), e, text)
@@ -192,11 +266,12 @@ pub fn parse_hook(harness: &str, event: &str, text: &str) -> Result<Value> {
     Ok(wire::input_json(h.as_ref(), &input))
 }
 
+// sokf:begin answer-hook
 /// What a hook command writes for `answer` (Claude Code's answer JSON, as
 /// text, read as exit 0): `{stdout, stderr, exit}`. Claude Code gets it as
 /// it is; another harness its own form, with a note for what it cannot say.
-// @zen-impl: BND-2_AC-2
-// @zen-impl: BND-2_AC-3
+// sokf-implements: BND-2_AC-2
+// sokf-implements: BND-2_AC-3
 pub fn answer_hook(harness: &str, event: &str, answer: &str) -> Result<Value> {
     let (h, e) = harness_event(harness, event)?;
     let value: Value = serde_json::from_str(answer).map_err(|e| format!("hook answer: {e}"))?;
@@ -228,10 +303,11 @@ pub fn answer_hook(harness: &str, event: &str, answer: &str) -> Result<Value> {
         "exit": out.exit,
     }))
 }
+// sokf:end answer-hook
 
 /// The JSON Schema of `contract`.
-// @zen-impl: BND-3_AC-1
-// @zen-impl: BND-3_AC-2
+// sokf-implements: BND-3_AC-1
+// sokf-implements: BND-3_AC-2
 pub fn schema(contract: &str) -> Result<Value> {
     Ok(match contract {
         "manifest" => Manifest::schema(),

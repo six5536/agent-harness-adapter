@@ -11,8 +11,9 @@ use crate::{
     integration::Integration,
 };
 
+// sokf:begin scope
 /// Where a harness integration is installed.
-// @zen-impl: KIT-21_AC-1
+// sokf-implements: KIT-21_AC-1
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -28,6 +29,7 @@ pub enum Scope {
     /// `.claude/settings.local.json`), under the project root.
     Local,
 }
+// sokf:end scope
 
 impl Scope {
     /// The scope's name, as `--scope` takes it.
@@ -61,12 +63,25 @@ impl FromStr for Scope {
     }
 }
 
+/// Whether `name` can name a tool: letters, digits, `-`, `_` and `.`, not
+/// only dots, since it names the directory `.<name>` of its record.
+pub(crate) fn is_tool_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.chars().all(|c| c == '.')
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+}
+
+// sokf:begin tool
 /// A CLI that plugs into agent harnesses. [`install`](crate::harness::install)
 /// and [`status`](crate::harness::status) are generic over it.
-// @zen-impl: KIT-1_AC-1
+// sokf-implements: KIT-1_AC-1
 pub trait Tool {
     /// The tool's name, e.g. `mytool`: the region markers are
-    /// `<!-- mytool:harness -->` and `<!-- /mytool:harness -->`.
+    /// `<!-- mytool:harness -->` and `<!-- /mytool:harness -->`, the opening
+    /// one `<!-- mytool:harness last -->` when the integration's blocks come
+    /// last ([`BlockOrder::Last`](crate::BlockOrder::Last)).
     fn name(&self) -> &str;
 
     /// The harnesses the tool supports, in the order it prefers them: the
@@ -93,6 +108,7 @@ pub trait Tool {
         format!("# Written by {} harness install. Do not edit.", self.name())
     }
 }
+// sokf:end tool
 
 #[cfg(test)]
 mod tests {

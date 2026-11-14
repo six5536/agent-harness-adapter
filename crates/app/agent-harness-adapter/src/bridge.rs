@@ -2,7 +2,6 @@
 //! speaks the hook contract (AHA-2), Claude Code's protocol: Claude Code's
 //! input on stdin, its answer as exit code, stdout and stderr. With
 //! `--hooks`, the hooks file's entries are dispatched instead (dispatch.rs).
-// @zen-component: AHA-Bridge
 
 use std::{
     ffi::{OsStr, OsString},
@@ -24,6 +23,7 @@ use serde_json::Value;
 
 use crate::dispatch;
 
+// sokf:begin args
 /// `agent-harness-adapter hook`.
 #[derive(Debug, Args)]
 pub struct HookArgs {
@@ -47,6 +47,7 @@ pub struct HookArgs {
     #[arg(last = true, required_unless_present = "hooks", value_name = "COMMAND")]
     pub command: Vec<OsString>,
 }
+// sokf:end args
 
 /// Bridge or dispatch one hook run: the process's stdin to the command(s)
 /// and the answer back through the harness. Returns the exit code.
@@ -67,7 +68,7 @@ pub fn run(args: &HookArgs) -> io::Result<u8> {
 
 /// The harness and event named, or `error:` on stderr when either is
 /// unknown.
-// @zen-impl: AHA-4_AC-4
+// sokf-implements: AHA-4_AC-4
 fn target(
     args: &HookArgs,
     stderr: &mut impl Write,
@@ -85,7 +86,7 @@ fn target(
     }
 }
 
-// @zen-impl: AHA-4_AC-1
+// sokf-implements: AHA-4_AC-1
 fn bridge(
     args: &HookArgs,
     h: &dyn Harness,
@@ -157,7 +158,7 @@ pub(crate) fn read(event: Event, tool: &str, ran: &Ran) -> wire::Reply {
 }
 
 /// The command's output as it wrote it, for Claude Code (AHA-2_AC-5).
-// @zen-impl: AHA-2_AC-5
+// sokf-implements: AHA-2_AC-5
 pub(crate) fn pass_through(
     ran: &Ran,
     stdout: &mut impl Write,
@@ -171,7 +172,7 @@ pub(crate) fn pass_through(
 
 /// `answer` emitted through the harness; one it cannot express for the
 /// event is left out, with a note, and allows (AHA-2_AC-4).
-// @zen-impl: AHA-2_AC-4
+// sokf-implements: AHA-2_AC-4
 pub(crate) fn answer(
     h: &dyn Harness,
     event: Event,
@@ -201,7 +202,7 @@ pub(crate) fn answer(
 }
 
 /// Whether `input` is a tool call of another kind than `tools`.
-// @zen-impl: AHA-4_AC-5
+// sokf-implements: AHA-4_AC-5
 fn other_kind(tools: Option<ToolKind>, input: &HookInput) -> bool {
     matches!((tools, &input.tool), (Some(k), Some(t)) if t.kind != k)
 }
@@ -213,11 +214,12 @@ fn parse_kind(s: &str) -> Result<ToolKind, String> {
 }
 
 /// The harness's input; with only `harness` and `event` when it is not JSON.
-// @zen-impl: AHA-4_AC-3
+// sokf-implements: AHA-4_AC-3
 pub(crate) fn parse(h: &dyn Harness, event: Event, text: &str) -> HookInput {
     HookInput::parse(h, event, text).unwrap_or_else(|_| HookInput::new(h.id(), event, Value::Null))
 }
 
+// sokf:begin ran
 /// What a command did: its exit code (1 when killed) and its output.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Ran {
@@ -225,9 +227,10 @@ pub(crate) struct Ran {
     pub stdout: String,
     pub stderr: String,
 }
+// sokf:end ran
 
 /// Run `cmd` with `input` on its stdin; past `timeout`, kill it.
-// @zen-impl: AHA-4_AC-2
+// sokf-implements: AHA-4_AC-2
 pub(crate) fn run_child(
     cmd: &mut Command,
     input: &str,

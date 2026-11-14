@@ -20,13 +20,13 @@ pub(crate) struct Fnv(u64);
 
 impl Fnv {
     pub(crate) fn new() -> Self {
-        Fnv(0xcbf2_9ce4_8422_2325)
+        Fnv(0xCBF2_9CE4_8422_2325)
     }
 
     pub(crate) fn update(&mut self, bytes: &[u8]) {
         for b in bytes {
             self.0 ^= u64::from(*b);
-            self.0 = self.0.wrapping_mul(0x0000_0100_0000_01b3);
+            self.0 = self.0.wrapping_mul(0x0000_0100_0000_01B3);
         }
     }
 

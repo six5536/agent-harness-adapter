@@ -1,0 +1,53 @@
+# mise 2026.11.0 added the lock of a task, and an older mise runs the task without it.
+min_version = "2026.11.0"
+
+[tools]
+zig = { version = "0.17.1", os = ["linux", "macos"] }
+"cargo:cargo-zigbuild" = { version = "0.24.1", os = ["linux", "macos"] }
+
+[tasks."test:fast:launcher"]
+hide = true
+run = "node --test packages/cli/test/*.test.js"
+
+[tasks."coverage:check:launcher"]
+hide = true
+depends = ["test:fast:launcher"]
+
+[tasks."version:set:launcher"]
+hide = true
+# The version tasks of typescript and rust-cli-npm both rewrite the root lock file.
+lock = "package-lock.json"
+usage = 'arg "<version>"'
+run = 'node .config/mise/scripts/launcher-version.mts set "${usage_version?}"'
+
+[tasks."version:list:launcher"]
+hide = true
+run = "node .config/mise/scripts/launcher-version.mts list"
+
+[tasks."test:smoke:launcher"]
+hide = true
+run = "node .config/mise/scripts/launcher-smoke.mts"
+
+[tasks."publish:launcher"]
+hide = true
+run = "node .config/mise/scripts/launcher-publish.mts"
+
+[tasks."build:release:ubuntu:linux-x64"]
+hide = true
+run = "node .config/mise/scripts/launcher-build.mts x86_64-unknown-linux-musl linux-x64"
+
+[tasks."build:release:ubuntu:linux-arm64"]
+hide = true
+run = "node .config/mise/scripts/launcher-build.mts aarch64-unknown-linux-musl linux-arm64"
+
+[tasks."build:release:macos:darwin-x64"]
+hide = true
+run = "node .config/mise/scripts/launcher-build.mts x86_64-apple-darwin darwin-x64"
+
+[tasks."build:release:macos:darwin-arm64"]
+hide = true
+run = "node .config/mise/scripts/launcher-build.mts aarch64-apple-darwin darwin-arm64"
+
+[tasks."build:release:windows:win32-x64"]
+hide = true
+run = "node .config/mise/scripts/launcher-build.mts x86_64-pc-windows-msvc win32-x64"

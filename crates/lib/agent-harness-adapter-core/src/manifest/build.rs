@@ -30,7 +30,7 @@ impl Ctx<'_> {
         Error::file(self.display, format!("`{key}`: {message}"))
     }
 
-    // @zen-impl: AHA-1_AC-5
+    // sokf-implements: AHA-1_AC-5
     fn text(&self, key: &str, text: &Text) -> Result<String> {
         match text {
             Text::Inline(s) => Ok(s.clone()),
@@ -80,10 +80,10 @@ impl Ctx<'_> {
     }
 
     /// The integration of `items`.
-    // @zen-impl: AHA-1_AC-4
+    // sokf-implements: AHA-1_AC-4
     pub fn integration(&self, items: Items<'_>) -> Result<Integration> {
         let mut i = Integration::new().adapter(self.adapter);
-        // @zen-impl: AHA-1_AC-11
+        // sokf-implements: AHA-1_AC-11
         match items.instructions {
             Some(Text::From(f)) => {
                 i = i
@@ -95,6 +95,9 @@ impl Ctx<'_> {
         }
         if let Some(m) = items.hook_match {
             i = i.hook_match(entry_match(m));
+        }
+        if let Some(o) = items.block_order {
+            i = i.block_order(*o);
         }
         i = self.many(
             "skills",
@@ -144,7 +147,7 @@ impl Ctx<'_> {
         Ok(i)
     }
 
-    // @zen-impl: AHA-1_AC-10
+    // sokf-implements: AHA-1_AC-10
     fn skill(&self, key: &str, s: &SkillFile) -> Result<Skill> {
         match (&s.dir, &s.name, &s.description, &s.body) {
             (Some(dir), None, None, None) if s.files.is_none() => {
@@ -165,7 +168,7 @@ impl Ctx<'_> {
         }
     }
 
-    // @zen-impl: AHA-1_AC-8
+    // sokf-implements: AHA-1_AC-8
     fn hook(&self, key: &str, h: &HookFile) -> Result<Hook> {
         let template = match (&h.command, &h.run) {
             (Some(c), None) => c.clone(),

@@ -145,7 +145,7 @@ fn remove_toml(table: &mut toml_edit::Table, path: &[String], key: &str) {
 /// The file with `ops` taken out of `existing`: `None` when nothing
 /// changes, an empty string when the file is left empty. `file` picks the
 /// format and names the file in a refusal.
-// @zen-impl: KIT-22_AC-1
+// sokf-implements: KIT-22_AC-1
 pub(crate) fn render_unmerge(
     file: &str,
     existing: &str,

@@ -2,9 +2,9 @@
 //! file's matching entries (Claude Code's format) run at hook time, each
 //! through the shell with the hook contract's input, their answers combined
 //! and given back in the harness's form (AHA-4.1).
-// @zen-component: AHA-Dispatch
 
 use std::{
+    fmt::Write as _,
     io::{self, Write},
     path::{Path, PathBuf},
     process::Command,
@@ -33,8 +33,8 @@ const DISPATCHING: &str = "AGENT_HARNESS_ADAPTER_DISPATCHING";
 
 /// Dispatch one hook: `hooks` is the `--hooks` path, `text` the harness's
 /// input.
-// @zen-impl: AHA-4.1_AC-1
-// @zen-impl: AHA-4.1_AC-6
+// sokf-implements: AHA-10_AC-1
+// sokf-implements: AHA-10_AC-6
 pub fn dispatch(
     hooks: &str,
     h: &dyn Harness,
@@ -54,7 +54,7 @@ pub fn dispatch(
     let allow = |why: String| Answer::Allow {
         stderr: Some(format!("{ME}: {why}\n")),
     };
-    // @zen-impl: AHA-4.1_AC-7
+    // sokf-implements: AHA-10_AC-7
     if std::env::var_os(DISPATCHING).is_some() {
         let a = allow(format!("{hooks} is not dispatched from inside a dispatch"));
         return bridge::answer(h, event, ME, a, stdout, stderr);
@@ -71,7 +71,7 @@ pub fn dispatch(
         Ok(None) => HooksFile::default(),
         Err(e) => return bridge::answer(h, event, ME, allow(e.to_string()), stdout, stderr),
     };
-    // @zen-impl: AHA-4.1_AC-8
+    // sokf-implements: AHA-10_AC-8
     // Named by the harness that parsed the input (the Cursor CLI runs
     // Claude Code's hooks with its own).
     let parser = agent_harness_adapter_core::harness::find(&input.harness);
@@ -93,7 +93,7 @@ pub fn dispatch(
     let json = bridge::stdin_text(h, &input);
     let run = |e: &Entry| run_entry(e, &json, &cwd, &project);
     if h.id() == "claude" && entries.len() == 1 {
-        // @zen-impl: AHA-4.1_AC-4
+        // sokf-implements: AHA-10_AC-4
         return match run(entries[0]) {
             Ok(ran) => bridge::pass_through(&ran, stdout, stderr),
             Err(why) => {
@@ -118,7 +118,7 @@ pub fn dispatch(
 /// The answer of `entries` in order: the first deny or continue ends it;
 /// else their contexts joined by a blank line; else allow, with every
 /// entry's stderr.
-// @zen-impl: AHA-4.1_AC-3
+// sokf-implements: AHA-10_AC-3
 fn combine(
     event: Event,
     harness: &str,
@@ -132,7 +132,7 @@ fn combine(
         let ran = match run(e) {
             Ok(ran) => ran,
             Err(why) => {
-                notes.push_str(&format!("{ME}: `{}`: {why}\n", command(e)));
+                let _ = writeln!(notes, "{ME}: `{}`: {why}", command(e));
                 continue;
             }
         };
@@ -177,7 +177,7 @@ fn matches(matcher: Option<&str>, tool: Option<&str>) -> Result<bool, regex::Err
 /// the repository's root, or (outside git) to the first directory that has
 /// the path's first part (e.g. `.agents`); never at or above the home
 /// directory, so a file outside the project is never run.
-// @zen-impl: AHA-4.1_AC-5
+// sokf-implements: AHA-10_AC-5
 fn locate(hooks: &str, cwd: &Path, home: Option<&Path>) -> Option<PathBuf> {
     if let Some(rest) = hooks.strip_prefix("~/") {
         return Some(home?.join(rest)).filter(|p| p.is_file());
@@ -213,7 +213,7 @@ fn project_dir(hooks: &str, file: &Path, cwd: &Path) -> PathBuf {
 
 /// Run one entry through the shell, `input` on its stdin, in `cwd`, with
 /// `CLAUDE_PROJECT_DIR`, stopped after its timeout.
-// @zen-impl: AHA-4.1_AC-2
+// sokf-implements: AHA-10_AC-2
 fn run_entry(e: &Entry, input: &str, cwd: &Path, project: &Path) -> Result<Ran, String> {
     let mut cmd = if cfg!(windows) {
         let mut c = Command::new("cmd");

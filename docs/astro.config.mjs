@@ -1,4 +1,4 @@
-// The docs site (PLAN-016): Astro Starlight, deployed to GitHub Pages.
+// The docs site: Astro Starlight, deployed to GitHub Pages.
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 import starlightLinksValidator from "starlight-links-validator";
@@ -21,7 +21,7 @@ export default defineConfig({
         // pdoc writes the Python API reference into public/ at build time.
         starlightLinksValidator({ exclude: ["/agent-harness-adapter/api/python/"] }),
         starlightTypeDoc({
-          entryPoints: ["../packages/agent-harness-adapter-node/index.d.ts"],
+          entryPoints: ["../bindings/packages/agent-harness-adapter-node/index.d.ts"],
           tsconfig: "./tsconfig.typedoc.json",
           output: "api/node",
           sidebar: { label: "Node", collapsed: true },

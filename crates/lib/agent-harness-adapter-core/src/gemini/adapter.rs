@@ -7,7 +7,6 @@
 //! <https://geminicli.com/docs/cli/skills/>,
 //! <https://geminicli.com/docs/core/subagents/> and
 //! <https://geminicli.com/docs/cli/trusted-folders/> (checked 2026-10-06).
-// @zen-component: HAR-Gemini
 
 use std::time::Duration;
 
@@ -32,7 +31,11 @@ const ID: &str = "gemini";
 const SETTINGS: &str = ".gemini/settings.json";
 
 /// Gemini CLI's name for `event`.
-// @zen-impl: HAR-4_AC-3
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "`GroupHooks::event` takes this shape, as some harnesses lack an event"
+)]
+// sokf-implements: HAR-4_AC-3
 fn event_name(event: Event) -> Option<&'static str> {
     Some(match event {
         Event::SessionStart => "SessionStart",
@@ -89,7 +92,7 @@ const CONTEXT: settings::ContextLayout = settings::ContextLayout {
 
 /// The context files Gemini CLI loads at `cx`, and the one the instructions
 /// go in.
-// @zen-impl: HAR-4_AC-2
+// sokf-implements: HAR-4_AC-2
 fn context_files(cx: &Context) -> Result<(String, Vec<String>)> {
     settings::context_files(cx, &CONTEXT)
 }
@@ -113,7 +116,7 @@ fn location(item: Item, cx: &Context) -> Result<Option<String>> {
 }
 
 /// Claude Code's name for one of its tools (HAR-15_AC-2).
-// @zen-impl: HAR-15_AC-2
+// sokf-implements: HAR-15_AC-2
 fn claude_name(name: &str) -> Option<&'static str> {
     match name {
         "run_shell_command" => Some("Bash"),
@@ -132,7 +135,7 @@ impl Harness for Gemini {
         ID
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("gemini")
     }
@@ -141,13 +144,18 @@ impl Harness for Gemini {
         claude_names::named(call, claude_name(&call.name))
     }
 
-    // @zen-impl: HAR-4_AC-1
+    // sokf-implements: HAR-4_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User]
     }
 
-    // @zen-impl: HAR-4_AC-6
-    // @zen-impl: HAR-4_AC-8
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &["GEMINI.md", ".gemini"], &[".gemini"])
+    }
+
+    // sokf-implements: HAR-4_AC-6
+    // sokf-implements: HAR-4_AC-8
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
         let mut out = Vec::new();
         for item in integration.items() {
@@ -166,7 +174,7 @@ impl Harness for Gemini {
                 Item::Hooks => {
                     Part::merge(item.as_str(), at, parts::group_hooks(&LAYOUT, integration)?)
                 }
-                // @zen-impl: HAR-4_AC-7
+                // sokf-implements: HAR-4_AC-7
                 Item::Mcp => parts::mcp(&at, "mcpServers", integration, settings::mcp_entry),
                 // MCP tools: no confirmed allow-list form.
                 Item::Permissions if integration.allowed_commands().is_empty() => continue,
@@ -198,12 +206,12 @@ impl Harness for Gemini {
         })
     }
 
-    // @zen-impl: HAR-4_AC-4
+    // sokf-implements: HAR-4_AC-4
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
         protocol::parse(ID, event, text, tool_kind, "prompt_response")
     }
 
-    // @zen-impl: HAR-4_AC-5
+    // sokf-implements: HAR-4_AC-5
     fn answer(&self, event: Event, answer: &Answer) -> Result<Output> {
         Ok(match (answer, event) {
             (Answer::Allow { stderr }, _) => Output::json(json!({})).stderr(stderr.clone()),
@@ -219,7 +227,7 @@ impl Harness for Gemini {
         })
     }
 
-    // @zen-impl: HAR-4_AC-9
+    // sokf-implements: HAR-4_AC-9
     fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
         if cx.scope == Scope::Project && parts.iter().any(PartResult::wrote) {
             vec!["with folder trust on, Gemini CLI reads the project's settings only in a trusted folder".into()]
@@ -237,8 +245,7 @@ mod tests {
     use crate::{
         Error,
         harness::{Action, Profile, State},
-        integration::McpServer,
-        integration::{Agent, Command, Hook, Skill},
+        integration::{Agent, Command, Hook, McpServer, Skill},
         test_support::temp_dir,
     };
 
@@ -257,11 +264,11 @@ mod tests {
             .command(Command::new("c", "Checks.", "Check $ARGUMENTS.\n"))
     }
 
-    // @zen-test: HAR-4_AC-1
-    // @zen-test: HAR-4_AC-3
-    // @zen-test: HAR-4_AC-6
-    // @zen-test: HAR-4_AC-7
-    // @zen-test: HAR-4_AC-8
+    // sokf-tests: HAR-4_AC-1
+    // sokf-tests: HAR-4_AC-3
+    // sokf-tests: HAR-4_AC-6
+    // sokf-tests: HAR-4_AC-7
+    // sokf-tests: HAR-4_AC-8
     #[test]
     fn renders_every_item() {
         let dir = temp_dir("gemini");
@@ -309,7 +316,7 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
-    // @zen-test: HAR-4_AC-2
+    // sokf-tests: HAR-4_AC-2
     #[test]
     fn the_context_file_follows_the_settings() {
         let dir = temp_dir("gemini-ctx");
@@ -358,8 +365,8 @@ mod tests {
         fs::remove_dir_all(&home).unwrap();
     }
 
-    // @zen-test: HAR-4_AC-4
-    // @zen-test: HAR-4_AC-5
+    // sokf-tests: HAR-4_AC-4
+    // sokf-tests: HAR-4_AC-5
     #[test]
     fn input_and_answers() {
         let i = Gemini
@@ -399,7 +406,7 @@ mod tests {
         assert!(out(Event::Stop, Answer::Deny { reason: "r".into() }).is_err());
     }
 
-    // @zen-test: HAR-4_AC-9
+    // sokf-tests: HAR-4_AC-9
     #[test]
     fn a_note_on_folder_trust() {
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
@@ -413,6 +420,7 @@ mod tests {
         };
         assert_eq!(Gemini.notes(&cx, std::slice::from_ref(&written)).len(), 1);
         let user = Context::new("t", Scope::User, "/nowhere", None);
-        assert!(Gemini.notes(&user, &[written]).is_empty());
+        let notes = Gemini.notes(&user, &[written]);
+        assert!(notes.is_empty(), "{notes:?}");
     }
 }

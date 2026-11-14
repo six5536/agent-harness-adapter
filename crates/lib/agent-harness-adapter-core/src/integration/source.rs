@@ -3,7 +3,6 @@
 //! the SOURCE's path, so a harness that loads it where it is gets nothing
 //! written (KIT-19_AC-8) and one that can point at it gets a REFERENCE
 //! (KIT-23).
-// @zen-component: KIT-Source
 
 use std::{
     fs,
@@ -15,6 +14,7 @@ use serde_json::Value;
 use super::{Agent, Item, McpServer, Skill, skill};
 use crate::{Error, Result};
 
+// sokf:begin source
 /// Where an item was read from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -24,6 +24,7 @@ pub struct Source {
     /// The SOURCE's path, absolute.
     pub path: PathBuf,
 }
+// sokf:end source
 
 impl Source {
     /// `item` read from `path` (made absolute against the working
@@ -44,7 +45,7 @@ impl Source {
 
 /// The skills in `dir`: each directory in it holding a `SKILL.md`, in name
 /// order (hidden ones aside).
-// @zen-impl: KIT-17_AC-7
+// sokf-implements: KIT-17_AC-7
 pub(super) fn skills(dir: &Path) -> Result<Vec<Skill>> {
     entries(dir)?
         .into_iter()
@@ -54,7 +55,7 @@ pub(super) fn skills(dir: &Path) -> Result<Vec<Skill>> {
 }
 
 /// The MCP servers of the MCP JSON file `file`: its `mcpServers`.
-// @zen-impl: KIT-17_AC-9
+// sokf-implements: KIT-17_AC-9
 pub(super) fn mcp_servers(file: &Path) -> Result<Vec<McpServer>> {
     let display = file.display().to_string();
     let text = skill::read(file)?;
@@ -114,7 +115,7 @@ pub(super) fn mcp_servers(file: &Path) -> Result<Vec<McpServer>> {
 }
 
 /// The agents in `dir`: each `<name>.md`, a markdown agent, in name order.
-// @zen-impl: KIT-17_AC-10
+// sokf-implements: KIT-17_AC-10
 pub(super) fn agents(dir: &Path) -> Result<Vec<Agent>> {
     entries(dir)?
         .into_iter()
@@ -153,7 +154,7 @@ mod tests {
         d
     }
 
-    // @zen-test: KIT-17_AC-7
+    // sokf-tests: KIT-17_AC-7
     #[test]
     fn skills_are_the_directories_with_skill_md() {
         let d = tmp("skills");
@@ -181,7 +182,7 @@ mod tests {
         assert_eq!(names, ["a-skill", "b-skill"]);
     }
 
-    // @zen-test: KIT-17_AC-9
+    // sokf-tests: KIT-17_AC-9
     #[test]
     fn mcp_json_reads_both_transports() {
         let d = tmp("mcp");
@@ -219,10 +220,11 @@ mod tests {
             assert!(e.contains(says), "{bad}: {e}");
         }
         fs::write(&f, "{}").unwrap();
-        assert!(mcp_servers(&f).unwrap().is_empty());
+        let servers = mcp_servers(&f).unwrap();
+        assert!(servers.is_empty(), "{servers:?}");
     }
 
-    // @zen-test: KIT-17_AC-10
+    // sokf-tests: KIT-17_AC-10
     #[test]
     fn agents_keep_their_file() {
         let d = tmp("agents");

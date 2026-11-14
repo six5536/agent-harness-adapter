@@ -1,7 +1,6 @@
 //! The declined parts: a store behind a trait, and a TOML implementation
 //! that keeps `[harness.<name>] without = [...]` in the tool's config file,
 //! which the user writes and the library only reads.
-// @zen-component: KIT-Declined
 
 use std::path::PathBuf;
 
@@ -9,6 +8,7 @@ use toml_edit::{DocumentMut, Item, TableLike};
 
 use crate::{Error, Result, fs::read_text, harness::parse_toml};
 
+// sokf:begin declined-store
 /// Where the parts a user declined are kept.
 pub trait DeclinedStore {
     /// The declined parts of `harness`. A store that cannot be read is a
@@ -20,9 +20,10 @@ pub trait DeclinedStore {
         "the tool's config".to_string()
     }
 }
+// sokf:end declined-store
 
 /// A [`DeclinedStore`] in a TOML file: `[harness.<name>] without = [...]`.
-// @zen-impl: KIT-8_AC-3
+// sokf-implements: KIT-8_AC-3
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TomlDeclined {
     path: PathBuf,
@@ -50,6 +51,10 @@ impl TomlDeclined {
 
 /// `Some(None)` for no item, `Some(Some(table))` for a table, `None` for
 /// an item of another type.
+#[expect(
+    clippy::option_option,
+    reason = "the three states are no item, a table, and an item of another type"
+)]
 fn table(item: Option<&Item>) -> Option<Option<&dyn TableLike>> {
     match item {
         None => Some(None),
@@ -99,7 +104,7 @@ mod tests {
     use super::*;
     use crate::test_support::temp_dir;
 
-    // @zen-test: KIT-8_AC-3
+    // sokf-tests: KIT-8_AC-3
     #[test]
     fn the_toml_store_reads() {
         let dir = temp_dir("declined-store");

@@ -44,6 +44,7 @@ and record.
 | `skills` | each `dir` (a skill directory: its `SKILL.md` as it is and every other file in it, hidden ones aside), or `name`, `description`, `body`, `files` (path → text); or `{ from = "<dir>" }`, every skill directory in it |
 | `hooks` | each `event`, then `run` (bridged) or `command` (a template), `tools`, `timeout` (seconds), `commands` (harness → template), `owned`; or `{ from = "<hooks file>" }` |
 | `hook_match` | which hook entries are the tool's: `{ prefix }`, `{ contains }` or `{ any = [..] }` |
+| `block_order` | `"installed"` (default) or `"last"`: the tool's blocks after every other tool's in a file they share, their opening marker `<!-- <name>:harness last -->` |
 | `mcp_servers` | each `name`, then `command`, `args`, `env`, or `url`, `headers`; or `{ from = "<MCP JSON file>" }` |
 | `allow_commands`, `allow_mcp_tools` | what the agent may run without asking: command prefixes; `{ server, tool }` |
 | `agents`, `commands` | each `name`, `description`, `prompt`; agents also `{ from = "<dir>" }`, each `<name>.md` kept as written |

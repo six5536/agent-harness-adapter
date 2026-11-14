@@ -8,7 +8,6 @@
 //! <https://code.visualstudio.com/docs/copilot/customization/hooks> and
 //! <https://code.visualstudio.com/docs/copilot/customization/mcp-servers>
 //! (checked 2026-10-06).
-// @zen-component: HAR-Copilot
 
 use serde::Serialize;
 use serde_json::{Map, Value, json, ser::PrettyFormatter};
@@ -18,7 +17,7 @@ use crate::{
     common::{parts, protocol},
     harness::{Context, Harness, MergeOp, Part, PartResult, Reads, Scope},
     hook::{Answer, Event, HookInput, Output, ToolCall, ToolKind, claude_names},
-    integration::{Hook, Integration, Item},
+    integration::{Hook, Integration, Item, McpServer},
 };
 
 /// GitHub Copilot (`copilot`).
@@ -29,9 +28,9 @@ const ID: &str = "copilot";
 const LOCAL: &str = ".github/copilot/settings.local.json";
 
 /// Copilot's name for `event`.
-// @zen-impl: HAR-5_AC-3
-fn event_name(event: Event) -> Option<&'static str> {
-    Some(match event {
+// sokf-implements: HAR-5_AC-3
+fn event_name(event: Event) -> &'static str {
+    match event {
         Event::SessionStart => "sessionStart",
         Event::SessionEnd => "sessionEnd",
         Event::PromptSubmit => "userPromptSubmitted",
@@ -39,7 +38,7 @@ fn event_name(event: Event) -> Option<&'static str> {
         Event::PostTool => "postToolUse",
         Event::Stop => "agentStop",
         Event::PreCompact => "preCompact",
-    })
+    }
 }
 
 /// Copilot's tool names are partly confirmed.
@@ -74,8 +73,8 @@ fn hook_file(integration: &Integration) -> String {
             .filter(|h| h.event() == event)
             .map(entry)
             .collect();
-        if let (Some(name), false) = (event_name(event), hooks.is_empty()) {
-            events.insert(name.to_string(), Value::Array(hooks));
+        if !hooks.is_empty() {
+            events.insert(event_name(event).to_string(), Value::Array(hooks));
         }
     }
     let doc = json!({ "version": 1, "hooks": events });
@@ -94,19 +93,14 @@ fn local_hook_ops(integration: &Integration) -> Result<Vec<MergeOp>> {
     let owned = parts::owner(integration, &hooks)?;
     Ok(Event::ALL
         .into_iter()
-        .filter_map(|event| {
-            let name = event_name(event)?;
+        .map(|event| {
+            let name = event_name(event);
             let entries = hooks
                 .iter()
                 .filter(|h| h.event() == event)
                 .map(|h| entry(h))
                 .collect();
-            Some(MergeOp::owned_entries(
-                ["hooks", name],
-                "bash",
-                owned.clone(),
-                entries,
-            ))
+            MergeOp::owned_entries(["hooks", name], "bash", owned.clone(), entries)
         })
         .collect())
 }
@@ -131,7 +125,7 @@ fn location(item: Item, cx: &Context) -> Option<&'static str> {
 }
 
 /// Claude Code's name for one of its tools (HAR-15_AC-2).
-// @zen-impl: HAR-15_AC-2
+// sokf-implements: HAR-15_AC-2
 fn claude_name(name: &str) -> Option<&'static str> {
     match name {
         "bash" | "powershell" | "shell" => Some("Bash"),
@@ -149,7 +143,7 @@ impl Harness for Copilot {
         ID
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("copilot")
     }
@@ -158,15 +152,24 @@ impl Harness for Copilot {
         claude_names::named(call, claude_name(&call.name))
     }
 
-    // @zen-impl: HAR-5_AC-1
+    // sokf-implements: HAR-5_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User, Scope::Local]
     }
 
-    // @zen-impl: HAR-5_AC-2
-    // @zen-impl: HAR-5_AC-6
-    // @zen-impl: HAR-5_AC-7
-    // @zen-impl: HAR-5_AC-8
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(
+            cx,
+            &[".github/copilot-instructions.md", ".github/copilot"],
+            &[".copilot"],
+        )
+    }
+
+    // sokf-implements: HAR-5_AC-2
+    // sokf-implements: HAR-5_AC-6
+    // sokf-implements: HAR-5_AC-7
+    // sokf-implements: HAR-5_AC-8
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
         let mut out = Vec::new();
         for item in integration.items() {
@@ -186,7 +189,7 @@ impl Harness for Copilot {
                     at,
                     vec![(format!("{}.json", cx.tool), hook_file(integration))],
                 ),
-                Item::Mcp => parts::mcp(at, "mcpServers", integration, |s| s.to_json()),
+                Item::Mcp => parts::mcp(at, "mcpServers", integration, McpServer::to_json),
                 Item::Agents => parts::agents(at, ".agent.md", integration, |a| a.to_markdown(&[])),
                 _ => continue,
             });
@@ -194,7 +197,7 @@ impl Harness for Copilot {
         Ok(out)
     }
 
-    // @zen-impl: HAR-5_AC-9
+    // sokf-implements: HAR-5_AC-9
     fn reads(&self, item: Item, cx: &Context) -> Result<Reads> {
         let own = Reads::always(location(item, cx));
         Ok(match (item, cx.scope) {
@@ -213,7 +216,7 @@ impl Harness for Copilot {
         })
     }
 
-    // @zen-impl: HAR-5_AC-4
+    // sokf-implements: HAR-5_AC-4
     fn parse_hook(&self, event: Event, text: &str) -> serde_json::Result<HookInput> {
         // VS Code sends Claude-style fields; the CLI and the cloud agent
         // camelCase ones.
@@ -239,8 +242,8 @@ impl Harness for Copilot {
         Ok(input)
     }
 
-    // @zen-impl: HAR-5_AC-5
-    // @zen-impl: HAR-5_AC-10
+    // sokf-implements: HAR-5_AC-5
+    // sokf-implements: HAR-5_AC-10
     fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
         let hooks = parts.iter().any(|p| p.part == "hooks" && p.wrote());
         if hooks && cx.scope != Scope::User {
@@ -300,13 +303,13 @@ mod tests {
             .collect()
     }
 
-    // @zen-test: HAR-5_AC-1
-    // @zen-test: HAR-5_AC-2
-    // @zen-test: HAR-5_AC-3
-    // @zen-test: HAR-5_AC-6
-    // @zen-test: HAR-5_AC-7
-    // @zen-test: HAR-5_AC-8
-    // @zen-test: HAR-5_AC-9
+    // sokf-tests: HAR-5_AC-1
+    // sokf-tests: HAR-5_AC-2
+    // sokf-tests: HAR-5_AC-3
+    // sokf-tests: HAR-5_AC-6
+    // sokf-tests: HAR-5_AC-7
+    // sokf-tests: HAR-5_AC-8
+    // sokf-tests: HAR-5_AC-9
     #[test]
     fn renders_every_item_per_scope() {
         assert_eq!(
@@ -377,7 +380,7 @@ mod tests {
         assert_eq!(Copilot.scopes().len(), 3);
     }
 
-    // @zen-test: HAR-5_AC-4
+    // sokf-tests: HAR-5_AC-4
     #[test]
     fn input_in_either_casing() {
         let i = Copilot
@@ -419,8 +422,8 @@ mod tests {
         assert_eq!(tool_kind("mcp_x"), ToolKind::Mcp);
     }
 
-    // @zen-test: HAR-5_AC-5
-    // @zen-test: HAR-5_AC-10
+    // sokf-tests: HAR-5_AC-5
+    // sokf-tests: HAR-5_AC-10
     #[test]
     fn notes_say_hooks_need_a_trusted_folder() {
         let part = |action| PartResult {
@@ -436,17 +439,11 @@ mod tests {
             Copilot.notes(&cx, &[part(Some(crate::harness::Action::Created))]),
             ["Copilot runs the repository's hooks only in a trusted folder"]
         );
-        assert!(
-            Copilot
-                .notes(&cx, &[part(Some(crate::harness::Action::Removed))])
-                .is_empty()
-        );
+        let notes = Copilot.notes(&cx, &[part(Some(crate::harness::Action::Removed))]);
+        assert!(notes.is_empty(), "{notes:?}");
         let user = Context::new("t", Scope::User, "/nowhere", None);
-        assert!(
-            Copilot
-                .notes(&user, &[part(Some(crate::harness::Action::Created))])
-                .is_empty()
-        );
+        let notes = Copilot.notes(&user, &[part(Some(crate::harness::Action::Created))]);
+        assert!(notes.is_empty(), "{notes:?}");
     }
 
     #[test]

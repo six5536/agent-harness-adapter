@@ -20,12 +20,12 @@ agent-harness-adapter install                    # picks your agents, moves Clau
 
 ## Packages
 
-| Package | What it is |
-| ----- | ---------- |
-| [`agent-harness-adapter`](crates/app/agent-harness-adapter) (crates.io, npm [`@six5536/agent-harness-adapter`](packages/agent-harness-adapter)) | The command. |
-| [`agent-harness-adapter-core`](crates/lib/agent-harness-adapter-core) (crates.io) | The Rust library. |
-| [`@six5536/agent-harness-adapter-node`](packages/agent-harness-adapter-node) (npm) | The Node binding, with TypeScript types. |
-| [`six5536-agent-harness-adapter`](crates/bind/agent-harness-adapter-py) (PyPI, not yet published) | The Python binding. |
+| Package                                                                                                                       | What it is                               |
+| ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| [`agent-harness-adapter`](crates/app/agent-harness-adapter) (crates.io, npm [`@six5536/agent-harness-adapter`](packages/cli)) | The command.                             |
+| [`agent-harness-adapter-core`](crates/lib/agent-harness-adapter-core) (crates.io)                                             | The Rust library.                        |
+| [`@six5536/agent-harness-adapter-node`](bindings/packages/agent-harness-adapter-node) (npm)                                   | The Node binding, with TypeScript types. |
+| [`six5536-agent-harness-adapter`](crates/bind/agent-harness-adapter-py) (PyPI, not yet published)                             | The Python binding.                      |
 
 ## Examples
 
@@ -35,7 +35,7 @@ agent-harness-adapter install                    # picks your agents, moves Clau
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). The site lives in [`docs/`](docs)
-(Astro Starlight): `cd docs && npm ci && npm run dev`.
+(Astro Starlight): `mise run site:build` builds it, and `cd docs && npm ci && npm run dev` serves it.
 
 ## License
 

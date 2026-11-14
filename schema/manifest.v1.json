@@ -71,6 +71,18 @@
         }
       ]
     },
+    "block_order": {
+      "description": "Where the tool's blocks stand among other tools' blocks in a file:\n`\"installed\"` (the default), or `\"last\"`, after every other tool's.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BlockOrder"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "skills": {
       "description": "Agent skills, or `{ from = \"<dir>\" }`.",
       "anyOf": [
@@ -279,6 +291,21 @@
             "any"
           ],
           "additionalProperties": false
+        }
+      ]
+    },
+    "BlockOrder": {
+      "description": "Where a tool's block stands in a file that holds the blocks of several\ntools (KIT-26).",
+      "oneOf": [
+        {
+          "description": "Where it was first written: appended, or before a block that asks to\ncome last.",
+          "type": "string",
+          "const": "installed"
+        },
+        {
+          "description": "After the block of every other tool that does not ask the same; its\nopening marker is `<!-- <tool>:harness last -->`.",
+          "type": "string",
+          "const": "last"
         }
       ]
     },
@@ -995,6 +1022,18 @@
               "type": "null"
             }
           ]
+        },
+        "block_order": {
+          "description": "Where the tool's blocks stand among other tools' blocks in a file:\n`\"installed\"` (the default), or `\"last\"`, after every other tool's.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BlockOrder"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "skills": {
           "description": "Agent skills, or `{ from = \"<dir>\" }`.",

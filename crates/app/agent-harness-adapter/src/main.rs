@@ -1,7 +1,6 @@
 //! `agent-harness-adapter`: one agent setup for every coding agent. Install
 //! a setup kept in `AGENTS.md` and `.agents/` (or a tool's manifest) into
 //! LLM agent harnesses, and run hooks in Claude Code's format in each.
-// @zen-component: AHA-Cli
 
 mod bridge;
 mod diff;
@@ -17,8 +16,9 @@ use std::process::ExitCode;
 use agent_harness_adapter_core::cli;
 use clap::{Parser, Subcommand};
 
+// sokf:begin cli
 /// One agent setup, every coding agent.
-// @zen-impl: AHA-6_AC-1
+// sokf-implements: AHA-6_AC-1
 #[derive(Debug, Parser)]
 #[command(name = "agent-harness-adapter", version, about)]
 struct Cli {
@@ -49,6 +49,7 @@ enum Cmd {
         contract: schema::Contract,
     },
 }
+// sokf:end cli
 
 fn main() -> ExitCode {
     let args = Cli::parse();

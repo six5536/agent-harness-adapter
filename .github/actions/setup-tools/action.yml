@@ -1,0 +1,26 @@
+name: Set up the tools
+description: Keeps the tools in one folder and installs what is missing.
+
+inputs:
+  tools:
+    description: The tools to install, such as node. By default, every tool.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Keep the tools in one folder
+      shell: bash
+      run: |
+        TOOLS="${USERPROFILE:-$HOME}/.tools"
+        {
+          echo "MISE_DATA_DIR=$TOOLS/mise"
+          echo "MISE_RUSTUP_HOME=$TOOLS/rustup"
+          echo "npm_config_cache=$TOOLS/npm"
+        } >> "$GITHUB_ENV"
+    - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      with:
+        version: 2026.11.4
+        cache: false
+        install_args: ${{ inputs.tools }}

@@ -12,14 +12,17 @@ publish = false
 [lib]
 crate-type = ["cdylib"]
 # The addon's symbols come from Node at load time: a test binary could not
-# link them. Tested from Node (packages/agent-harness-adapter-node/test).
+# link them. Tested from Node (bindings/packages/agent-harness-adapter-node/test).
 test = false
 doctest = false
 
 [dependencies]
-agent-harness-adapter-bind = { path = "../agent-harness-adapter-bind" }
+agent-harness-adapter-bind.workspace = true
 napi = { workspace = true }
 napi-derive = { workspace = true }
 
 [build-dependencies]
 napi-build = { workspace = true }
+
+[lints]
+workspace = true

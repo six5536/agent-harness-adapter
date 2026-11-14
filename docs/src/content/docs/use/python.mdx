@@ -31,6 +31,16 @@ arguments; `edits` returns each file you edited, with the text install would
 write and the text found. Results are
 the JSON of `agent-harness-adapter install --json`, as dicts.
 
+`follow(tool, instructions, keep=…, block_order=…, scope=…, root=…, home=…)`
+hands over a tool's instructions and names no agent, and returns
+`{"report", "exit"}` (see
+[Instructions](/agent-harness-adapter/write-once/instructions/#hand-them-over-and-name-no-harness)).
+
+`keep_instructions(manifest, text, scope=…, root=…, home=…)` keeps a text your
+tool no longer manages as the project's own (see
+[Instructions](/agent-harness-adapter/write-once/instructions/#keep-a-tools-text-as-the-projects-own)),
+and returns `{"report"}`, the report to print as it stands.
+
 ## Answer a hook
 
 With `command = "mytool hook {harness} {event}"`, `run_hook` reads the

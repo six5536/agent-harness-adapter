@@ -1,0 +1,189 @@
+[tools]
+node = "26"
+python = "3.14"
+"npm:@six5536/sokf" = { version = "0.5.1", allow_low_downloads = true }
+"npm:oxfmt" = "0.77.0"
+shfmt = "3.14.1"
+shellcheck = "0.11.0"
+"github:jdx/jactionlint" = "2.5.0"
+gh = "2.103.3"
+"aqua:jqlang/jq" = "1.8.2"
+"npm:typescript" = "7.0.2"
+"npm:oxlint" = "1.92.0"
+"npm:oxlint-tsgolint" = "7.0.2006"
+
+[tasks.format]
+description = "Format every file"
+depends = ["format:write:*"]
+
+[tasks."format:check"]
+description = "Report files that are not formatted"
+depends = ["format:check:*"]
+
+[tasks.lint]
+description = "Lint every file"
+depends = ["lint:check:*"]
+
+[tasks."lint:fix"]
+description = "Fix what the linters can fix"
+depends = ["lint:fix:*"]
+
+[tasks."format:write:oxfmt"]
+hide = true
+run = "oxfmt ."
+
+[tasks."format:check:oxfmt"]
+hide = true
+run = "oxfmt --check ."
+
+[tasks."format:write:shell"]
+hide = true
+run = "node .config/mise/scripts/format-shell.mts write"
+
+[tasks."format:check:shell"]
+hide = true
+run = "node .config/mise/scripts/format-shell.mts check"
+
+[tasks."lint:check:shell"]
+hide = true
+run = "node .config/mise/scripts/lint-shell.mts"
+
+[tasks."test:fast:shell"]
+hide = true
+run = "node --test .config/mise/scripts/format-shell.test.mts .config/mise/scripts/lint-shell.test.mts .config/mise/scripts/lib/shell-files.test.mts"
+
+[tasks."coverage:check:shell"]
+hide = true
+depends = ["test:fast:shell"]
+
+[tasks."lint:check:workflows"]
+hide = true
+run = "! ls .github/workflows/*.y*ml >/dev/null 2>&1 || jactionlint"
+
+[tasks.setup]
+description = "Turn on the commit hook and install dependencies"
+depends = ["setup:dev:*"]
+
+[tasks."setup:dev:core"]
+hide = true
+# The project's tsconfig.project.json comes first, because the root tsconfig.json
+# extends it, and a script of an install can read that file.
+run = [
+  "test -f tsconfig.project.json || echo '{}' > tsconfig.project.json",
+  "npm install --prefix .config/typescript --include=dev --no-audit --no-fund",
+  "node .config/mise/scripts/tools-stamp.mts",
+  "test ! -f package.json || npm install --include=dev",
+]
+
+[tasks.test]
+description = "Run the fast tests"
+run = "node .config/mise/scripts/run-tests.mts fast"
+
+[tasks."test:long"]
+description = "Run the long tests"
+run = "node .config/mise/scripts/run-tests.mts long"
+
+[tasks."test:ci"]
+description = "Run the tests that only CI can run, which it skips outside CI"
+run = "node .config/mise/scripts/run-tests.mts ci"
+
+[tasks."test:fast:core"]
+hide = true
+run = "node --test .config/mise/scripts/version-check.test.mts .config/mise/scripts/lib/tools-install.test.mts .config/mise/scripts/run-tests.test.mts"
+
+[tasks."test:long:core"]
+hide = true
+run = "true"
+
+[tasks."test:ci:core"]
+hide = true
+run = "true"
+
+[tasks.audit]
+description = "Check the dependencies for security advisories"
+depends = ["audit:*"]
+
+[tasks.coverage]
+description = "Write a coverage report"
+depends = ["coverage:report:*"]
+
+[tasks."coverage:check"]
+description = "Fail if coverage is below the limit"
+depends = ["coverage:check:*"]
+
+[tasks."audit:core"]
+hide = true
+run = "true"
+
+[tasks."coverage:report:core"]
+hide = true
+run = "true"
+
+[tasks."coverage:check:core"]
+hide = true
+depends = ["test:fast:core", "test:long:core"]
+
+[tasks."docs:check"]
+description = "Fail on a warning from the documentation build"
+depends = ["docs:check:*"]
+
+[tasks."setup:ci"]
+description = "Prepare a CI machine before a check"
+depends = ["setup:ci:*"]
+
+[tasks.prune]
+description = "Delete build output that can't be reused"
+depends = ["prune:*"]
+
+[tasks."test:platform"]
+description = "Run every tier of the tests, the CI tier only in CI, as a full check of CI does"
+run = [{ task = "test" }, { task = "test:long" }, { task = "test:ci" }]
+
+[tasks."version:set"]
+description = "Set one version everywhere"
+usage = 'arg "<version>"'
+depends = ["version:set:* {{usage.version}}"]
+
+[tasks."version:check"]
+description = "Fail if the versions differ, or differ from the version given"
+usage = 'arg "[version]"'
+run = 'node .config/mise/scripts/version-check.mts ${usage_version:-}'
+
+[tasks."test:smoke"]
+description = "Run the built program once"
+depends = ["test:smoke:*"]
+
+[tasks."version:set:core"]
+hide = true
+usage = 'arg "<version>"'
+run = "true"
+
+[tasks."test:smoke:core"]
+hide = true
+run = "true"
+
+[tasks."docs:check:core"]
+hide = true
+run = "true"
+
+# A build or a publish runs no setup, and the root tsconfig.json extends the project's
+# file, which a project that hasn't committed it lacks.
+[tasks."setup:ci:core"]
+hide = true
+run = "test -f tsconfig.project.json || echo '{}' > tsconfig.project.json"
+
+[tasks.typecheck]
+description = "Check the types of the TypeScript"
+depends = ["typecheck:*"]
+
+[tasks."typecheck:ts"]
+hide = true
+run = "test ! -f tsconfig.json || tsc -p tsconfig.json"
+
+[tasks."lint:check:ts"]
+hide = true
+run = "oxlint --type-aware --disable-nested-config"
+
+[tasks."lint:fix:ts"]
+hide = true
+run = "oxlint --type-aware --disable-nested-config --fix"

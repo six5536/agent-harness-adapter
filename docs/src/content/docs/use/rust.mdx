@@ -26,6 +26,16 @@ Then install (`status` and `uninstall` take the same arguments):
 `install` returns an `InstallResult`: each harness's parts with their states,
 notes and warnings, as text (`to_text`) or JSON (serde).
 
+A tool that should name no agent at all calls `follow` with a `Request`
+(its name, a scope, its instructions) and prints the `Outcome`'s report,
+exiting with its code (see
+[Instructions](/agent-harness-adapter/write-once/instructions/#hand-them-over-and-name-no-harness)).
+
+`keep_instructions(&tool, text, scope)` keeps a text your tool no longer
+manages as the project's own (see
+[Instructions](/agent-harness-adapter/write-once/instructions/#keep-a-tools-text-as-the-projects-own)),
+and returns `Kept`, a report to print as it stands (`to_text`).
+
 ## Answer a hook
 
 The hook command reads the harness's input as a `HookInput` and answers with

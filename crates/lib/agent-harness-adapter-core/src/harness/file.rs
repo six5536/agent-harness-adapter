@@ -21,7 +21,7 @@ pub(crate) fn render_files(part: &Part) -> Vec<(String, String)> {
 mod tests {
     use super::*;
 
-    // @zen-test: KIT-2_AC-1
+    // sokf-tests: KIT-2_AC-1
     #[test]
     fn renders_each_file_with_lf() {
         let part = Part::files("x", "d", vec![("a.md".into(), "a\r\nb\r\n".into())]);
@@ -29,6 +29,7 @@ mod tests {
             render_files(&part),
             vec![("a.md".to_string(), "a\nb\n".to_string())]
         );
-        assert!(render_files(&Part::region("i", "N.md", "b")).is_empty());
+        let files = render_files(&Part::region("i", "N.md", "b"));
+        assert!(files.is_empty(), "{files:?}");
     }
 }

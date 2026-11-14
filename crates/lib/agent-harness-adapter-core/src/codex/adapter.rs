@@ -7,7 +7,6 @@
 //! <https://learn.chatgpt.com/docs/build-skills> and
 //! <https://learn.chatgpt.com/docs/agent-configuration/subagents>
 //! (checked 2026-10-06).
-// @zen-component: HAR-Codex
 
 use serde_json::{Value, json};
 
@@ -29,7 +28,11 @@ pub struct Codex;
 const ID: &str = "codex";
 
 /// Codex's name for `event`: Claude Code's names.
-// @zen-impl: HAR-2_AC-3
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "`GroupHooks::event` takes this shape, as some harnesses lack an event"
+)]
+// sokf-implements: HAR-2_AC-3
 fn event_name(event: Event) -> Option<&'static str> {
     Some(match event {
         Event::SessionStart => "SessionStart",
@@ -65,7 +68,7 @@ const LAYOUT: GroupHooks = GroupHooks {
 };
 
 /// An MCP server as a `[mcp_servers.<name>]` table.
-// @zen-impl: HAR-2_AC-5
+// sokf-implements: HAR-2_AC-5
 fn mcp_table(s: &McpServer) -> Value {
     match s.transport() {
         Transport::Stdio { .. } => s.to_json(),
@@ -95,7 +98,7 @@ fn location(item: Item, cx: &Context) -> Option<&'static str> {
 }
 
 /// Claude Code's name for one of its tools (HAR-15_AC-2).
-// @zen-impl: HAR-15_AC-2
+// sokf-implements: HAR-15_AC-2
 fn claude_name(name: &str) -> Option<&'static str> {
     match name {
         "shell" | "local_shell" | "Bash" => Some("Bash"),
@@ -109,7 +112,7 @@ impl Harness for Codex {
         ID
     }
 
-    // @zen-impl: HAR-15_AC-1
+    // sokf-implements: HAR-15_AC-1
     fn program(&self) -> Option<&str> {
         Some("codex")
     }
@@ -118,14 +121,19 @@ impl Harness for Codex {
         claude_names::named(call, claude_name(&call.name))
     }
 
-    // @zen-impl: HAR-2_AC-1
+    // sokf-implements: HAR-2_AC-1
     fn scopes(&self) -> &[Scope] {
         &[Scope::Project, Scope::User]
     }
 
-    // @zen-impl: HAR-2_AC-2
-    // @zen-impl: HAR-2_AC-4
-    // @zen-impl: HAR-2_AC-6
+    // sokf-implements: HAR-16_AC-2
+    fn used(&self, cx: &Context) -> bool {
+        crate::common::used::used(cx, &[".codex"], &[".codex"])
+    }
+
+    // sokf-implements: HAR-2_AC-2
+    // sokf-implements: HAR-2_AC-4
+    // sokf-implements: HAR-2_AC-6
     fn render(&self, integration: &Integration, cx: &Context) -> Result<Vec<Part>> {
         let mut out = Vec::new();
         for item in integration.items() {
@@ -166,7 +174,7 @@ impl Harness for Codex {
         protocol::answer(ID, event, event_name(event).unwrap_or_default(), answer)
     }
 
-    // @zen-impl: HAR-2_AC-7
+    // sokf-implements: HAR-2_AC-7
     fn notes(&self, cx: &Context, parts: &[PartResult]) -> Vec<String> {
         let written = |name: &str| parts.iter().any(|p| p.part == name && p.wrote());
         let mut out = Vec::new();
@@ -220,12 +228,12 @@ mod tests {
         Profile::new(Codex.render(&full(), &cx).unwrap())
     }
 
-    // @zen-test: HAR-2_AC-1
-    // @zen-test: HAR-2_AC-2
-    // @zen-test: HAR-2_AC-3
-    // @zen-test: HAR-2_AC-4
-    // @zen-test: HAR-2_AC-5
-    // @zen-test: HAR-2_AC-6
+    // sokf-tests: HAR-2_AC-1
+    // sokf-tests: HAR-2_AC-2
+    // sokf-tests: HAR-2_AC-3
+    // sokf-tests: HAR-2_AC-4
+    // sokf-tests: HAR-2_AC-5
+    // sokf-tests: HAR-2_AC-6
     #[test]
     fn renders_every_item_it_takes() {
         let names = |s| -> Vec<String> {
@@ -325,7 +333,7 @@ mod tests {
         );
     }
 
-    // @zen-test: HAR-2_AC-7
+    // sokf-tests: HAR-2_AC-7
     #[test]
     fn notes_after_writes() {
         let cx = Context::new("t", Scope::Project, "/nowhere", None);
@@ -337,7 +345,8 @@ mod tests {
             by: None,
             in_place: false,
         };
-        assert!(Codex.notes(&cx, &[part("hooks", None)]).is_empty());
+        let notes = Codex.notes(&cx, &[part("hooks", None)]);
+        assert!(notes.is_empty(), "{notes:?}");
         assert_eq!(
             Codex.notes(&cx, &[part("hooks", Some(Action::Created))]),
             [
@@ -356,10 +365,7 @@ mod tests {
             Codex.notes(&cx, &[part("hooks", Some(Action::Removed))]),
             ["restart Codex to load the changes"]
         );
-        assert!(
-            Codex
-                .notes(&cx, &[part("hooks", Some(Action::Kept))])
-                .is_empty()
-        );
+        let notes = Codex.notes(&cx, &[part("hooks", Some(Action::Kept))]);
+        assert!(notes.is_empty(), "{notes:?}");
     }
 }

@@ -1,0 +1,5 @@
+[profile.default]
+slow-timeout = "2s"
+
+[profile.ci]
+fail-fast = false
