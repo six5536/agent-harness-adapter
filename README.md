@@ -18,6 +18,10 @@ agent-harness-adapter install                    # picks your agents, moves Clau
 
 **Documentation:** <https://six5536.github.io/agent-harness-adapter/>
 
+## Status
+
+**Unstable.** Each package is at a 0.x version. The command's commands, options and file formats can change in any release, and so can the interface of the library and of the bindings.
+
 ## Packages
 
 | Package                                                                                                                       | What it is                               |

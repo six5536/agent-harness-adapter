@@ -1,9 +1,10 @@
 //! The `merge` kind: the tool owns entries in the user's JSON or TOML file,
-//! named by data-driven operations; the file's own style is kept.
+//! named by data-driven operations; the file's own layout is kept.
 
 mod json;
 mod op;
 mod remove;
+mod splice;
 mod toml;
 
 use json::parse_json;

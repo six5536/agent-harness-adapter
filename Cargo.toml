@@ -11,13 +11,14 @@ members = [
 ]
 
 [workspace.package]
-version = "0.4.0"
+version = "0.5.0"
 authors = ["six5536 <10079653+six5536@users.noreply.github.com>"]
 edition = "2024"
 # The oldest toolchain that the published crates support, which the task
 # release:check:msrv checks. It stays below the pack's toolchain, because the
-# library's users build it with their own.
-rust-version = "1.85"
+# library's users build it with their own. 1.98 is the need of oxc, the parser of
+# JavaScript and TypeScript that same-same builds with its feature `javascript`.
+rust-version = "1.98"
 license = "MIT"
 repository = "https://github.com/six5536/agent-harness-adapter"
 homepage = "https://six5536.github.io/agent-harness-adapter/"
@@ -26,11 +27,23 @@ homepage = "https://six5536.github.io/agent-harness-adapter/"
 # External dependencies (alphabetical)
 clap = { version = "4.6", features = ["derive"] }
 dialoguer = { version = "0.12", default-features = false }
+# The syntax tree of JSON, whose spans let the JSON merge edit only the
+# tool's entries of a file. The same 0.x minor as same-same's, so that Cargo
+# builds one copy.
+jsonc-parser = { version = "0.34", default-features = false }
 napi = { version = "3", default-features = false, features = ["napi4"] }
 napi-build = "2"
 napi-derive = "3"
 pyo3 = { version = "0.29", features = ["abi3-py39"] }
 pyo3-build-config = "0.29"
+# The comparison by meaning and the fingerprints of the record.
+same-same = { version = "0.1.0", default-features = false, features = [
+  "markdown",
+  "json",
+  "toml",
+  "yaml",
+  "javascript",
+] }
 regex = { version = "1.13", default-features = false, features = ["std", "unicode-perl"] }
 schemars = "1.2"
 serde = { version = "1", features = ["derive", "std"] }
@@ -44,8 +57,8 @@ insta = "1.47"
 proptest = "1.11"
 
 # Internal crates
-agent-harness-adapter-bind = { path = "crates/bind/agent-harness-adapter-bind", version = "0.4.0" }
-agent-harness-adapter-core = { path = "crates/lib/agent-harness-adapter-core", version = "0.4.0" }
+agent-harness-adapter-bind = { path = "crates/bind/agent-harness-adapter-bind", version = "0.5.0" }
+agent-harness-adapter-core = { path = "crates/lib/agent-harness-adapter-core", version = "0.5.0" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

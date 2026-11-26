@@ -10,9 +10,9 @@ use crate::{
     harness::{
         Scope, State, Tool,
         install::{Force, run},
+        meaning,
         state::{Found, Observed, expected, observe},
     },
-    hash::normalise,
 };
 
 // sokf:begin edit
@@ -37,7 +37,8 @@ pub struct Edit {
 // sokf:end edit
 
 /// The edits of the parts of `harnesses` at `scope` whose state is edited,
-/// per file, in the order `status` reports the parts. Writes nothing.
+/// per file that differs from the tool's by its meaning, in the order
+/// `status` reports the parts. Writes nothing.
 // sokf-implements: KIT-25_AC-1
 pub fn edits<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
     tool: &T,
@@ -60,58 +61,99 @@ pub fn edits<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
             Observed::Present(f) => Some(f),
             Observed::Absent => None,
         };
-        let edit = |path: String, expected: String, found: String| Edit {
-            harness: m.harness.id().to_string(),
-            part: e.part.name().to_string(),
-            path,
-            expected,
-            found,
-        };
-        for (path, want, have) in texts(&e.path, expected(e.part), found) {
-            if normalise(&want) != normalise(&have) {
-                out.push(edit(path, want, have));
+        for text in texts(&e.path, expected(e.part), found) {
+            if !text.same {
+                out.push(Edit {
+                    harness: m.harness.id().to_string(),
+                    part: e.part.name().to_string(),
+                    path: text.path,
+                    expected: text.expected,
+                    found: text.found,
+                });
             }
         }
     }
     Ok(out)
 }
 
-/// Each file's path, expected text and found text for a part at `path`.
+/// One file's path, expected text and found text, and whether the two
+/// mean the same.
+#[derive(Debug, PartialEq, Eq)]
+struct Text {
+    path: String,
+    expected: String,
+    found: String,
+    same: bool,
+}
+
+/// Each file's texts for a part at `path`, compared as the states compare
+/// them.
 // sokf-implements: KIT-25_AC-2
-fn texts(path: &str, want: Found, have: Option<Found>) -> Vec<(String, String, String)> {
+fn texts(path: &str, want: Found, have: Option<Found>) -> Vec<Text> {
     match (want, have) {
         (Found::Files(want), have) => {
             let have = match have {
                 Some(Found::Files(f)) => f,
                 _ => Vec::new(),
             };
-            let text = |rel: &str| {
-                have.iter()
-                    .find(|(r, _)| r == rel)
-                    .map(|(_, t)| t.clone())
-                    .unwrap_or_default()
-            };
             want.into_iter()
-                .map(|(rel, t)| (format!("{path}/{rel}"), t, text(&rel)))
+                .map(|(rel, expected)| {
+                    let found = have.iter().find(|(r, _)| *r == rel).map(|(_, t)| t);
+                    let same = found.is_some_and(|found| {
+                        meaning::same(&meaning::file(&rel, &expected), &meaning::file(&rel, found))
+                    });
+                    Text {
+                        path: format!("{path}/{rel}"),
+                        expected,
+                        found: found.cloned().unwrap_or_default(),
+                        same,
+                    }
+                })
                 .collect()
         }
-        (Found::Block(want) | Found::Text(want), have) => {
-            vec![(path.to_string(), want, block(have))]
+        (Found::Block { file, text }, have) => {
+            let found = match have {
+                Some(Found::Block { text, .. }) => Some(text),
+                _ => None,
+            };
+            let same = found.as_ref().is_some_and(|found| {
+                meaning::same(&meaning::block(&file, &text), &meaning::block(&file, found))
+            });
+            vec![Text {
+                path: path.to_string(),
+                expected: text,
+                found: found.unwrap_or_default(),
+                same,
+            }]
+        }
+        (Found::Text(want), have) => {
+            let found = match have {
+                Some(Found::Text(t)) => Some(t),
+                _ => None,
+            };
+            let same = found
+                .as_ref()
+                .is_some_and(|found| meaning::same(&meaning::text(&want), &meaning::text(found)));
+            vec![Text {
+                path: path.to_string(),
+                expected: want,
+                found: found.unwrap_or_default(),
+                same,
+            }]
         }
         (Found::Entries(want), have) => {
             let have = match have {
                 Some(Found::Entries(e)) => e,
                 _ => Vec::new(),
             };
-            vec![(path.to_string(), pretty(want), pretty(have))]
+            let same = want == have;
+            vec![Text {
+                path: path.to_string(),
+                expected: pretty(want),
+                found: pretty(have),
+                same,
+            }]
         }
-    }
-}
-
-fn block(have: Option<Found>) -> String {
-    match have {
-        Some(Found::Block(t) | Found::Text(t)) => t,
-        _ => String::new(),
     }
 }
 
@@ -128,42 +170,68 @@ mod tests {
 
     use super::*;
 
+    fn text(path: &str, expected: &str, found: &str, same: bool) -> Text {
+        Text {
+            path: path.into(),
+            expected: expected.into(),
+            found: found.into(),
+            same,
+        }
+    }
+
     // sokf-tests: KIT-25_AC-2
     #[test]
     fn each_kind_gives_its_texts() {
         let files = texts(
             ".claude/skills",
-            Found::Files(vec![("t/SKILL.md".into(), "new\n".into())]),
-            Some(Found::Files(vec![("t/SKILL.md".into(), "mine\n".into())])),
+            Found::Files(vec![
+                ("t/SKILL.md".into(), "new\n".into()),
+                ("t/a.md".into(), "*a*\n".into()),
+            ]),
+            Some(Found::Files(vec![
+                ("t/SKILL.md".into(), "mine\n".into()),
+                ("t/a.md".into(), "_a_\n".into()),
+            ])),
         );
         assert_eq!(
             files,
-            [(
-                ".claude/skills/t/SKILL.md".to_string(),
-                "new\n".to_string(),
-                "mine\n".to_string()
-            )]
+            [
+                text(".claude/skills/t/SKILL.md", "new\n", "mine\n", false),
+                text(".claude/skills/t/a.md", "*a*\n", "_a_\n", true),
+            ]
         );
         let missing = texts(
             "d",
             Found::Files(vec![("a".into(), "a\n".into())]),
             Some(Found::Files(vec![])),
         );
-        assert_eq!(missing[0].2, "");
-        let block = texts(
-            "AGENTS.md",
-            Found::Block("ours".into()),
-            Some(Found::Block("mine".into())),
+        assert_eq!(missing, [text("d/a", "a\n", "", false)]);
+        let block = |t: &str| Found::Block {
+            file: "AGENTS.md".into(),
+            text: t.into(),
+        };
+        assert_eq!(
+            texts("AGENTS.md", block("ours"), Some(block("mine"))),
+            [text("AGENTS.md", "ours", "mine", false)]
         );
-        assert_eq!(block[0], ("AGENTS.md".into(), "ours".into(), "mine".into()));
+        assert!(texts("AGENTS.md", block("*ours*"), Some(block("_ours_")))[0].same);
         let merge = texts(
             ".claude/settings.json",
             Found::Entries(vec![json!("Bash(t:*)")]),
             Some(Found::Entries(vec![])),
         );
-        assert_eq!(merge[0].1, "[\n  \"Bash(t:*)\"\n]\n");
-        assert_eq!(merge[0].2, "[]\n");
+        assert_eq!(merge[0].expected, "[\n  \"Bash(t:*)\"\n]\n");
+        assert_eq!(merge[0].found, "[]\n");
+        assert!(!merge[0].same);
         let ext = texts("ext:x", Found::Text("a".into()), None);
-        assert_eq!(ext[0].2, "");
+        assert_eq!(ext, [text("ext:x", "a", "", false)]);
+        assert!(
+            texts(
+                "ext:x",
+                Found::Text("a\n".into()),
+                Some(Found::Text("a\r\n".into()))
+            )[0]
+            .same
+        );
     }
 }

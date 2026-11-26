@@ -1,3 +1,7 @@
+# The coverage tasks pass PACK_TESTS to the test tasks that their run names, which mise
+# 2026.11.4, the release that setup-tools and the dev container pin, was tried with.
+min_version = "2026.11.4"
+
 [settings]
 idiomatic_version_file_enable_tools = ["rust"]
 
@@ -9,21 +13,35 @@ cargo-binstall = "1.26.2"
 "cargo:cargo-nextest" = "0.9.151"
 "cargo:cargo-llvm-cov" = "0.9.1"
 "cargo:cargo-deny" = "0.20.2"
+# sccache, for CI, where only the environment turns it on, never .cargo/config.toml. The
+# dev container pins its own in mise's system config, so that it works in every directory.
+sccache = "0.19.0"
 
 [tasks."audit:rust"]
 hide = true
 run = "cargo deny check advisories"
 
-# A test of the CI tier is ignored and stands in a module named ci, so that the
-# filter "test(/(^|::)ci::/)" selects it. The coverage and the long tests leave it out,
-# because it can fail on a developer's machine and in the coverage job.
+# A test of the CI tier is ignored and stands in a module named ci_only, and a test of
+# the local tier stands in a module named local_only. The default filter of
+# .config/nextest.toml leaves out both modules from every run, the coverage and the long
+# tests included, because a test of the CI tier can fail on a developer's machine and in
+# the coverage job, and CI skips a test of the local tier. Only test:ci:rust and
+# test:local:rust set the default filter aside, each for its own tier. The CI tier leaves
+# out the local tier, so a test in both modules is local.
+#
+# Runs the tests once and writes the HTML report, without each crate that sets
+# `[package.metadata.coverage] skip = true` in its Cargo.toml.
 [tasks."coverage:report:rust"]
 hide = true
-run = 'cargo +$RUST_NIGHTLY llvm-cov nextest --workspace --run-ignored all -E "not test(/(^|::)ci::/)" --html'
+run = "node .config/mise/scripts/rust-coverage-check.mts report"
 
+# Runs the tests once, then holds each crate of the workspace to COVERAGE_MIN_LINES
+# by itself, and passes a crate without lines to measure with a note. A crate that
+# another language tests sets `[package.metadata.coverage] skip = true` in its
+# Cargo.toml, and the run leaves it out.
 [tasks."coverage:check:rust"]
 hide = true
-run = 'cargo +$RUST_NIGHTLY llvm-cov nextest --workspace --run-ignored all -E "not test(/(^|::)ci::/)" --fail-under-lines ${COVERAGE_MIN_LINES:-90}'
+run = "node .config/mise/scripts/rust-coverage-check.mts"
 
 [tasks."setup:dev:rust"]
 hide = true
@@ -55,19 +73,24 @@ run = "cargo nextest run --workspace"
 
 [tasks."test:fast:rust-scripts"]
 hide = true
-run = "node --test .config/mise/scripts/rust-lints-check.test.mts"
+run = "node .config/mise/scripts/pack-tests.mts @six5536/rust .config/mise/scripts/rust-lints-check.test.mts .config/mise/scripts/rust-coverage-check.test.mts"
 
 [tasks."coverage:check:rust-scripts"]
 hide = true
-depends = ["test:fast:rust-scripts"]
+env = { PACK_TESTS = "all" }
+run = [{ task = "test:fast:rust-scripts" }]
 
 [tasks."test:long:rust"]
 hide = true
-run = 'cargo nextest run --workspace --run-ignored only --no-tests=pass -E "not test(/(^|::)ci::/)"'
+run = 'cargo nextest run --workspace --run-ignored only --no-tests=pass'
 
 [tasks."test:ci:rust"]
 hide = true
-run = 'cargo nextest run --workspace --run-ignored only --no-tests=pass -E "test(/(^|::)ci::/)"'
+run = 'cargo nextest run --workspace --run-ignored only --no-tests=pass --ignore-default-filter -E "test(/(^|::)ci_only::/) and not test(/(^|::)local_only::/)"'
+
+[tasks."test:local:rust"]
+hide = true
+run = 'cargo nextest run --workspace --run-ignored only --no-tests=pass --ignore-default-filter -E "test(/(^|::)local_only::/)"'
 
 [tasks."docs:check:rust"]
 hide = true

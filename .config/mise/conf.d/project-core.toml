@@ -1,7 +1,12 @@
+# The coverage tasks pass PACK_TESTS to the test tasks that their run names, which mise
+# 2026.11.4, the release that setup-tools and the dev container pin, was tried with.
+min_version = "2026.11.4"
+
 [tools]
 node = "26"
 python = "3.14"
-"npm:@six5536/sokf" = { version = "0.5.1", allow_low_downloads = true }
+"npm:@six5536/sokf" = { version = "0.8.0", allow_low_downloads = true }
+"npm:@six5536/pakf" = { version = "0.2.0", allow_low_downloads = true }
 "npm:oxfmt" = "0.77.0"
 shfmt = "3.14.1"
 shellcheck = "0.11.0"
@@ -50,11 +55,12 @@ run = "node .config/mise/scripts/lint-shell.mts"
 
 [tasks."test:fast:shell"]
 hide = true
-run = "node --test .config/mise/scripts/format-shell.test.mts .config/mise/scripts/lint-shell.test.mts .config/mise/scripts/lib/shell-files.test.mts"
+run = "node .config/mise/scripts/pack-tests.mts @six5536/project-core .config/mise/scripts/format-shell.test.mts .config/mise/scripts/lint-shell.test.mts .config/mise/scripts/lib/shell-files.test.mts"
 
 [tasks."coverage:check:shell"]
 hide = true
-depends = ["test:fast:shell"]
+env = { PACK_TESTS = "all" }
+run = [{ task = "test:fast:shell" }]
 
 [tasks."lint:check:workflows"]
 hide = true
@@ -87,15 +93,23 @@ run = "node .config/mise/scripts/run-tests.mts long"
 description = "Run the tests that only CI can run, which it skips outside CI"
 run = "node .config/mise/scripts/run-tests.mts ci"
 
+[tasks."test:local"]
+description = "Run the tests that only a developer's machine runs, which it skips in CI"
+run = "node .config/mise/scripts/run-tests.mts local"
+
 [tasks."test:fast:core"]
 hide = true
-run = "node --test .config/mise/scripts/version-check.test.mts .config/mise/scripts/lib/tools-install.test.mts .config/mise/scripts/run-tests.test.mts"
+run = "node .config/mise/scripts/pack-tests.mts @six5536/project-core .config/mise/scripts/version-check.test.mts .config/mise/scripts/lib/tools-install.test.mts .config/mise/scripts/run-tests.test.mts .config/mise/scripts/pack-tests.test.mts .github/actions/setup-tools/setup-tools.test.mts"
 
 [tasks."test:long:core"]
 hide = true
 run = "true"
 
 [tasks."test:ci:core"]
+hide = true
+run = "true"
+
+[tasks."test:local:core"]
 hide = true
 run = "true"
 
@@ -121,7 +135,8 @@ run = "true"
 
 [tasks."coverage:check:core"]
 hide = true
-depends = ["test:fast:core", "test:long:core"]
+env = { PACK_TESTS = "all" }
+run = [{ task = "test:fast:core" }, { task = "test:long:core" }]
 
 [tasks."docs:check"]
 description = "Fail on a warning from the documentation build"
@@ -136,8 +151,8 @@ description = "Delete build output that can't be reused"
 depends = ["prune:*"]
 
 [tasks."test:platform"]
-description = "Run every tier of the tests, the CI tier only in CI, as a full check of CI does"
-run = [{ task = "test" }, { task = "test:long" }, { task = "test:ci" }]
+description = "Run every tier of the tests, the CI tier only in CI and the local tier only outside it"
+run = [{ task = "test" }, { task = "test:long" }, { task = "test:ci" }, { task = "test:local" }]
 
 [tasks."version:set"]
 description = "Set one version everywhere"

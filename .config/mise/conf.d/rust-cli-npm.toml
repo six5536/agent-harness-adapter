@@ -1,5 +1,7 @@
 # mise 2026.11.0 added the lock of a task, and an older mise runs the task without it.
-min_version = "2026.11.0"
+# The coverage tasks pass PACK_TESTS to the test tasks that their run names, which
+# mise 2026.11.4 was tried with.
+min_version = "2026.11.4"
 
 [tools]
 zig = { version = "0.17.1", os = ["linux", "macos"] }
@@ -7,11 +9,12 @@ zig = { version = "0.17.1", os = ["linux", "macos"] }
 
 [tasks."test:fast:launcher"]
 hide = true
-run = "node --test packages/cli/test/*.test.js"
+run = "node .config/mise/scripts/pack-tests.mts @six5536/rust-cli-npm packages/cli/test/*.test.js"
 
 [tasks."coverage:check:launcher"]
 hide = true
-depends = ["test:fast:launcher"]
+env = { PACK_TESTS = "all" }
+run = [{ task = "test:fast:launcher" }]
 
 [tasks."version:set:launcher"]
 hide = true

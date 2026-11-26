@@ -1,13 +1,13 @@
 //! The JSON merge: the tool's entries applied to the user's JSON file,
-//! named by data-driven operations. Key order, the file's indent and its
-//! trailing newline are kept.
+//! named by data-driven operations. Only the text of the tool's entries
+//! changes, through the writer of text spans.
 
 use serde::Serialize;
 use serde_json::{Map, Value, ser::PrettyFormatter};
 
 use crate::{
     Error, Result,
-    harness::merge::{EntryMatch, MergeOp, op::Op},
+    harness::merge::{EntryMatch, MergeOp, op::Op, splice},
 };
 
 /// Parse a target file. A file that does not parse, or is not an object, is
@@ -247,27 +247,36 @@ pub(super) fn json_text(doc: &Value, indent: &str, trailing_newline: bool) -> St
     text
 }
 
-/// The file to write with `ops` merged into `existing`, re-serialised in its
-/// style: its indent (two spaces for a new file) and its trailing newline
-/// (one for a new file). `None` when nothing changes. `display` names the
-/// file in a refusal.
+/// The file to write with `ops` merged into `existing`: only the text of
+/// the tool's entries changes, and a new file has an indent of two spaces
+/// and a final newline. `None` when the value doesn't change. `display`
+/// names the file in a refusal.
 // sokf-implements: KIT-10_AC-1
 pub(crate) fn render_merge(
     existing: Option<&str>,
     ops: &[MergeOp],
     display: &str,
 ) -> Result<Option<String>> {
-    let mut doc = match existing {
-        Some(text) => parse_json(display, text)?,
-        None => Value::Object(Map::new()),
+    let Some(text) = existing else {
+        let mut doc = Value::Object(Map::new());
+        for op in ops {
+            apply(&mut doc, op, display)?;
+        }
+        return Ok(Some(json_text(&doc, "  ", true)));
     };
+    let old = parse_json(display, text)?;
+    let mut doc = old.clone();
     for op in ops {
         apply(&mut doc, op, display)?;
     }
-    let indent = existing.map_or_else(|| "  ".to_string(), indent_of);
-    let newline = existing.is_none_or(|t| t.ends_with('\n'));
-    let out = json_text(&doc, &indent, newline);
-    Ok((Some(out.as_str()) != existing).then_some(out))
+    if doc == old {
+        return Ok(None);
+    }
+    let indent = indent_of(text);
+    // sokf-implements: KIT-10_AC-7
+    let out = splice::patch(text, &old, &doc, &indent)
+        .unwrap_or_else(|| json_text(&doc, &indent, text.ends_with('\n')));
+    Ok((out != text).then_some(out))
 }
 
 #[cfg(test)]

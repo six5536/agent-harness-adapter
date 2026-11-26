@@ -152,17 +152,17 @@
           "const": "absent"
         },
         {
-          "description": "Equal to the tool's content.",
+          "description": "The same as the tool's content, by its meaning.",
           "type": "string",
           "const": "current"
         },
         {
-          "description": "Differs from the tool's content and equals the recorded hash: the\ntool wrote it and has changed since.",
+          "description": "Differs from the tool's content and is what the record holds: the\ntool wrote it and has changed since.",
           "type": "string",
           "const": "stale"
         },
         {
-          "description": "Differs from both, or present with no recorded hash.",
+          "description": "Differs from both, or present with no record that can vouch for it.",
           "type": "string",
           "const": "edited"
         }

@@ -1,6 +1,9 @@
 //! `agent-harness-adapter`: one agent setup for every coding agent. Install
 //! a setup kept in `AGENTS.md` and `.agents/` (or a tool's manifest) into
 //! LLM agent harnesses, and run hooks in Claude Code's format in each.
+//!
+//! **This crate is unstable.** It is at a 0.x version, and its commands,
+//! options and file formats can change in any release.
 
 mod bridge;
 mod diff;
@@ -20,7 +23,14 @@ use clap::{Parser, Subcommand};
 /// One agent setup, every coding agent.
 // sokf-implements: AHA-6_AC-1
 #[derive(Debug, Parser)]
-#[command(name = "agent-harness-adapter", version, about)]
+// The `about` text is the crate's description without its last sentence, the
+// mark of an unstable crate, which crates.io shows but the help leaves out. A
+// test of the help checks that the two texts still agree.
+#[command(
+    name = "agent-harness-adapter",
+    version,
+    about = "One agent setup, every coding agent: instructions, skills and hooks kept once in AGENTS.md and .agents/, installed into Claude Code, Codex, Gemini CLI, Copilot, Cursor, OpenCode and more; hooks in Claude Code's format run everywhere."
+)]
 struct Cli {
     #[command(subcommand)]
     command: Cmd,

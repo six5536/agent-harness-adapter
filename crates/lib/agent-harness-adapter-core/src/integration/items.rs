@@ -6,12 +6,25 @@ use std::{fmt::Write as _, time::Duration};
 use serde_json::{Map, Value, json};
 
 use crate::{
-    harness::EntryMatch,
+    harness::{self, EntryMatch},
     hook::{Event, ToolKind},
 };
 
-/// A frontmatter value: as is when plain YAML reads it back unchanged, else
+/// `text` double-quoted: JSON's escapes, and those of the characters that a
+/// YAML 1.1 reader reads as a line break inside quotes, NEL and the line and
+/// paragraph separators.
+fn quote(text: &str) -> String {
+    Value::String(text.to_string())
+        .to_string()
+        .replace('\u{85}', "\\u0085")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
+}
+
+/// A frontmatter value: as is when plain YAML reads it back unchanged, as
+/// the same text under YAML 1.2 and for a YAML 1.1 reader, else
 /// double-quoted (as JSON, which YAML reads).
+// sokf-implements: KIT-17_AC-11
 pub(super) fn yaml_scalar(text: &str) -> String {
     let plain = !text.is_empty()
         && !text.starts_with(|c: char| "-?:,[]{}#&*!|>'\"%@` ".contains(c))
@@ -19,10 +32,11 @@ pub(super) fn yaml_scalar(text: &str) -> String {
         && !text.contains(": ")
         && !text.contains(" #")
         && !text.contains('\n');
-    if plain {
+    let quoted = quote(text);
+    if plain && harness::reads_as_text(text, &quoted) {
         text.to_string()
     } else {
-        Value::String(text.to_string()).to_string()
+        quoted
     }
 }
 
@@ -407,7 +421,7 @@ impl Agent {
         }
         let mut out = format!(
             "---\nname: {}\ndescription: {}\n",
-            self.name,
+            yaml_scalar(&self.name),
             yaml_scalar(&self.description)
         );
         for (k, v) in extra {
@@ -472,11 +486,145 @@ impl Command {
 mod tests {
     use super::*;
 
+    // sokf-tests: KIT-17_AC-11
     #[test]
     fn yaml_scalars_are_plain_when_safe() {
         assert_eq!(yaml_scalar("Checks things."), "Checks things.");
         for quoted in ["", "a: b", "- x", "x #y", "two\nlines", "'q'", " x", "x "] {
             assert!(yaml_scalar(quoted).starts_with('"'), "{quoted}");
+        }
+    }
+
+    // sokf-tests: KIT-17_AC-11
+    #[test]
+    fn a_value_that_a_yaml_reader_takes_as_no_text_is_quoted() {
+        for misread in [
+            "no",
+            "No",
+            "on",
+            "OFF",
+            "yes",
+            "y",
+            "n",
+            "~",
+            "null",
+            "true",
+            "010",
+            "1:20",
+            "12",
+            "0x1F",
+            "1.5",
+            "2026-11-24",
+            ".inf",
+        ] {
+            assert_eq!(yaml_scalar(misread), format!("\"{misread}\""), "{misread}");
+        }
+        for text in [
+            "Use on Mondays",
+            "no way",
+            "Checks things.",
+            "v1.2",
+            "yes, then no",
+            "2026-11-24 or later",
+        ] {
+            assert_eq!(yaml_scalar(text), text, "{text}");
+        }
+        // A line break of YAML 1.1 inside quotes is escaped.
+        assert_eq!(yaml_scalar("a\u{2028}b"), "\"a\\u2028b\"");
+        assert_eq!(yaml_scalar("a\u{85}b"), "\"a\\u0085b\"");
+        // Names too.
+        let agent = Agent::new("no", "Reviews.", "Review.");
+        assert!(
+            agent.to_markdown(&[]).starts_with("---\nname: \"no\"\n"),
+            "{}",
+            agent.to_markdown(&[])
+        );
+        let skill = crate::integration::Skill::new("on", "Checks.", "# On\n");
+        assert!(skill.dir_files()[0].1.starts_with("---\nname: \"on\"\n"));
+    }
+
+    fn arb_text() -> impl proptest::strategy::Strategy<Value = String> {
+        use proptest::prelude::*;
+        let words = prop::sample::select(vec![
+            "no",
+            "Yes",
+            "on",
+            "off",
+            "y",
+            "N",
+            "~",
+            "null",
+            "true",
+            "False",
+            "010",
+            "0o17",
+            "1:20",
+            "1e3",
+            "1.5",
+            "-2",
+            "+3",
+            ".nan",
+            "2026-11-24",
+            "2026-11-24T10:00:00Z",
+            "<<",
+            "=",
+            "Use",
+            "the",
+            "tool",
+            "\t",
+            "\r",
+            "\u{85}",
+            "\u{2028}",
+            "\u{2029}",
+            "é",
+            "#",
+            ":",
+            "-",
+            "a: b",
+            "'",
+            "\"",
+            "\\",
+        ]);
+        prop_oneof![
+            words.clone().prop_map(str::to_string),
+            prop::collection::vec(words, 1..4).prop_map(|w| w.join(" ")),
+            "[ -~]{0,16}",
+        ]
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::prelude::ProptestConfig::with_cases(512))]
+
+        // The front matter that the adapter writes reads back as the text
+        // under YAML 1.2, and draws no named thing, `yaml11-value` among them,
+        // against the text quoted.
+        // sokf-tests: KIT-17_AC-11
+        #[test]
+        fn a_value_of_front_matter_reads_back_as_its_text(text in arb_text()) {
+            use same_same::{Comparer, Detail, Format, Input, Method, Verdict};
+            let comparer = Comparer::builder()
+                .formats([Format::Markdown, Format::Yaml])
+                .build()
+                .unwrap();
+            let written = yaml_scalar(&text);
+            // A quoted value holds no character that a YAML 1.1 reader reads
+            // as a line break.
+            proptest::prop_assert!(
+                written == text || !written.contains(['\u{85}', '\u{2028}', '\u{2029}']),
+                "{written:?}"
+            );
+            proptest::prop_assert!(written == text || written.starts_with('"'), "{written}");
+            let skill = |value: &str| format!("---\nname: x\ndescription: {value}\n---\n\n# X\n");
+            let ours = skill(&written);
+            let quoted = skill(&quote(&text));
+            let answer = comparer.compare(
+                &Input::bytes(ours.as_bytes(), "SKILL.md"),
+                &Input::bytes(quoted.as_bytes(), "SKILL.md"),
+                Detail::Verdict,
+            );
+            proptest::prop_assert_eq!(answer.verdict, Verdict::Same, "{}", ours);
+            // Equal texts answer by their bytes; any other pair by meaning.
+            proptest::prop_assert!(ours == quoted || matches!(answer.method, Method::Meaning { .. }), "{:?}", answer.method);
         }
     }
 

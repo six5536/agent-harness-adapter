@@ -5,12 +5,23 @@ on:
     secrets:
       PRIVATE_REPO_TOKEN:
         required: false
+      CI_CACHE_S3_ACCESS_KEY_ID:
+        required: false
+      CI_CACHE_S3_SECRET_ACCESS_KEY:
+        required: false
 
 permissions:
   contents: read
 
 env:
   MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS: bash -c
+  # The settings of the S3 store of the pack ci-cache-s3, which setup-tools passes to it,
+  # because a composite action reads no variable or secret itself. The steps of
+  # setup-tools and cache-save get the store's keys as inputs, which only the actions of
+  # the pack read.
+  CI_CACHE_S3_ENDPOINT: ${{ vars.CI_CACHE_S3_ENDPOINT }}
+  CI_CACHE_S3_BUCKET: ${{ vars.CI_CACHE_S3_BUCKET }}
+  CI_CACHE_S3_REGION: ${{ vars.CI_CACHE_S3_REGION }}
 
 jobs:
   list:
@@ -23,14 +34,11 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-      - name: Restore the tools
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.tools
-          key: tools-${{ runner.os }}
       - uses: ./.github/actions/setup-tools
         with:
           tools: node
+          cache-s3-access-key-id: ${{ secrets.CI_CACHE_S3_ACCESS_KEY_ID }}
+          cache-s3-secret-access-key: ${{ secrets.CI_CACHE_S3_SECRET_ACCESS_KEY }}
       - id: jobs
         shell: bash
         env:
@@ -38,6 +46,12 @@ jobs:
         run: |
           jobs=$(mise run -q ci:matrix:build)
           echo "jobs=$jobs" >> "$GITHUB_OUTPUT"
+      - name: Save the caches
+        if: hashFiles('.github/actions/cache-save/action.yml') != ''
+        uses: ./.github/actions/cache-save
+        with:
+          access-key-id: ${{ secrets.CI_CACHE_S3_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.CI_CACHE_S3_SECRET_ACCESS_KEY }}
 
   build:
     name: ${{ matrix.task }}
@@ -60,6 +74,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
+        with:
+          cache-s3-access-key-id: ${{ secrets.CI_CACHE_S3_ACCESS_KEY_ID }}
+          cache-s3-secret-access-key: ${{ secrets.CI_CACHE_S3_SECRET_ACCESS_KEY }}
       - run: mise run -q setup:ci
       - run: mise run "$TASK"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -67,3 +84,9 @@ jobs:
           name: ${{ matrix.artifact }}
           path: dist/
           if-no-files-found: error
+      - name: Save the caches
+        if: hashFiles('.github/actions/cache-save/action.yml') != ''
+        uses: ./.github/actions/cache-save
+        with:
+          access-key-id: ${{ secrets.CI_CACHE_S3_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.CI_CACHE_S3_SECRET_ACCESS_KEY }}

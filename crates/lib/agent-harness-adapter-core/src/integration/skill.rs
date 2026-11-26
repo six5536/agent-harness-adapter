@@ -116,7 +116,7 @@ impl Skill {
         let skill_md = self.original.clone().unwrap_or_else(|| {
             format!(
                 "---\nname: {}\ndescription: {}\n---\n\n{}",
-                self.name,
+                yaml_scalar(&self.name),
                 yaml_scalar(&self.description),
                 self.body
             )

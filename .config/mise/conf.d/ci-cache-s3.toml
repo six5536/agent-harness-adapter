@@ -1,0 +1,17 @@
+# The coverage tasks pass PACK_TESTS to the test tasks that their run names, which mise
+# 2026.11.4, the release that setup-tools and the dev container pin, was tried with.
+min_version = "2026.11.4"
+
+# zstd compresses and decompresses the archives of the S3 store. The pack's tests run the real
+# zstd, so every developer who runs them needs it; CI's runners carry the same version.
+[tools]
+"conda:zstd" = "1.5.7"
+
+[tasks."test:fast:ci-cache-s3"]
+hide = true
+run = "node .config/mise/scripts/pack-tests.mts @six5536/ci-cache-s3 .github/actions/cache-s3/cache-s3.test.mts .github/actions/cache-s3/archive.test.mts .github/actions/cache-s3/bound.test.mts .github/actions/cache-s3/store.test.mts .github/actions/cache-s3/restore.test.mts"
+
+[tasks."coverage:check:ci-cache-s3"]
+hide = true
+env = { PACK_TESTS = "all" }
+run = [{ task = "test:fast:ci-cache-s3" }]

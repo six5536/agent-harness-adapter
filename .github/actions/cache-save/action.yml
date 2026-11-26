@@ -1,0 +1,19 @@
+name: Save the caches
+description: >-
+  Saves to the S3 store of ci-cache-s3 each cache whose paths changed since cache-restore,
+  or whose archive cache-restore couldn't use, and prints the statistics of sccache.
+  Without the store's settings, it does nothing.
+
+inputs:
+  access-key-id:
+    description: The key id of the store, or else CI_CACHE_S3_ACCESS_KEY_ID of the environment.
+    required: false
+    default: ""
+  secret-access-key:
+    description: The secret key of the store, or else CI_CACHE_S3_SECRET_ACCESS_KEY of the environment.
+    required: false
+    default: ""
+
+runs:
+  using: node24
+  main: save.mts

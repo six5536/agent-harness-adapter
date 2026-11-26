@@ -7,6 +7,10 @@ Pi, OpenCode, Kilo Code, Qwen Code, Devin and any agent that reads
 `AGENTS.md` use them. Tools in any language ship their own integration the
 same way.
 
+## Status
+
+**Unstable.** `agent-harness-adapter` is at a 0.x version, and its commands, options and file formats can change in any release.
+
 ## Install
 
 ```sh

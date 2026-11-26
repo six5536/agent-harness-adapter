@@ -13,6 +13,10 @@ Tools in any language can also ship their own integration from a manifest
 file: the command writes it into each harness's own files, puts shared
 content in one place, and never overwrites what the user changed.
 
+## Status
+
+**Unstable.** `agent-harness-adapter` is at a 0.x version, and its commands, options and file formats can change in any release.
+
 ## Install
 
 ```sh

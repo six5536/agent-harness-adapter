@@ -54,6 +54,17 @@ The adapter only touches its own content:
 It keeps a **record** of what it wrote, `.agents/harness.toml`, so it can
 tell a file it wrote and that changed since (`stale`) from one you changed
 by hand (`edited`), which it leaves alone. Commit the record with the rest.
+
+It compares each part with what it would write by its **meaning**, not its
+layout, so your formatter can format every file that it writes. A Markdown
+part compares by its parsed tree, so emphasis, list and heading markers,
+blank lines, table padding and wrapped lines don't count, while the text
+inside code, raw HTML and front matter values do. Settings, the code of
+`json`, `yaml` and `toml` fences, and the generated plugins compare by their
+values, with the order of keys and of imports set aside. A fence of another
+language, such as `sh`, compares by its text. An update writes a part in the
+adapter's own layout, and in a settings file only its own entries, so your
+formatter re-lays the part once.
 Parts you turn off are listed in `.agents/config.toml`, which you edit and
 no command writes.
 

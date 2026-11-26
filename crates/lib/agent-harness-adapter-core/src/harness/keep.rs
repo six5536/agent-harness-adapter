@@ -273,7 +273,7 @@ fn keep<T: Tool + ?Sized>(
     let mut plan = write::Plan::default();
     let mut files = Vec::new();
     for (path, found) in holding {
-        if let Some(out) = markers.keep(found.as_deref(), text) {
+        if let Some(out) = markers.keep(&path, found.as_deref(), text) {
             plan.set(cx.path(&path), out);
             files.push(path);
         }

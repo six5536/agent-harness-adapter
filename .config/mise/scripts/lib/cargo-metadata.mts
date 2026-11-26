@@ -8,10 +8,13 @@ export interface Package {
   version: string;
   manifest: string;
   publish: unknown[] | null;
+  // The crate's `[package.metadata]` table, where tools keep their settings, or
+  // null where the crate has none.
+  metadata: unknown;
 }
 
 // Returns whether `value` is an object that is neither null nor an array.
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -27,7 +30,8 @@ function toPackage(p: unknown): Package | undefined {
     return undefined;
   }
   const publish = Array.isArray(p.publish) ? p.publish : null;
-  return { name: p.name, version: p.version, manifest: p.manifest_path, publish };
+  const metadata = p.metadata ?? null;
+  return { name: p.name, version: p.version, manifest: p.manifest_path, publish, metadata };
 }
 
 // Returns each crate of the workspace. `flags` go to `cargo metadata`, such as

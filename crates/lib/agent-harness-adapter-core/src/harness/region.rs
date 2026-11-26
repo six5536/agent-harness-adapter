@@ -1,7 +1,7 @@
 //! The `region` kind: the tool owns one block between its markers in the
 //! user's file.
 
-use crate::{hash::normalise, integration::BlockOrder};
+use crate::{eol::normalise, harness::meaning, integration::BlockOrder};
 
 /// A tool's region markers: `<!-- <tool>:harness -->` and
 /// `<!-- /<tool>:harness -->`, each on a line of its own; the opening one
@@ -58,27 +58,38 @@ fn fence(line: &str) -> Option<(char, usize)> {
     (n >= 3 && !(c == '`' && info.contains('`'))).then_some((c, n))
 }
 
+/// Whether each of `lines` is fenced code, its fences included, by the
+/// rules of [`unfenced`].
+fn fenced(lines: &[&str]) -> Vec<bool> {
+    let mut open: Option<(char, usize)> = None;
+    lines
+        .iter()
+        .map(|l| match (open, fence(l)) {
+            (None, Some(f)) => {
+                open = Some(f);
+                true
+            }
+            (Some((c, n)), Some((d, m)))
+                if c == d && m >= n && l.trim().chars().all(|x| x == c) =>
+            {
+                open = None;
+                true
+            }
+            (None, None) => false,
+            _ => true,
+        })
+        .collect()
+}
+
 /// `lines` with each line of fenced code made empty, fences included, so a
 /// marker shown in an example is no block. A fence closes at a line of the
 /// same character, at least as long, with nothing after it; an unclosed
 /// fence runs to the end, as in `CommonMark`.
 fn unfenced<'a>(lines: &[&'a str]) -> Vec<&'a str> {
-    let mut open: Option<(char, usize)> = None;
     lines
         .iter()
-        .map(|l| {
-            match (open, fence(l)) {
-                (None, Some(f)) => open = Some(f),
-                (Some((c, n)), Some((d, m)))
-                    if c == d && m >= n && l.trim().chars().all(|x| x == c) =>
-                {
-                    open = None;
-                }
-                (None, None) => return *l,
-                _ => {}
-            }
-            ""
-        })
+        .zip(fenced(lines))
+        .map(|(l, f)| if f { "" } else { *l })
         .collect()
 }
 
@@ -211,12 +222,19 @@ impl Markers {
     /// The block with its markers, LF; a blank line after the opening
     /// marker when the block is not empty, so the file reads as Markdown.
     fn framed(&self, block: &str) -> String {
+        let body = Markers::body(block);
+        let gap = if body.is_empty() { "" } else { "\n" };
+        format!("{}\n{gap}{body}{}\n", self.open, self.close)
+    }
+
+    /// `block` as the region holds it and [`find`](Markers::find) reads it
+    /// back: LF, with a final newline when it isn't empty.
+    pub(crate) fn body(block: &str) -> String {
         let mut body = normalise(block);
         if !body.is_empty() && !body.ends_with('\n') {
             body.push('\n');
         }
-        let gap = if body.is_empty() { "" } else { "\n" };
-        format!("{}\n{gap}{body}{}\n", self.open, self.close)
+        body
     }
 
     /// The block between the markers in `text`, LF, with its trailing
@@ -340,7 +358,7 @@ impl Markers {
     /// `None` when the text already stands there or is only whitespace.
     // sokf-implements: KIT-27_AC-3
     // sokf-implements: KIT-27_AC-4
-    pub(crate) fn keep(&self, existing: Option<&str>, text: &str) -> Option<String> {
+    pub(crate) fn keep(&self, name: &str, existing: Option<&str>, text: &str) -> Option<String> {
         let text = normalise(text);
         let kept: Vec<&str> = text
             .trim_end()
@@ -381,7 +399,7 @@ impl Markers {
                         .zip(&kept)
                         .all(|(a, b)| a.trim_end() == b.trim_end())
             });
-        if held {
+        if held || Markers::held_by_meaning(name, &lines, region, &blocks, &kept) {
             return None;
         }
         // The ending of line `i`: its own, or the file's for a last line
@@ -427,6 +445,76 @@ impl Markers {
         out.extend(after.iter().map(std::string::ToString::to_string));
         let out = out.join("\n");
         (out != existing).then_some(out)
+    }
+
+    /// Whether `lines` hold, outside the region and every block, a run of
+    /// Markdown blocks that means the same as the `kept` lines, read as
+    /// [`meaning::block`] reads a region's block: the runs are the lines
+    /// between blank lines outside fenced code, and a run of them is at
+    /// most as many runs as the text has lines that are not blank, because a
+    /// formatter that adds blank lines between blocks adds no lines of text.
+    // sokf-implements: KIT-27_AC-4
+    fn held_by_meaning(
+        name: &str,
+        lines: &[&str],
+        region: Option<(usize, usize)>,
+        blocks: &[Block],
+        kept: &[&str],
+    ) -> bool {
+        let fenced = fenced(lines);
+        let inside = |k: usize| {
+            region.is_some_and(|(o, c)| o <= k && k <= c)
+                || blocks.iter().any(|b| b.open <= k && k <= b.close)
+        };
+        // Each run's first and last line, and the stretch between blocks
+        // that it stands in.
+        let mut runs: Vec<(usize, usize, usize)> = Vec::new();
+        let mut stretch = 0;
+        let mut open: Option<usize> = None;
+        for k in 0..=lines.len() {
+            let separator =
+                k == lines.len() || inside(k) || (lines[k].trim().is_empty() && !fenced[k]);
+            match (open, separator) {
+                (Some(start), true) => {
+                    runs.push((start, k - 1, stretch));
+                    open = None;
+                }
+                (None, false) => open = Some(k),
+                _ => {}
+            }
+            if k < lines.len() && inside(k) {
+                stretch += 1;
+            }
+        }
+        let want = meaning::block(name, &format!("{}\n", kept.join("\n")));
+        let most = kept.iter().filter(|l| !l.trim().is_empty()).count().max(1);
+        // A re-layout changes no letter, so a run of runs is read only when
+        // it holds as many letters as the text, and the search stops past it.
+        let letters = |l: &[&str]| -> usize {
+            l.iter()
+                .map(|l| l.chars().filter(|c| c.is_alphabetic()).count())
+                .sum()
+        };
+        let need = letters(kept);
+        for i in 0..runs.len() {
+            let mut have = 0;
+            for j in i..runs.len().min(i + most) {
+                if runs[j].2 != runs[i].2 {
+                    break;
+                }
+                have += letters(&lines[runs[j].0..=runs[j].1]);
+                if have > need {
+                    break;
+                }
+                if have == need {
+                    let found = format!("{}\n", lines[runs[i].0..=runs[j].1].join("\n"));
+                    if meaning::same(&want, &meaning::block(name, &found)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 
     /// Whether LF-normalisable `text` holds a line that is not blank outside

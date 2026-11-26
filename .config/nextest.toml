@@ -1,5 +1,9 @@
 [profile.default]
 slow-timeout = "2s"
+# Every run leaves out the tests of the CI and the local tiers, whichever task starts
+# it, a project's own task included, and the profile ci takes the filter too. Only
+# test:ci:rust and test:local:rust pass --ignore-default-filter, each with its tier.
+default-filter = "not test(/(^|::)(ci_only|local_only)::/)"
 
 [profile.ci]
 fail-fast = false

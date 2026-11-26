@@ -7,6 +7,15 @@ on:
 permissions:
   contents: read
 
+env:
+  # The settings of the S3 store of the pack ci-cache-s3, which setup-tools passes to it,
+  # because a composite action reads no variable or secret itself. The steps of
+  # setup-tools and cache-save get the store's keys as inputs, which only the actions of
+  # the pack read.
+  CI_CACHE_S3_ENDPOINT: ${{ vars.CI_CACHE_S3_ENDPOINT }}
+  CI_CACHE_S3_BUCKET: ${{ vars.CI_CACHE_S3_BUCKET }}
+  CI_CACHE_S3_REGION: ${{ vars.CI_CACHE_S3_REGION }}
+
 concurrency:
   group: publish
   cancel-in-progress: false
@@ -22,12 +31,24 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - uses: ./.github/actions/setup-tools
+        with:
+          cache-s3-access-key-id: ${{ secrets.CI_CACHE_S3_ACCESS_KEY_ID }}
+          cache-s3-secret-access-key: ${{ secrets.CI_CACHE_S3_SECRET_ACCESS_KEY }}
       - run: mise run version:check "${GITHUB_REF_NAME#v}"
       - run: mise run changelog:check "${GITHUB_REF_NAME#v}"
+      - name: Save the caches
+        if: hashFiles('.github/actions/cache-save/action.yml') != ''
+        uses: ./.github/actions/cache-save
+        with:
+          access-key-id: ${{ secrets.CI_CACHE_S3_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.CI_CACHE_S3_SECRET_ACCESS_KEY }}
 
   build:
     needs: verify
     uses: ./.github/workflows/build.yml
+    secrets:
+      CI_CACHE_S3_ACCESS_KEY_ID: ${{ secrets.CI_CACHE_S3_ACCESS_KEY_ID }}
+      CI_CACHE_S3_SECRET_ACCESS_KEY: ${{ secrets.CI_CACHE_S3_SECRET_ACCESS_KEY }}
 
   publish:
     name: publish
@@ -48,6 +69,9 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - uses: ./.github/actions/setup-tools
+        with:
+          cache-s3-access-key-id: ${{ secrets.CI_CACHE_S3_ACCESS_KEY_ID }}
+          cache-s3-secret-access-key: ${{ secrets.CI_CACHE_S3_SECRET_ACCESS_KEY }}
       - run: mise run -q setup:ci
         env:
           TASK: publish
@@ -67,3 +91,9 @@ jobs:
       - run: mise run publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN || steps.crates-auth.outputs.token }}
+      - name: Save the caches
+        if: hashFiles('.github/actions/cache-save/action.yml') != ''
+        uses: ./.github/actions/cache-save
+        with:
+          access-key-id: ${{ secrets.CI_CACHE_S3_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.CI_CACHE_S3_SECRET_ACCESS_KEY }}

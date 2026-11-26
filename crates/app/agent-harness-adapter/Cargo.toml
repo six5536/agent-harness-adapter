@@ -1,6 +1,6 @@
 [package]
 name = "agent-harness-adapter"
-description = "One agent setup, every coding agent: instructions, skills and hooks kept once in AGENTS.md and .agents/, installed into Claude Code, Codex, Gemini CLI, Copilot, Cursor, OpenCode and more; hooks in Claude Code's format run everywhere."
+description = "One agent setup, every coding agent: instructions, skills and hooks kept once in AGENTS.md and .agents/, installed into Claude Code, Codex, Gemini CLI, Copilot, Cursor, OpenCode and more; hooks in Claude Code's format run everywhere. Unstable: its commands, options and file formats can change in any release."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

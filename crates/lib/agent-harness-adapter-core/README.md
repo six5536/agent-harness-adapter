@@ -22,11 +22,15 @@ Tools in other languages use the same library through the
 [`agent-harness-adapter`](https://crates.io/crates/agent-harness-adapter)
 command, or the Node and Python bindings.
 
+## Status
+
+**Unstable.** The library is at a 0.x version, and its interface can change in any release.
+
 ## Installation
 
 ### Prerequisites
 
-- Rust 1.85 or newer
+- Rust 1.98 or newer
 
 ### Install
 
@@ -165,7 +169,16 @@ fn main() {
 - The library enables `serde_json`'s `preserve_order` feature, so a merge keeps the
   user's key order. Cargo turns features on for the whole build: every crate
   using `serde_json` beside the library gets insertion-ordered maps.
-- MSRV is 1.85. Raising it is a minor release, made only when needed.
+- MSRV is 1.98, the need of oxc, through which `same-same` compares the
+  generated JavaScript and TypeScript. Raising it is a minor release, made
+  only when needed.
+- Each part is compared by its meaning through `same-same`, so a part that a
+  formatter re-laid stays current. The record holds `same-same`'s
+  fingerprints: after an upgrade from 0.4, a part that differs from the tool's
+  content reads as edited, with a warning, until one `install --force <part>`.
+  An adapter of 0.4 refuses a record of 0.5 that holds a file part, and reads
+  any other as a record of parts that it can't vouch for, so every tool that
+  installs into the same project moves to 0.5 together.
 - Pre-1.0: minor versions may contain breaking changes.
 
 ## Contributing

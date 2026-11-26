@@ -1,0 +1,27 @@
+name: Restore the caches
+description: >-
+  Restores the tools, cargo's downloads, and the project's own caches from the S3 store of
+  ci-cache-s3 before mise installs the tools, and turns sccache's S3 backend on after it.
+  Without the store's settings, it uses no store.
+
+inputs:
+  tools:
+    description: The tools that setup-tools installs, such as node. By default, every tool.
+    required: false
+    default: ""
+  phase:
+    description: restore, before mise installs the tools, or build, after it.
+    required: false
+    default: restore
+  access-key-id:
+    description: The key id of the store, or else CI_CACHE_S3_ACCESS_KEY_ID of the environment.
+    required: false
+    default: ""
+  secret-access-key:
+    description: The secret key of the store, or else CI_CACHE_S3_SECRET_ACCESS_KEY of the environment.
+    required: false
+    default: ""
+
+runs:
+  using: node24
+  main: restore.mts

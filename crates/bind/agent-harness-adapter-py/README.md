@@ -6,6 +6,12 @@ into Claude Code, OpenAI Codex, Gemini CLI, GitHub Copilot, Cursor, Factory
 Droid, Pi, OpenCode, Kilo Code, Qwen Code, Devin and any agent that reads
 `AGENTS.md`, and answer hooks in one format, Claude Code's, in all of them.
 
+## Status
+
+**Unstable.** The binding is at a 0.x version, and its interface can change in any release.
+
+## Usage
+
 Not yet on PyPI: build it from the repository with
 [maturin](https://www.maturin.rs/) (`maturin develop` in this folder) until the first
 PyPI release.

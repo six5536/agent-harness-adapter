@@ -1,3 +1,7 @@
+# The coverage tasks pass PACK_TESTS to the test tasks that their run names, which mise
+# 2026.11.4, the release that setup-tools and the dev container pin, was tried with.
+min_version = "2026.11.4"
+
 [tasks.publish]
 description = "Publish the project to its registries"
 run = "node .config/mise/scripts/publish.mts"
@@ -15,10 +19,20 @@ run = "node .config/mise/scripts/github-publish.mts"
 description = "Print the jobs of build.yml as JSON"
 run = "node .config/mise/scripts/ci-matrix-build.mts"
 
+[tasks."test:fast:github-publish"]
+hide = true
+run = "node .config/mise/scripts/pack-tests.mts @six5536/publish .config/mise/scripts/github-publish.test.mts"
+
+[tasks."coverage:check:github-publish"]
+hide = true
+env = { PACK_TESTS = "all" }
+run = [{ task = "test:fast:github-publish" }]
+
 [tasks."test:fast:ci-matrix-build"]
 hide = true
-run = "node --test .config/mise/scripts/ci-matrix-build.test.mts"
+run = "node .config/mise/scripts/pack-tests.mts @six5536/publish .config/mise/scripts/ci-matrix-build.test.mts"
 
 [tasks."coverage:check:ci-matrix-build"]
 hide = true
-depends = ["test:fast:ci-matrix-build"]
+env = { PACK_TESTS = "all" }
+run = [{ task = "test:fast:ci-matrix-build" }]

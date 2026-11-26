@@ -13,9 +13,10 @@ use crate::{
     harness::{
         Context, Harness, Markers, Part, Profile, Reads, Scope, State, Tool,
         file::render_files,
+        meaning::Unusable,
         merge::render_merge,
         part::Kind,
-        record::{Record, read_record, render_record},
+        record::{Record, Recorded, read_record, render_record},
         result::{Action, HarnessResult, InstallResult, MissingSource, PartResult},
         shared::{Candidate, Role, choose},
         state::{Observed, expected, hash, observe, state},
@@ -118,6 +119,8 @@ pub(super) struct Examined<'a> {
     pub(super) existed: bool,
     pub(super) by: Option<String>,
     pub(super) in_place: bool,
+    /// Why the record could not vouch for an edited part.
+    pub(super) unusable: Option<Unusable>,
 }
 
 /// Where a shared part's content is: `location`, written by `by`, or the
@@ -347,15 +350,14 @@ pub(super) fn run<T: Tool + ?Sized>(
 }
 
 impl Run {
-    /// The recorded hash of `member`'s part `name`; for an item, else that
+    /// The recorded value of `member`'s part `name`; for an item, else that
     /// of another harness whose part for it has the same location.
-    fn recorded(&self, member: usize, part: &Part) -> Option<&str> {
+    fn recorded(&self, member: usize, part: &Part) -> Option<&Recorded> {
         let own = |m: &Member| {
             self.record
                 .harnesses
                 .get(m.harness.id())
                 .and_then(|t| t.get(part.name()))
-                .map(String::as_str)
         };
         own(&self.members[member]).or_else(|| {
             part.name().parse::<Item>().ok()?;
@@ -448,6 +450,7 @@ impl Run {
                         existed: false,
                         by: None,
                         in_place: false,
+                        unusable: None,
                     });
                     continue;
                 }
@@ -460,6 +463,7 @@ impl Run {
                         existed: false,
                         by: c.by.clone(),
                         in_place: c.by.is_none(),
+                        unusable: None,
                     });
                     continue;
                 }
@@ -467,7 +471,8 @@ impl Run {
                 // SOURCE changes: stale.
                 // sokf-implements: KIT-23_AC-4
                 let observed = observe(&self.cx.root, part, &path, &self.markers)?;
-                let st = state(&observed, &expected(part), self.recorded(i, part), false);
+                let (st, unusable) =
+                    state(&observed, &expected(part), self.recorded(i, part), false);
                 let present = matches!(observed, Observed::Present(_));
                 // A file part existed when any of its files did (its directory
                 // may hold others'); a region or merge when its file did.
@@ -487,6 +492,7 @@ impl Run {
                     existed,
                     by: None,
                     in_place: false,
+                    unusable,
                 });
             }
         }
@@ -580,7 +586,7 @@ fn plan_part(cx: &Context, markers: &Markers, plan: &mut Plan, e: &Examined<'_>)
 /// Whether `e` is a region found current, the parts KIT-26_AC-4 places; an
 /// edited region stays where it is.
 // sokf-implements: KIT-26_AC-5
-fn is_current_region(e: &Examined<'_>) -> bool {
+pub(super) fn is_current_region(e: &Examined<'_>) -> bool {
     e.state == State::Current && matches!(e.part.kind, Kind::Region { .. })
 }
 
@@ -589,7 +595,7 @@ fn is_current_region(e: &Examined<'_>) -> bool {
 /// the blocks move (else only the opening marker changes). Install and
 /// status share it.
 // sokf-implements: KIT-26_AC-4
-fn placing(markers: &Markers, text: Option<&str>) -> Option<(String, bool)> {
+pub(super) fn placing(markers: &Markers, text: Option<&str>) -> Option<(String, bool)> {
     let text = text?;
     let placed = markers.place(text)?;
     Some((placed, markers.out_of_order(text)))
@@ -617,6 +623,7 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
             .or_default();
     }
     let mut parts = Vec::new();
+    let mut warnings = Vec::new();
     for e in &examined {
         let m = &run.members[e.member];
         if !m.named {
@@ -627,6 +634,9 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
             State::Edited => opts.force.covers(e.part.name()),
             _ => false,
         };
+        if !written {
+            warnings.extend(unusable_warning(&run, e, false));
+        }
         // A current region in the wrong place, or under the other form of
         // its opening marker, moves with its lines as found.
         // sokf-implements: KIT-26_AC-4
@@ -686,7 +696,16 @@ pub fn install<T: Tool + ?Sized>(tool: &T, opts: &InstallOptions) -> Result<Inst
         ));
     }
     apply_plan(&plan)?;
+    run.warnings.extend(warnings);
     Ok(run.result(&parts))
+}
+
+/// The warning for an edited part whose record could not vouch for it
+/// (KIT-3_AC-10).
+pub(super) fn unusable_warning(run: &Run, e: &Examined<'_>, uninstall: bool) -> Option<String> {
+    let why = e.unusable.as_ref()?;
+    let harness = run.members[e.member].harness.id();
+    Some(why.warning(harness, e.part.name(), &e.path, uninstall))
 }
 
 /// The harness ids `names` stands for at `scope`: `all` is every harness
@@ -718,62 +737,6 @@ pub fn installed<T: Tool + ?Sized>(tool: &T, scope: Scope) -> Result<Vec<String>
         .map(|h| h.id().to_string())
         .filter(|id| record.harnesses.contains_key(id))
         .collect())
-}
-
-/// The state of every part of `harnesses` at `scope`; nothing is written.
-// sokf-implements: KIT-5_AC-1
-pub fn status<T: Tool + ?Sized, I: IntoIterator<Item = S>, S: AsRef<str>>(
-    tool: &T,
-    harnesses: I,
-    scope: Scope,
-) -> Result<InstallResult> {
-    let named: Vec<String> = harnesses
-        .into_iter()
-        .map(|s| s.as_ref().to_string())
-        .collect();
-    let mut run = run(tool, &named, scope, &Force::None)?;
-    let shared = run.share()?;
-    let examined = run.examine(&shared)?;
-    // A current region that install would move is current, with a warning.
-    // sokf-implements: KIT-26_AC-4
-    let mut moves = Vec::new();
-    for e in examined.iter().filter(|e| run.members[e.member].named) {
-        let text = if is_current_region(e) {
-            read_text(&run.cx.path(&e.path))?
-        } else {
-            None
-        };
-        if let Some((_, moved)) = placing(&run.markers, text.as_deref()) {
-            let (h, part, path) = (run.members[e.member].harness.id(), e.part.name(), &e.path);
-            moves.push(if moved {
-                format!("{h}: the tools' blocks in {path} are out of their order; install moves them ({part})")
-            } else {
-                format!("{h}: the {part} block in {path} opens with the other form of its marker; install rewrites it")
-            });
-        }
-    }
-    let parts: Vec<(usize, PartResult)> = examined
-        .into_iter()
-        .map(|e| {
-            (
-                e.member,
-                PartResult {
-                    part: e.part.name().to_string(),
-                    state: e.state,
-                    action: None,
-                    path: e.path,
-                    by: e.by,
-                    in_place: e.in_place,
-                },
-            )
-        })
-        .collect();
-    let parts: Vec<_> = parts
-        .into_iter()
-        .filter(|(i, _)| run.members[*i].named)
-        .collect();
-    run.warnings.extend(moves);
-    Ok(run.result(&parts))
 }
 
 #[cfg(test)]

@@ -1,8 +1,8 @@
 //! The `file` kind: the tool owns the whole file.
 
 use crate::{
+    eol::normalise,
     harness::part::{Kind, Part},
-    hash::normalise,
 };
 
 /// The files a `file` part writes, each with LF line endings; empty for a

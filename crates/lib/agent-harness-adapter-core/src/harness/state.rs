@@ -1,6 +1,7 @@
-//! The state of a part and the hash the record keeps of its content.
+//! The state of a part, from its content compared by meaning with the
+//! tool's, and the value that the record keeps of a content.
 
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
 use serde::Serialize;
 use serde_json::Value;
@@ -9,11 +10,12 @@ use crate::{
     Result,
     fs::read_text,
     harness::{
-        Markers,
+        Markers, meaning,
+        meaning::{Unusable, Vouch},
         merge::observe_entries,
         part::{Kind, Part},
+        record::Recorded,
     },
-    hash::{Fnv, normalise},
 };
 
 // sokf:begin state
@@ -31,12 +33,12 @@ pub enum State {
     Shared,
     /// The file, the block or the entries are not there.
     Absent,
-    /// Equal to the tool's content.
+    /// The same as the tool's content, by its meaning.
     Current,
-    /// Differs from the tool's content and equals the recorded hash: the
+    /// Differs from the tool's content and is what the record holds: the
     /// tool wrote it and has changed since.
     Stale,
-    /// Differs from both, or present with no recorded hash.
+    /// Differs from both, or present with no record that can vouch for it.
     Edited,
 }
 // sokf:end state
@@ -62,8 +64,13 @@ impl State {
 pub(crate) enum Found {
     /// A `file` part's files: (relative path, text).
     Files(Vec<(String, String)>),
-    /// A `region` part's block, compared by words.
-    Block(String),
+    /// A `region` part's block, compared as Markdown named as its file.
+    Block {
+        /// The file that holds the block, relative to the root.
+        file: String,
+        /// The block, LF.
+        text: String,
+    },
     /// A `merge` part's entries that are present, in operation order.
     Entries(Vec<Value>),
     /// An `external` part's text.
@@ -84,7 +91,12 @@ pub(crate) enum Observed {
 pub(crate) fn expected(part: &Part) -> Found {
     match &part.kind {
         Kind::Files { files, .. } => Found::Files(files.clone()),
-        Kind::Region { block, .. } => Found::Block(block.clone()),
+        // The block as the region holds it, so that a file of no format,
+        // compared by its bytes, finds the block that it wrote.
+        Kind::Region { file, block } => Found::Block {
+            file: file.clone(),
+            text: Markers::body(block),
+        },
         // An op that owns entries but has none (e.g. a hook event the tool no
         // longer uses) expects nothing: its old entries make the part stale.
         Kind::Merge { ops, .. } => Found::Entries(
@@ -119,7 +131,10 @@ pub(crate) fn observe(root: &Path, part: &Part, path: &str, markers: &Markers) -
             }
         }
         Kind::Region { .. } => match read_text(&fs_path)?.and_then(|t| markers.find(&t)) {
-            Some(block) => Observed::Present(Found::Block(block)),
+            Some(text) => Observed::Present(Found::Block {
+                file: path.to_string(),
+                text,
+            }),
             None => Observed::Absent,
         },
         Kind::Merge { ops, .. } => match read_text(&fs_path)? {
@@ -140,233 +155,158 @@ pub(crate) fn observe(root: &Path, part: &Part, path: &str, markers: &Markers) -
     })
 }
 
-/// The words of a text: whitespace-insensitive comparison.
-fn words(text: &str) -> impl Iterator<Item = &str> {
-    text.split_whitespace()
+/// A content's fingerprints: one, or one for each file of a file part.
+enum Prints {
+    One(same_same::Fingerprint),
+    Files(Vec<(String, same_same::Fingerprint)>),
 }
 
-/// Whether two contents are equal: files and text line endings aside, a
-/// block by its words.
+/// A merge part's entries as compact JSON with the keys of each object
+/// sorted, whose plain hash the record keeps.
+fn entries_text(entries: &[Value]) -> String {
+    let mut value = Value::Array(entries.to_vec());
+    value.sort_all_objects();
+    value.to_string()
+}
+
+/// The fingerprints of a content: a file's by its name, a block's as
+/// Markdown of its own, an external text's by its bytes, and the plain hash
+/// of a merge part's entries.
+fn prints(content: &Found) -> Prints {
+    match content {
+        Found::Files(files) => Prints::Files(
+            files
+                .iter()
+                .map(|(path, text)| (path.clone(), meaning::file(path, text)))
+                .collect(),
+        ),
+        Found::Block { file, text } => Prints::One(meaning::block(file, text)),
+        Found::Entries(entries) => Prints::One(meaning::plain(entries_text(entries).as_bytes())),
+        Found::Text(text) => Prints::One(meaning::text(text)),
+    }
+}
+
+/// Whether two contents mean the same: each file of a file part by its
+/// path and meaning, a block and an external text by their meaning, and
+/// entries by their value.
 // sokf-implements: KIT-3_AC-2
-fn equal(a: &Found, b: &Found) -> bool {
-    match (a, b) {
-        (Found::Files(x), Found::Files(y)) => {
+fn equal(a: &Found, prints_a: &Prints, b: &Found) -> bool {
+    match (a, prints_a, b) {
+        (Found::Entries(x), _, Found::Entries(y)) => x == y,
+        (Found::Files(_), Prints::Files(x), Found::Files(_)) => {
+            let Prints::Files(y) = prints(b) else {
+                return false;
+            };
             x.len() == y.len()
                 && x.iter()
-                    .zip(y)
-                    .all(|((p, s), (q, t))| p == q && normalise(s) == normalise(t))
+                    .zip(&y)
+                    .all(|((p, s), (q, t))| p == q && meaning::same(s, t))
         }
-        (Found::Block(x), Found::Block(y)) => words(x).eq(words(y)),
-        (Found::Entries(x), Found::Entries(y)) => x == y,
-        (Found::Text(x), Found::Text(y)) => normalise(x) == normalise(y),
+        (Found::Block { .. }, Prints::One(x), Found::Block { .. })
+        | (Found::Text(_), Prints::One(x), Found::Text(_)) => {
+            let Prints::One(y) = prints(b) else {
+                return false;
+            };
+            meaning::same(x, &y)
+        }
         _ => false,
     }
 }
 
+/// What the record says of a content found, by its fingerprints: each file
+/// of a file part that the record holds and the tool still wants is found,
+/// each file found is recorded and is what its recorded value holds, and a
+/// recorded file that the tool no longer wants is left out; any other
+/// part's content is what its one value holds.
+fn vouch(recorded: &Recorded, found: &Prints, expected: &Found) -> Vouch {
+    match (recorded, found, expected) {
+        (Recorded::One(value), Prints::One(print), _) => {
+            let wanted = match prints(expected) {
+                Prints::One(w) => Some(w),
+                Prints::Files(_) => None,
+            };
+            meaning::vouch(value, print, wanted.as_ref())
+        }
+        (Recorded::Files(values), Prints::Files(prints), Found::Files(wanted)) => {
+            let missing = wanted.iter().any(|(path, _)| {
+                values.contains_key(path) && !prints.iter().any(|(p, _)| p == path)
+            });
+            if missing || prints.iter().any(|(p, _)| !values.contains_key(p)) {
+                return Vouch::Differs;
+            }
+            let vouches: Vec<Vouch> = prints
+                .iter()
+                .map(|(path, print)| {
+                    let wanted = wanted
+                        .iter()
+                        .find(|(p, _)| p == path)
+                        .map(|(p, t)| meaning::file(p, t));
+                    meaning::vouch(&values[path], print, wanted.as_ref())
+                })
+                .collect();
+            if vouches.contains(&Vouch::Differs) {
+                Vouch::Differs
+            } else {
+                vouches
+                    .into_iter()
+                    .find(|v| matches!(v, Vouch::Unusable(_)))
+                    .unwrap_or(Vouch::Holds)
+            }
+        }
+        // A string of 0.4.0's form for a file part is a hash of 0.4.0; any
+        // other value of the wrong shape is one of another form.
+        (Recorded::One(value), Prints::Files(_), _)
+            if value.parse::<same_same::Fingerprint>().is_err() =>
+        {
+            Vouch::Unusable(Unusable::Old)
+        }
+        _ => Vouch::Unusable(Unusable::Shape),
+    }
+}
+
 /// The state of a part from what the tree holds, the tool's content and the
-/// recorded hash.
+/// recorded value, with why the record could not tell an edit from the
+/// tool's earlier content where that made the part edited.
+// sokf-implements: KIT-3_AC-10
 pub(crate) fn state(
     observed: &Observed,
     expected: &Found,
-    recorded: Option<&str>,
+    recorded: Option<&Recorded>,
     declined: bool,
-) -> State {
+) -> (State, Option<Unusable>) {
     if declined {
-        return State::Skipped;
+        return (State::Skipped, None);
     }
-    match observed {
-        Observed::Absent => State::Absent,
-        Observed::Present(found) => {
-            if equal(found, expected) {
-                State::Current
-            } else if recorded.is_some_and(|h| h == hash(found)) {
-                State::Stale
-            } else {
-                State::Edited
-            }
-        }
+    let Observed::Present(found) = observed else {
+        return (State::Absent, None);
+    };
+    let found_prints = prints(found);
+    if equal(found, &found_prints, expected) {
+        return (State::Current, None);
+    }
+    match recorded.map(|r| vouch(r, &found_prints, expected)) {
+        Some(Vouch::Holds) => (State::Stale, None),
+        Some(Vouch::Unusable(why)) => (State::Edited, Some(why)),
+        Some(Vouch::Differs) | None => (State::Edited, None),
     }
 }
 
-/// The FNV-1a hash of a content, as `fnv1a64:` and sixteen hex digits:
-/// files with LF line endings and their paths; a block's words joined by
-/// single spaces; entries as compact JSON; text with LF line endings.
-pub(crate) fn hash(content: &Found) -> String {
-    let mut h = Fnv::new();
-    match content {
-        Found::Files(files) => {
-            for (path, text) in files {
-                h.update(path.as_bytes());
-                h.update(&[0]);
-                h.update(normalise(text).as_bytes());
-                h.update(&[0]);
-            }
-        }
-        Found::Block(text) => h.update(words(text).collect::<Vec<_>>().join(" ").as_bytes()),
-        Found::Entries(v) => h.update(Value::Array(v.clone()).to_string().as_bytes()),
-        Found::Text(text) => h.update(normalise(text).as_bytes()),
+/// The value that the record keeps of a content: the fingerprint of a
+/// region's block or an external text, the plain hash of a merge part's
+/// entries, or a table of each file's fingerprint by its path in the part,
+/// each in `same-same`'s text form.
+// sokf-implements: KIT-3_AC-9
+pub(crate) fn hash(content: &Found) -> Recorded {
+    match prints(content) {
+        Prints::One(print) => Recorded::One(print.to_string()),
+        Prints::Files(files) => Recorded::Files(
+            files
+                .into_iter()
+                .map(|(path, print)| (path, print.to_string()))
+                .collect::<BTreeMap<_, _>>(),
+        ),
     }
-    h.render()
 }
 
 #[cfg(test)]
-mod tests {
-    use proptest::prelude::*;
-
-    use super::*;
-    use crate::hash::hash_text;
-
-    fn block(s: &str) -> Found {
-        Found::Block(s.into())
-    }
-
-    #[test]
-    fn the_hash_is_fnv1a() {
-        assert_eq!(hash(&block("")), "fnv1a64:cbf29ce484222325");
-        assert_eq!(hash(&block("a")), "fnv1a64:af63dc4c8601ec8c");
-        // A block hashes its words.
-        assert_eq!(hash(&block("x\r\n  y\n")), hash(&block("x y")));
-        // Files hash their paths too, so a rename changes the hash.
-        let a = Found::Files(vec![("A.md".into(), "t\n".into())]);
-        let b = Found::Files(vec![("B.md".into(), "t\r\n".into())]);
-        assert_ne!(hash(&a), hash(&b));
-        let e = Found::Entries(vec![serde_json::json!({"a": [1, 2]})]);
-        assert_eq!(hash(&e), hash_text("[{\"a\":[1,2]}]"));
-        assert_eq!(hash(&Found::Text("t\r\n".into())), hash_text("t\n"));
-    }
-
-    // sokf-tests: KIT-3_AC-2
-    #[test]
-    fn a_block_is_compared_by_words() {
-        let expected = block("Use the tool.\nAlways.\n");
-        let reflowed = Observed::Present(block("Use  the\ntool.   Always.\r\n\n"));
-        assert_eq!(state(&reflowed, &expected, None, false), State::Current);
-        let other = Observed::Present(block("Use a tool. Always."));
-        assert_eq!(state(&other, &expected, None, false), State::Edited);
-    }
-
-    // sokf-tests: KIT-3_AC-1
-    #[test]
-    fn each_row_of_the_state_table() {
-        let expected = block("new\n");
-        let old = block("old\n");
-        let recorded = hash(&old);
-        assert_eq!(
-            state(&Observed::Present(expected.clone()), &expected, None, true),
-            State::Skipped
-        );
-        assert_eq!(
-            state(&Observed::Absent, &expected, None, false),
-            State::Absent
-        );
-        assert_eq!(
-            state(&Observed::Present(block("new\r\n")), &expected, None, false),
-            State::Current
-        );
-        assert_eq!(
-            state(
-                &Observed::Present(old.clone()),
-                &expected,
-                Some(&recorded),
-                false
-            ),
-            State::Stale
-        );
-        assert_eq!(
-            state(&Observed::Present(old.clone()), &expected, None, false),
-            State::Edited
-        );
-        assert_eq!(
-            state(
-                &Observed::Present(block("other\n")),
-                &expected,
-                Some(&recorded),
-                false
-            ),
-            State::Edited
-        );
-        assert_eq!(
-            state(
-                &Observed::Present(Found::Files(vec![])),
-                &expected,
-                None,
-                false
-            ),
-            State::Edited
-        );
-        let files = Found::Files(vec![("a".into(), "x\n".into())]);
-        assert_eq!(
-            state(
-                &Observed::Present(Found::Files(vec![("a".into(), "x\r\n".into())])),
-                &files,
-                None,
-                false
-            ),
-            State::Current
-        );
-        assert_eq!(
-            state(
-                &Observed::Present(Found::Text("a\r\n".into())),
-                &Found::Text("a\n".into()),
-                None,
-                false
-            ),
-            State::Current
-        );
-        assert_eq!(State::Stale.as_str(), "stale");
-        assert_eq!(serde_json::to_string(&State::Edited).unwrap(), "\"edited\"");
-    }
-
-    fn arb_block() -> impl Strategy<Value = String> {
-        prop::collection::vec("[a-zA-Z.][a-zA-Z .]{0,19}", 1..4)
-            .prop_map(|lines| format!("{}\n", lines.join("\n")))
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(256))]
-
-        // sokf-tests: KIT_P-3
-        #[test]
-        fn states_partition(found in prop::option::of(arb_block()), recorded_of_found in any::<bool>(), declined in any::<bool>()) {
-            let expected = Found::Block("embedded\n".into());
-            let observed = match &found {
-                Some(b) => Observed::Present(Found::Block(b.clone())),
-                None => Observed::Absent,
-            };
-            let recorded = match &found {
-                Some(b) if recorded_of_found => Some(hash(&Found::Block(b.clone()))),
-                _ => Some("fnv1a64:0000000000000000".to_string()),
-            };
-            let got = state(&observed, &expected, recorded.as_deref(), declined);
-            let want = if declined {
-                State::Skipped
-            } else if found.is_none() {
-                State::Absent
-            } else if found.as_deref().unwrap().split_whitespace().eq(["embedded"]) {
-                State::Current
-            } else if recorded_of_found {
-                State::Stale
-            } else {
-                State::Edited
-            };
-            prop_assert_eq!(got, want);
-            let h = hash(&expected);
-            prop_assert_eq!(state(&Observed::Present(expected.clone()), &expected, Some(&h), false), State::Current);
-        }
-
-        // sokf-tests: KIT_P-4
-        #[test]
-        fn a_reflowed_block_is_current(block in arb_block(), seps in prop::collection::vec(prop::sample::select(vec![" ", "  ", "\n", "\r\n", "\t", " \n\n"]), 1..40)) {
-            let words: Vec<&str> = block.split_whitespace().collect();
-            let mut reflowed = String::new();
-            for (i, w) in words.iter().enumerate() {
-                reflowed.push_str(w);
-                reflowed.push_str(seps[i % seps.len()]);
-            }
-            let expected = Found::Block(block.clone());
-            let found = Found::Block(reflowed);
-            prop_assert_eq!(state(&Observed::Present(found.clone()), &expected, None, false), State::Current);
-            prop_assert_eq!(hash(&found), hash(&expected));
-        }
-    }
-}
+mod tests;

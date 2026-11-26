@@ -9,6 +9,10 @@ license.workspace = true
 repository.workspace = true
 publish = false
 
+# Tested from Node, so the Rust coverage leaves it out.
+[package.metadata.coverage]
+skip = true
+
 [lib]
 crate-type = ["cdylib"]
 # The addon's symbols come from Node at load time: a test binary could not

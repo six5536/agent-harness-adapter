@@ -149,10 +149,11 @@ pub(crate) fn stdin_text(h: &dyn Harness, input: &HookInput) -> String {
 /// nothing on stderr is named, so the user sees why it allowed.
 pub(crate) fn read(event: Event, tool: &str, ran: &Ran) -> wire::Reply {
     let mut reply = wire::parse_answer(event, ran.exit, &ran.stdout, &ran.stderr);
-    if !matches!(ran.exit, 0 | 2) && ran.stderr.trim().is_empty() {
-        if let Answer::Allow { stderr } = &mut reply.answer {
-            *stderr = Some(format!("{tool}: exited with {}\n", ran.exit));
-        }
+    if !matches!(ran.exit, 0 | 2)
+        && ran.stderr.trim().is_empty()
+        && let Answer::Allow { stderr } = &mut reply.answer
+    {
+        *stderr = Some(format!("{tool}: exited with {}\n", ran.exit));
     }
     reply
 }

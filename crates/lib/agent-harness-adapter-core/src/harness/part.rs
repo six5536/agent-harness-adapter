@@ -13,7 +13,8 @@ pub trait ExternalPart: fmt::Debug + Send + Sync {
     /// Where the part lives, as the report shows it, e.g. `claude mcp (user)`.
     fn location(&self) -> String;
     /// The content the tool wants, compared with what [`observe`] returns
-    /// (line endings aside) and hashed into the record.
+    /// by its text, line endings and a byte order mark aside, and
+    /// fingerprinted into the record.
     ///
     /// [`observe`]: ExternalPart::observe
     fn expected(&self) -> String;

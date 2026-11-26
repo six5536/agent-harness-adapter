@@ -1,26 +1,80 @@
 name: Set up the tools
-description: Keeps the tools in one folder and installs what is missing.
+description: >-
+  Keeps the tools in one folder and installs what is missing. Where the project has the
+  local action cache-restore, it runs it before the install and again after it.
 
 inputs:
   tools:
     description: The tools to install, such as node. By default, every tool.
     required: false
     default: ""
+  cache-s3-access-key-id:
+    description: The key id of the S3 store of the pack ci-cache-s3, which only its action cache-restore gets.
+    required: false
+    default: ""
+  cache-s3-secret-access-key:
+    description: The secret key of the S3 store of the pack ci-cache-s3, which only its action cache-restore gets.
+    required: false
+    default: ""
 
 runs:
   using: composite
   steps:
+    # A job that names its tools uses only those, because mise refuses to install a tool
+    # while a tool that its backend uses and the mise files pin is missing, such as the
+    # sccache of the Rust pack for a cargo: tool.
     - name: Keep the tools in one folder
       shell: bash
+      env:
+        JOB_TOOLS: ${{ inputs.tools }}
       run: |
         TOOLS="${USERPROFILE:-$HOME}/.tools"
         {
           echo "MISE_DATA_DIR=$TOOLS/mise"
           echo "MISE_RUSTUP_HOME=$TOOLS/rustup"
           echo "npm_config_cache=$TOOLS/npm"
+          # npm writes a log of each run into its cache by default, which would change the
+          # cache of the tools in every job.
+          echo "npm_config_logs_dir=$RUNNER_TEMP/npm-logs"
+          echo "MISE_DISABLE_TOOLS=${MISE_DISABLE_TOOLS:+$MISE_DISABLE_TOOLS,}npm:@anthropic-ai/claude-code"
+          set -f
+          # MISE_ENABLE_TOOLS names each tool without its version, such as node of
+          # node@22, but keeps the scope of a package, such as npm:@scope/name.
+          # shellcheck disable=SC2086 # Each word of the list is a tool.
+          set -- $JOB_TOOLS
+          for tool do
+            shift
+            name="${tool%@*}"
+            case "${tool##*@}" in
+              */*) name="$tool" ;;
+            esac
+            if [ -z "${name##*:}" ]; then
+              name="$tool"
+            fi
+            set -- "$@" "$name"
+          done
+          if [ "$#" -gt 0 ]; then
+            IFS=,
+            echo "MISE_ENABLE_TOOLS=${MISE_ENABLE_TOOLS:+$MISE_ENABLE_TOOLS,}$*"
+          fi
         } >> "$GITHUB_ENV"
+    - name: Restore the caches
+      if: hashFiles('.github/actions/cache-restore/action.yml') != ''
+      uses: ./.github/actions/cache-restore
+      with:
+        tools: ${{ inputs.tools }}
+        access-key-id: ${{ inputs.cache-s3-access-key-id }}
+        secret-access-key: ${{ inputs.cache-s3-secret-access-key }}
     - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
       with:
         version: 2026.11.4
         cache: false
         install_args: ${{ inputs.tools }}
+    - name: Cache the build
+      if: hashFiles('.github/actions/cache-restore/action.yml') != ''
+      uses: ./.github/actions/cache-restore
+      with:
+        tools: ${{ inputs.tools }}
+        access-key-id: ${{ inputs.cache-s3-access-key-id }}
+        secret-access-key: ${{ inputs.cache-s3-secret-access-key }}
+        phase: build

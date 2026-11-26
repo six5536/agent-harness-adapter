@@ -8,7 +8,7 @@ use crate::{
     harness::{
         Action, InstallResult, PartResult, Scope, State, Tool,
         file::render_files,
-        install::{Covered, Examined, Force, Run, existing_text, installed, run},
+        install::{Covered, Examined, Force, Run, existing_text, installed, run, unusable_warning},
         merge::render_unmerge,
         part::Kind,
         record::render_record,
@@ -170,6 +170,9 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
             State::Edited => opts.force,
             _ => false,
         };
+        if !wanted {
+            warnings.extend(unusable_warning(&run, e, true));
+        }
         let users = if wanted {
             users(&run, &shared, e)
                 .into_iter()
@@ -218,8 +221,8 @@ pub fn uninstall<T: Tool + ?Sized>(tool: &T, opts: &UninstallOptions) -> Result<
         ));
     }
     let mut record = run.record.clone();
-    // A kept part's hash goes to the harnesses whose own part is there, so
-    // a later install finds it stale, not edited.
+    // A kept part's value goes, whole, to the harnesses whose own part is
+    // there, so a later install finds it stale, not edited.
     // sokf-implements: KIT-22_AC-4
     for (from, part, users) in &kept {
         let Some(hash) = run.record.harnesses.get(from).and_then(|t| t.get(part)) else {

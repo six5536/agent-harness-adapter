@@ -3,6 +3,9 @@
 //! Factory Droid, Pi, OpenCode, Kilo Code, Qwen Code, Devin, and any agent
 //! that reads `AGENTS.md`).
 //!
+//! **This crate is unstable.** It is at a 0.x version, and its interface can
+//! change in any release.
+//!
 //! - [`integration`]: what a tool installs, declared once without naming a
 //!   harness.
 //! - [`harness`]: the [`Harness`] contract, the parts a harness renders,
@@ -26,9 +29,9 @@
 pub struct ReadmeDoctests;
 
 mod common;
+mod eol;
 mod error;
 mod follow;
-mod hash;
 #[cfg(test)]
 mod test_support;
 

@@ -49,10 +49,11 @@ fn file_names(text: Option<String>, display: &str) -> Result<Option<Vec<String>>
 /// instructions go in: `AGENTS.md` when listed, else the first.
 pub(crate) fn context_files(cx: &Context, layout: &ContextLayout) -> Result<(String, Vec<String>)> {
     let mut names = file_names(read_text(&cx.path(layout.settings))?, layout.settings)?;
-    if names.is_none() && cx.scope == Scope::Project {
-        if let Some(path) = cx.user_path(layout.settings) {
-            names = file_names(read_text(&path)?, layout.user_display)?;
-        }
+    if names.is_none()
+        && cx.scope == Scope::Project
+        && let Some(path) = cx.user_path(layout.settings)
+    {
+        names = file_names(read_text(&path)?, layout.user_display)?;
     }
     let names = names.unwrap_or_else(|| layout.default.iter().map(|n| (*n).to_string()).collect());
     let dir = if cx.scope == Scope::User {

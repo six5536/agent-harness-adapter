@@ -1,6 +1,6 @@
 [package]
 name = "agent-harness-adapter-core"
-description = "One agent setup, every coding agent: install instructions, skills and hooks, declared once or read from AGENTS.md and .agents/, into Claude Code, Codex, Gemini CLI, Copilot, Cursor, OpenCode and more; hooks speak Claude Code's protocol everywhere."
+description = "One agent setup, every coding agent: install instructions, skills and hooks, declared once or read from AGENTS.md and .agents/, into Claude Code, Codex, Gemini CLI, Copilot, Cursor, OpenCode and more; hooks speak Claude Code's protocol everywhere. Unstable: its interface can change in any release."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -15,6 +15,8 @@ categories = ["command-line-utilities", "development-tools"]
 include = ["/src", "/README.md", "/LICENSE"]
 
 [dependencies]
+jsonc-parser.workspace = true
+same-same.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 toml_edit.workspace = true

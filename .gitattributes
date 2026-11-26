@@ -1,5 +1,4 @@
 # Every text file is checked out with LF line endings on every system, so the
-# templates the build embeds (the Pi extension, the OpenCode plugin), the
-# checked-in schemas and the fixtures the tests compare are the same bytes on
+# fixtures and the generated files that the tests compare are the same bytes on
 # Windows as on Linux and macOS, whatever the user's core.autocrlf.
 * text=auto eol=lf

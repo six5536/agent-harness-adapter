@@ -18,6 +18,11 @@ function isNamed(value: unknown): value is { name: string } {
   );
 }
 
+// The step that runs the task `name`.
+export function taskStep(name: string): Step {
+  return { name, command: ["mise", "run", "-q", name], runs: true };
+}
+
 export function taskSteps(prefix: string): Step[] {
   const listing = spawnSync("mise", ["tasks", "ls", "--json", "--hidden"], { encoding: "utf8" });
   if (listing.status !== 0) {
@@ -39,7 +44,7 @@ export function taskSteps(prefix: string): Step[] {
     .filter((task) => isNamed(task))
     .map((task) => task.name)
     .filter((name) => name.startsWith(prefix))
-    .map((name) => ({ name, command: ["mise", "run", "-q", name], runs: true }));
+    .map((name) => taskStep(name));
 }
 
 // Returns whether `step` runs, given the names of the steps to skip.

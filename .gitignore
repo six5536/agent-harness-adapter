@@ -18,19 +18,18 @@ dist/
 packages/*-*/bin/
 *.tsbuildinfo
 
+__pycache__/
+.venv/
+
 /target
+*.profraw
 **/*.rs.bk
 
 # Local checkouts of the private consumers (tests/consumers/validate-consumers.sh)
 /consumers/
 
-# Coverage artefacts of cargo-llvm-cov
-*.profraw
-
 # The Python binding, built with maturin
-__pycache__/
 *.so
-.venv/
 
 # The Node addons, built locally or staged by a release
 *.node

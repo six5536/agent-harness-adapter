@@ -3,5 +3,5 @@ import { projectIgnorePatterns } from "./.config/oxc/ignore.mts";
 
 export default {
   extends: [base],
-  ignorePatterns: [".sokf/**", "packs/*/files/**", ...projectIgnorePatterns()],
+  ignorePatterns: [".sokf/**", ".pakf/**", "packs/*/files/**", ...projectIgnorePatterns()],
 };

@@ -1,11 +1,11 @@
-//! The loop guard of a blocking hook: the hash of the last text the hook
+//! The loop guard of a blocking hook: the plain hash of the last text the hook
 //! blocked on, one file per key (a repository, a session) in a directory the
 //! caller chooses. A hook that would block twice on the same text lets the
 //! agent stop instead.
 
 use std::{fs, path::PathBuf};
 
-use crate::hash::{Fnv, hash_text};
+use crate::{eol::normalise, harness};
 
 /// A loop guard whose files live in one directory.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,7 +22,7 @@ impl LoopGuard {
     }
 
     /// The guard file of `key`: the key itself when it is short and made of
-    /// `[A-Za-z0-9_-]`, else its hash.
+    /// `[A-Za-z0-9_-]`, else the hexadecimal digits of its plain hash.
     fn path(&self, key: &str) -> PathBuf {
         let safe = !key.is_empty()
             && key.len() <= 64
@@ -32,9 +32,7 @@ impl LoopGuard {
         let name = if safe {
             key.to_string()
         } else {
-            let mut h = Fnv::new();
-            h.update(key.as_bytes());
-            h.render().replace(':', "-")
+            harness::digits(key.as_bytes())
         };
         self.dir.join(format!("{name}.hash"))
     }
@@ -65,11 +63,11 @@ impl LoopGuard {
     }
 
     /// Whether the hook should block on `text` for `key`: `false` when it
-    /// blocked on the same text last time; otherwise `true`, and the text's
-    /// hash is recorded.
+    /// blocked on the same text last time; otherwise `true`, and the plain
+    /// hash of the text with LF line endings is recorded.
     // sokf-implements: KIT-12_AC-1
     pub fn should_block(&self, key: &str, text: &str) -> bool {
-        let hash = hash_text(text);
+        let hash = harness::plain(normalise(text).as_bytes()).to_string();
         if self.read(key).as_deref() == Some(hash.as_str()) {
             return false;
         }
@@ -91,8 +89,8 @@ mod tests {
         let dir = temp_dir("guard");
         let guard = LoopGuard::new(dir.join("cache"));
         assert_eq!(guard.read("repo"), None);
-        guard.write("repo", "fnv1a64:01");
-        assert_eq!(guard.read("repo").as_deref(), Some("fnv1a64:01"));
+        guard.write("repo", "ss1:bytes:01");
+        assert_eq!(guard.read("repo").as_deref(), Some("ss1:bytes:01"));
         assert_eq!(
             fs::read_to_string(dir.join("cache/.gitignore")).unwrap(),
             "*\n"
@@ -100,9 +98,26 @@ mod tests {
         assert!(dir.join("cache/repo.hash").is_file());
         // Keys are separate; an unsafe key is hashed into a file name.
         assert_eq!(guard.read("other"), None);
-        guard.write("a/../b c", "fnv1a64:02");
-        assert_eq!(guard.read("a/../b c").as_deref(), Some("fnv1a64:02"));
+        guard.write("a/../b c", "ss1:bytes:02");
+        assert_eq!(guard.read("a/../b c").as_deref(), Some("ss1:bytes:02"));
         assert!(!dir.join("b c.hash").exists());
+        // Its file is named by the 32 hexadecimal digits of its plain hash.
+        let names: Vec<String> = fs::read_dir(dir.join("cache"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n != ".gitignore" && n != "repo.hash" && n != "other.hash")
+            .collect();
+        assert_eq!(names.len(), 1, "{names:?}");
+        let stem = names[0].strip_suffix(".hash").unwrap();
+        assert_eq!(stem.len(), 32, "{stem}");
+        assert!(stem.bytes().all(|b| b.is_ascii_hexdigit()), "{stem}");
+        // Keys that differ only in a CRLF are two keys.
+        guard.write("a\r\nb", "ss1:bytes:04");
+        assert_eq!(guard.read("a\nb"), None);
+        let long = "k".repeat(65);
+        guard.write(&long, "ss1:bytes:03");
+        assert_eq!(guard.read(&long).as_deref(), Some("ss1:bytes:03"));
+        assert!(!dir.join("cache").join(format!("{long}.hash")).exists());
         guard.clear("repo");
         assert_eq!(guard.read("repo"), None);
         fs::remove_dir_all(&dir).unwrap();
@@ -116,6 +131,8 @@ mod tests {
         assert!(guard.should_block("s1", "2 errors"));
         assert!(!guard.should_block("s1", "2 errors"));
         assert!(!guard.should_block("s1", "2 errors\r\n".trim_end()));
+        assert!(guard.should_block("s3", "2 errors\n3 more\n"));
+        assert!(!guard.should_block("s3", "2 errors\r\n3 more\r\n"));
         assert!(guard.should_block("s2", "2 errors"));
         assert!(guard.should_block("s1", "1 error"));
         assert!(guard.should_block("s1", "2 errors"));

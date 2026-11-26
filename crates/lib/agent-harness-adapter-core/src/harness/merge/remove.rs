@@ -9,7 +9,7 @@ use super::{
     is_toml,
     json::{indent_of, is_tool_entry, json_text, parse_json},
     op::{MergeOp, Op},
-    parse_toml,
+    parse_toml, splice,
     toml::members,
 };
 use crate::Result;
@@ -88,7 +88,8 @@ fn prune_json(doc: &mut Value, path: &[String]) {
     }
 }
 
-/// `existing` with `ops` taken out, in its style. `None` when nothing
+/// `existing` with `ops` taken out, only their text and that of each
+/// container left empty removed. `None` when nothing
 /// changes; an empty string when the file is left empty (an empty object).
 fn render_json_unmerge(existing: &str, ops: &[MergeOp], display: &str) -> Result<Option<String>> {
     let mut doc = parse_json(display, existing)?;
@@ -102,7 +103,10 @@ fn render_json_unmerge(existing: &str, ops: &[MergeOp], display: &str) -> Result
     if is_empty_container(&doc) {
         return Ok(Some(String::new()));
     }
-    let out = json_text(&doc, &indent_of(existing), existing.ends_with('\n'));
+    let indent = indent_of(existing);
+    // sokf-implements: KIT-10_AC-7
+    let out = splice::patch(existing, &before, &doc, &indent)
+        .unwrap_or_else(|| json_text(&doc, &indent, existing.ends_with('\n')));
     Ok((out != existing).then_some(out))
 }
 
